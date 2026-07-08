@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE metadata SYSTEM "http://www.fgdc.gov/metadata/fgdc-std-001-1998.dtd">
+<metadata>
+    <idinfo>
+        <citation>
+            <citeinfo>
+                <origin>PNN</origin>
+                <pubdate>2022</pubdate>
+                <pubtime>2032</pubtime>
+                <title>Reserva Natural Cantares</title>
+                <edition>baef470f</edition>
+                <geoform>Vector digital data</geoform>
+                <serinfo>
+                    <sername>1</sername>
+                    <issue>No establecida</issue>
+                </serinfo>
+                <pubinfo>
+                    <pubplace>No publicado</pubplace>
+                    <publish>Sin informacion</publish>
+                </pubinfo>
+                <othercit>No information</othercit>
+                <onlink>http://www.esri.com/metadata/esriprof80.html</onlink>
+            </citeinfo>
+        </citation>
+        <descript>
+            <abstract>Límite de la Reserva Natural de la Sociedad Civil Cantares, a nombre del predio Sin Dirección - Casa de ZINC</abstract>
+            <purpose>Identificación del límite de la Reserva Natural de la Sociedad Civil Cantares, ubicada en el municipio de Manizales, departamento de Caldas&#13;
+</purpose>
+            <supplinf>La información fue suministrada por el  GTEA – GGCI, registrada en el año 2020 con la resolución No. 201 (14 diciembre de 2021).</supplinf>
+        </descript>
+        <timeperd>
+            <timeinfo>
+                <sngdate>
+                    <caldate>2022</caldate>
+                    <time>2032</time>
+                </sngdate>
+            </timeinfo>
+            <current>2022</current>
+        </timeperd>
+        <status>
+            <progress>Complete</progress>
+            <update>Anualmente</update>
+        </status>
+        <spdom>
+            <bounding>
+                <westbc>-75.453949</westbc>
+                <eastbc>-75.44674</eastbc>
+                <northbc>5.085189</northbc>
+                <southbc>5.078514</southbc>
+            </bounding>
+        </spdom>
+        <keywords>
+            <theme>
+                <themekt>No especificado</themekt>
+                <themekey>Colombia&#13;
+SINAP&#13;
+Reserva Natural de la Sociedad Civil&#13;
+</themekey>
+            </theme>
+            <place>
+                <placekt>No especificado</placekt>
+                <placekey>Cantares &#13;
+Departamento de Caldas&#13;
+Municipio de Manizales&#13;
+</placekey>
+            </place>
+        </keywords>
+        <accconst>A la información se puede acceder de manera libre, haciendo la solicitud directamente a la entidad o descargándola desde el visor de Parques Nacionales.</accconst>
+        <useconst>El usuario se compromete a hacer referencia bibliográfica del origen de esta información.</useconst>
+        <ptcontac>
+            <cntinfo>
+                <cntorgp>
+                    <cntorg>PNN</cntorg>
+                    <cntper>Adriana Esther Pedraza Martínez </cntper>
+                </cntorgp>
+                <cntpos>Contratista</cntpos>
+                <cntaddr>
+                    <addrtype>Física</addrtype>
+                    <address>Calle 74 No. 11 - 81</address>
+                    <city>BOGOTÁ, D.C.</city>
+                    <state>BOGOTÁ D.C.</state>
+                    <postal>110221</postal>
+                    <country>Colombia</country>
+                </cntaddr>
+                <cntvoice>3532400</cntvoice>
+                <cntfax>3532400 Ext 3111</cntfax>
+                <cntemail>runap.cartografico@parquesnacionales.gov.co</cntemail>
+                <hours>2032</hours>
+                <cntinst>Se puede comunicar a los teléfonos de la entidad&#13;
+Horario de atención de Lunes a Viernes 8:00 am a 5:30 pm&#13;
+o mediante correo electrónico.&#13;
+runap.cartografico@parquesnacionales.com.co&#13;
+</cntinst>
+            </cntinfo>
+        </ptcontac>
+        <datacred>Parques Nacionales Naturales de Colombia. 2022</datacred>
+        <secinfo>
+            <secsys>No posee sistema de clasificación.</secsys>
+            <secclass>Sin clasificar</secclass>
+            <sechandl>La información digital no tiene protocolos de seguridad para su manejo luego de ser entregada al usuario.</sechandl>
+        </secinfo>
+        <native>Microsoft Windows XP Version 5.1 (Build 2600) Service Pack 3; ESRI ArcCatalog 9.3.0.1770</native>
+        <crossref>
+            <citeinfo>
+                <origin>PNN</origin>
+                <pubdate>2022</pubdate>
+                <pubtime>2032</pubtime>
+                <title>Reserva Natural Cantares</title>
+                <edition>baef470f</edition>
+                <geoform>map</geoform>
+                <serinfo>
+                    <sername>1</sername>
+                    <issue>No establecida</issue>
+                </serinfo>
+                <pubinfo>
+                    <pubplace>No establecido</pubplace>
+                    <publish>No establecido</publish>
+                </pubinfo>
+                <othercit>Ninguno</othercit>
+            </citeinfo>
+        </crossref>
+    </idinfo>
+    <spdoinfo>
+        <direct>Vector</direct>
+        <ptvctinf>
+            <sdtsterm>
+                <sdtstype>G-polygon</sdtstype>
+                <ptvctcnt>1</ptvctcnt>
+            </sdtsterm>
+        </ptvctinf>
+    </spdoinfo>
+    <spref>
+        <horizsys>
+            <planar>
+                <mapproj>
+                    <mapprojn>Transverse Mercator</mapprojn>
+                    <transmer>
+                        <sfctrmer>1.000000</sfctrmer>
+                        <longcm>-74.077508</longcm>
+                        <latprjo>4.596200</latprjo>
+                        <feast>1000000.000000</feast>
+                        <fnorth>1000000.000000</fnorth>
+                    </transmer>
+                </mapproj>
+                <planci>
+                    <plance>coordinate pair</plance>
+                    <coordrep>
+                        <absres>0.000001</absres>
+                        <ordres>0.000001</ordres>
+                    </coordrep>
+                    <plandu>meters</plandu>
+                </planci>
+            </planar>
+            <geodetic>
+                <horizdn>Magna - Sirgas</horizdn>
+                <ellips>GRS 80</ellips>
+                <semiaxis>6378137.000000</semiaxis>
+                <denflat>298.257222</denflat>
+            </geodetic>
+        </horizsys>
+    </spref>
+    <distinfo>
+        <distrib>
+            <cntinfo>
+                <cntorgp>
+                    <cntorg>PNN</cntorg>
+                    <cntper>Adriana Esther Pedraza Martínez </cntper>
+                </cntorgp>
+                <cntpos>Contratista</cntpos>
+                <cntaddr>
+                    <addrtype>Física</addrtype>
+                    <address>Calle 74 No. 11 - 81</address>
+                    <city>BOGOTÁ, D.C.</city>
+                    <state>BOGOTÁ D.C.</state>
+                    <postal>110221</postal>
+                    <country>Colombia</country>
+                </cntaddr>
+                <cntvoice>3532400</cntvoice>
+                <cntfax>3532400 Ext 3111</cntfax>
+                <cntemail>runap.cartografico@parquesnacionales.gov.co</cntemail>
+                <hours>2032</hours>
+                <cntinst>Se puede comunicar a los teléfonos de la entidad&#13;
+Horario de atención de Lunes a Viernes 8:00 am a 5:30 pm&#13;
+o mediante correo electrónico.&#13;
+runap.cartografico@parquesnacionales.com.co&#13;
+</cntinst>
+            </cntinfo>
+        </distrib>
+        <resdesc>resdesc</resdesc>
+        <distliab>El usuario se compromete a  hacer referencia bibliografica del origen de la informacion utilizada y a no generar modificaciones a la informacion entregada.</distliab>
+        <stdorder>
+            <digform>
+                <digtinfo>
+                    <formname>DXF</formname>
+                    <formvern>1</formvern>
+                    <formspec>No information</formspec>
+                    <formcont>No information</formcont>
+                    <filedec>no compression applied</filedec>
+                    <transize>0.206</transize>
+                </digtinfo>    
+                <digtopt>
+                    <onlinopt>
+                        <computer>
+                            <networka>
+                                <networkr>http://runap.parquesnacionales.gov.co</networkr>
+                            </networka>
+                        </computer>
+                        <accinstr>Solicitar acceso</accinstr>
+                        <oncomp>No information</oncomp>
+                    </onlinopt>
+                </digtopt>
+            </digform>
+            <fees>0</fees>
+            <ordering>No information</ordering>
+            <turnarnd>No information</turnarnd>
+        </stdorder>
+        <custom>La información se puede acceder de manera libre, previa solucitud por escrito o vía correo electrónico a la Entidad.</custom>
+        <techpreq>Software GIS.</techpreq>
+        <availabl>
+            <timeinfo>
+                <sngdate>
+                    <caldate>2022</caldate>
+                    <time>2032</time>
+                </sngdate>
+            </timeinfo>
+        </availabl>
+    </distinfo>
+    <metainfo>
+        <metd>20220223</metd>
+        <metrd>20220223</metrd>
+        <metfrd>20220223</metfrd>
+        <metc>
+            <cntinfo>
+                <cntorgp>
+                    <cntorg>PNN</cntorg>
+                    <cntper>Adriana Esther Pedraza Martínez </cntper>
+                </cntorgp>
+                <cntpos>Contratista</cntpos>
+                <cntaddr>
+                    <addrtype>Física</addrtype>
+                    <city>BOGOTÁ, D.C.</city>
+                    <state>BOGOTÁ D.C.</state>
+                    <postal>110221</postal>
+                </cntaddr>
+                <cntvoice>3532400</cntvoice>
+                <cntemail>runap.cartografico@parquesnacionales.gov.co</cntemail>
+                <hours>2032</hours>
+                <cntinst>Se puede comunicar a los teléfonos de la entidad&#13;
+Horario de atención de Lunes a Viernes 8:00 am a 5:30 pm&#13;
+o mediante correo electrónico.&#13;
+runap.cartografico@parquesnacionales.com.co&#13;
+</cntinst>
+            </cntinfo>
+        </metc>
+        <metstdn>FGDC Content Standards for Digital Geospatial Metadata</metstdn>
+        <metstdv>FGDC-STD-001-1998</metstdv>
+        <mettc>local time</mettc>
+        <metac>No information</metac>
+        <metuc>No information</metuc>
+        <metsi>
+            <metscs>No information</metscs>
+            <metsc>Unclassified</metsc>
+            <metshd>No information</metshd>
+        </metsi>
+        <metextns>
+            <onlink>http://www.esri.com/metadata/esriprof80.html</onlink>
+            <metprof>ESRI Metadata Profile</metprof>
+        </metextns>
+    </metainfo>
+</metadata>

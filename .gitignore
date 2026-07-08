@@ -1,0 +1,32 @@
+# --- Transient MCP / WhatsApp artifacts (not part of the project) ---
+*.lock
+mcp-logs.txt
+wa-logs.txt
+*-logs.txt
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- R ---
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# --- Node / PWA build (future app/) ---
+node_modules/
+dist/
+build/
+.vite/
+*.log
+
+# --- Large generated geodata / tiles (regenerated from inputs) ---
+*.pmtiles
+*.mbtiles
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
