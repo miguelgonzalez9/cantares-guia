@@ -1,52 +1,73 @@
 {
   "_meta": {
-    "note": "Definiciones de recorridos temáticos. Cada recorrido filtra senderos y puntos por 'theme'. Los senderos/puntos actuales son MUESTRA — se reemplazan con los trazados GPS reales del propietario.",
-    "themes": ["agua", "arboles", "aves", "restauracion"]
+    "note": "Senderos reales tomados de ortofoto_caminos.pdf.",
+    "themes": [
+      "agua",
+      "arboles",
+      "aves",
+      "restauracion"
+    ]
   },
   "routes": [
     {
-      "id": "agua",
-      "name": "Sendero del Agua",
+      "id": "aguas",
+      "name": "Sendero Las Aguas",
+      "name_en": "Waters Trail",
       "emoji": "💧",
       "color": "#2b8cbe",
       "theme": "agua",
-      "summary": "Nacimientos, quebradas La Peña y La Arenosa, y el bosque ribereño que regula el agua de la cuenca del Río Blanco.",
-      "distance_km": null,
-      "duration_min": null,
-      "difficulty": "media"
+      "summary": "Quebradas, nacimientos y el bosque ribereño que regula el agua de la cuenca del Río Blanco.",
+      "summary_en": "Creeks, springs and the riparian forest that regulates water in the Río Blanco watershed."
     },
     {
-      "id": "arboles",
-      "name": "Sendero de los Árboles",
+      "id": "cascadas",
+      "name": "Sendero Las Cascadas",
+      "name_en": "Waterfalls Trail",
+      "emoji": "🌊",
+      "color": "#1f6f8b",
+      "theme": "agua",
+      "summary": "Baja hasta las cascadas por bosque húmedo de fuerte pendiente.",
+      "summary_en": "Descends to the waterfalls through steep humid forest."
+    },
+    {
+      "id": "encenillos",
+      "name": "Sendero Los Encenillos",
+      "name_en": "Encenillos Trail",
       "emoji": "🌳",
       "color": "#238b45",
       "theme": "arboles",
-      "summary": "Robles, encenillos, helechos arbóreos y drago: los gigantes del bosque muy húmedo montano bajo.",
-      "distance_km": null,
-      "duration_min": null,
-      "difficulty": "media"
+      "summary": "Encenillos, robles y el bosque en restauración camino a la cabaña.",
+      "summary_en": "Encenillo and oak trees and the restoring forest on the way to the cabin."
     },
     {
-      "id": "aves",
-      "name": "Sendero de las Aves",
+      "id": "helechos",
+      "name": "Sendero de Helechos y Orquídeas",
+      "name_en": "Ferns & Orchids Trail",
+      "emoji": "🌿",
+      "color": "#40916c",
+      "theme": "arboles",
+      "summary": "Helechos arbóreos y epífitas en las zonas de mayor humedad.",
+      "summary_en": "Tree ferns and epiphytes in the most humid areas."
+    },
+    {
+      "id": "tororoi",
+      "name": "Sendero Tororoi",
+      "name_en": "Tororoi Trail",
       "emoji": "🐦",
       "color": "#d94801",
       "theme": "aves",
-      "summary": "Barranquero, carpintero de los robles y tángaras. Trae audífonos y la app Merlin para el canto.",
-      "distance_km": null,
-      "duration_min": null,
-      "difficulty": "baja"
+      "summary": "Nombrado por el tororoi; buen sendero para aves de sotobosque. Trae Merlin.",
+      "summary_en": "Named after the antpitta; great for understory birds. Bring Merlin."
     },
     {
-      "id": "restauracion",
-      "name": "Sendero de la Restauración",
-      "emoji": "🌱",
-      "color": "#88419d",
-      "theme": "restauracion",
-      "summary": "De potrero de kikuyo a bosque: recorre las 16,4 ha en restauración y observa la regeneración en marcha.",
-      "distance_km": null,
-      "duration_min": null,
-      "difficulty": "baja"
+      "id": "cabana",
+      "name": "Sendero La Cabaña",
+      "name_en": "Cabin Trail",
+      "emoji": "🏚️",
+      "color": "#8d6e63",
+      "theme": "arboles",
+      "summary": "Conecta la portada, la cabaña y los miradores.",
+      "summary_en": "Connects the entrance, the cabin and the lookouts."
     }
   ]
 }

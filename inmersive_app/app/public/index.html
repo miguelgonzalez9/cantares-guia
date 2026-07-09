@@ -19,55 +19,49 @@
       <img src="icons/icon.svg" alt="" class="brand-mark" />
       <div class="brand-text">
         <strong>Cantares</strong>
-        <span>Reserva Natural</span>
+        <span data-i18n="subtitle">Reserva Natural</span>
       </div>
     </div>
-    <div id="gps-chip" class="gps-chip gps-off" title="Estado del GPS">
-      <span class="dot"></span><span id="gps-label">GPS</span>
+    <div class="header-right">
+      <button id="lang-toggle" class="lang-toggle" title="Language">EN</button>
+      <div id="gps-chip" class="gps-chip gps-off" title="GPS">
+        <span class="dot"></span><span id="gps-label">GPS</span>
+      </div>
     </div>
   </header>
 
   <main id="views">
-    <!-- MAPA / RECORRIDOS -->
+    <!-- RECORRIDOS -->
     <section id="view-recorridos" class="view is-active">
       <div id="map"></div>
-
-      <div id="route-bar" class="route-bar" aria-label="Recorridos temáticos"></div>
-
-      <button id="locate-btn" class="locate-btn" title="Centrar en mi ubicación" aria-label="Mi ubicación">◎</button>
-
+      <div id="route-bar" class="route-bar"></div>
+      <button id="locate-btn" class="locate-btn" title="GPS" aria-label="GPS">◎</button>
       <div id="route-info" class="route-info hidden"></div>
-
       <div id="waypoint-card" class="waypoint-card hidden" role="dialog" aria-live="polite">
         <button class="card-close" id="wp-close" aria-label="Cerrar">×</button>
         <div id="wp-content"></div>
       </div>
-
       <div id="proximity-toast" class="proximity-toast hidden"></div>
     </section>
 
     <!-- RESTAURACIÓN -->
     <section id="view-restauracion" class="view">
       <div class="scroll">
-        <h1>Restauración</h1>
-        <p class="lead">De potrero de kikuyo a bosque. La reserva tiene <strong>16,4 ha en restauración</strong> (52,9% del predio), donde el ganado salió hacia ~2019 y hoy crecen especies nativas.</p>
-
-        <div class="panel" id="ndvi-panel">
-          <h2>🌿 Reverdecimiento (NDVI)</h2>
-          <p class="muted">Serie temporal Sentinel-2 2019 → hoy en la zona de restauración vs. la zona de conservación (control).</p>
-          <div class="placeholder" data-needs="03_ndvi_timeseries.R">Pendiente: correr <code>data_prep/03_ndvi_timeseries.R</code> (requiere <code>rgee</code>/Earth Engine).</div>
-        </div>
-
-        <div class="panel" id="ortho-panel">
-          <h2>🛰️ Antes / después (ortofoto)</h2>
-          <p class="muted">Comparador con la ortofoto fotogramétrica 1:2000 del vuelo de restauración.</p>
-          <div class="placeholder" data-needs="ortofoto">Pendiente: entregar la ortofoto (GeoTIFF) → <code>data_prep/04_ortho_tiles.R</code>.</div>
-        </div>
-
+        <h1 data-i18n="rest_title">Restauración</h1>
+        <p class="lead" data-i18n-html="rest_lead"></p>
         <div class="panel" id="carbon-panel">
-          <h2>🌳 Carbono capturado</h2>
-          <p class="muted">Biomasa aérea → carbono → CO₂e por alometría sobre el inventario de árboles clave (con intervalos de confianza). <em>No usamos "producción de oxígeno": no es una métrica defendible.</em></p>
-          <div class="placeholder" data-needs="05_carbon_allometry.R">Pendiente: inventario de árboles clave (especie, DAP, altura) → <code>data_prep/05_carbon_allometry.R</code>.</div>
+          <h2 data-i18n="carbon_h">🌳 Carbono capturado</h2>
+          <div class="placeholder" data-i18n-html="demo_note"></div>
+        </div>
+        <div class="panel">
+          <h2 data-i18n="ndvi_h">🌿 Reverdecimiento (NDVI)</h2>
+          <p class="muted" data-i18n="ndvi_p"></p>
+          <div class="placeholder" data-i18n-html="ndvi_pending"></div>
+        </div>
+        <div class="panel">
+          <h2 data-i18n="ortho_h">🛰️ Antes / después (ortofoto)</h2>
+          <p class="muted" data-i18n="ortho_p"></p>
+          <img class="illus-map" src="img/mapa_senderos.png" alt="Ortofoto / senderos" loading="lazy" />
         </div>
       </div>
     </section>
@@ -75,15 +69,13 @@
     <!-- ESPECIES -->
     <section id="view-especies" class="view">
       <div class="scroll">
-        <h1>Especies</h1>
-        <p class="lead">Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.</p>
-
+        <h1 data-i18n="especies_h">Especies</h1>
+        <p class="lead" data-i18n="especies_lead"></p>
         <div class="species-tools">
-          <a class="tool-btn plants" href="https://plantnet.org/" target="_blank" rel="noopener">📷 Identificar planta<small>Pl@ntNet</small></a>
-          <a class="tool-btn birds" href="https://merlin.allaboutbirds.org/" target="_blank" rel="noopener">🐦 Identificar ave<small>Merlin</small></a>
-          <a class="tool-btn inat" href="#" id="inat-link" target="_blank" rel="noopener">🔬 Sumar al inventario<small>iNaturalist</small></a>
+          <a class="tool-btn plants" href="https://plantnet.org/" target="_blank" rel="noopener">📷 <span data-i18n="id_plant">Identificar planta</span><small>Pl@ntNet</small></a>
+          <a class="tool-btn birds" href="https://merlin.allaboutbirds.org/" target="_blank" rel="noopener">🐦 <span data-i18n="id_bird">Identificar ave</span><small>Merlin</small></a>
+          <a class="tool-btn inat" id="inat-link" href="#" target="_blank" rel="noopener">🔬 <span data-i18n="id_inat">Sumar al inventario</span><small>iNaturalist</small></a>
         </div>
-
         <div class="filters" id="species-filters"></div>
         <div id="species-count" class="species-count"></div>
         <div id="species-grid" class="species-grid"></div>
@@ -93,26 +85,27 @@
     <!-- INFO -->
     <section id="view-info" class="view">
       <div class="scroll">
-        <h1>La Reserva</h1>
-        <p class="lead">Reserva Natural de la Sociedad Civil <strong>Cantares</strong> (RNSC 112-20), 31,07 ha en la vereda Las Palomas, corregimiento Río Blanco, a ~5 km de Manizales.</p>
+        <h1 data-i18n="info_h">La Reserva</h1>
+        <p class="lead" data-i18n-html="info_lead"></p>
         <ul class="facts">
-          <li><strong>Ecosistema</strong> Bosque muy húmedo montano bajo (bmh-MB), 1.800–3.000 msnm</li>
-          <li><strong>Clima</strong> 6–12 °C, 1.000–2.000 mm de lluvia al año</li>
-          <li><strong>Restauración</strong> 16,4 ha (52,9%) · <strong>Conservación</strong> 10,5 ha (33,7%)</li>
-          <li><strong>Agua</strong> Quebradas La Peña y La Arenosa → cuenca del Río Blanco → Río Chinchiná</li>
-          <li><strong>Registro</strong> Parques Nacionales Naturales, Res. 201 de 2021</li>
+          <li><strong data-i18n="fact_eco">Ecosistema</strong> <span data-i18n="fact_eco_v"></span></li>
+          <li><strong data-i18n="fact_cli">Clima</strong> <span data-i18n="fact_cli_v"></span></li>
+          <li><strong data-i18n="fact_rest">Restauración</strong> <span data-i18n="fact_rest_v"></span></li>
+          <li><strong data-i18n="fact_water">Agua</strong> <span data-i18n="fact_water_v"></span></li>
+          <li><strong data-i18n="fact_reg">Registro</strong> <span data-i18n="fact_reg_v"></span></li>
         </ul>
-        <div id="offline-status" class="offline-status"></div>
-        <p class="tiny muted">Datos: Resolución PNN 201/2021 · límite predial (RUNAP, CTM12). Senderos y puntos actuales son de muestra hasta cargar los trazados reales. Identificación de especies: Pl@ntNet (flora Andes tropicales), Merlin/BirdNET (aves), iNaturalist → GBIF/SiB Colombia.</p>
+        <h2 data-i18n="map_illus" style="margin-top:18px">Mapa ilustrado de senderos</h2>
+        <img class="illus-map" src="img/mapa_senderos.png" alt="Mapa de senderos" loading="lazy" />
+        <div id="offline-status" class="offline-status" style="margin-top:14px"></div>
       </div>
     </section>
   </main>
 
   <nav class="tabbar" role="tablist">
-    <button class="tab is-active" data-view="recorridos"><span>🥾</span>Recorridos</button>
-    <button class="tab" data-view="restauracion"><span>🌱</span>Restauración</button>
-    <button class="tab" data-view="especies"><span>🦋</span>Especies</button>
-    <button class="tab" data-view="info"><span>ℹ️</span>Info</button>
+    <button class="tab is-active" data-view="recorridos"><span>🥾</span><span data-i18n="tab_recorridos">Recorridos</span></button>
+    <button class="tab" data-view="restauracion"><span>🌱</span><span data-i18n="tab_restauracion">Restauración</span></button>
+    <button class="tab" data-view="especies"><span>🦋</span><span data-i18n="tab_especies">Especies</span></button>
+    <button class="tab" data-view="info"><span>ℹ️</span><span data-i18n="tab_info">Info</span></button>
   </nav>
 
   <script type="module" src="js/app.js"></script>

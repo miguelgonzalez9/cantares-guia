@@ -1,7 +1,8 @@
 # Cantares — Guía interactiva de la reserva
 
-Progressive Web App (offline, instalable) + tubería de datos en R para la
-**Reserva Natural Cantares** (RNSC 112-20, 31,07 ha, Manizales). Tres pilares:
+Progressive Web App (offline, instalable, **bilingüe ES/EN**) + tubería de datos
+en R/Python para la **Reserva Natural Cantares** (RNSC 112-20, 31,07 ha, Manizales).
+Botón de idioma en el encabezado. Tres pilares:
 
 1. **Recorridos** — senderos temáticos (agua / árboles / aves / restauración) con
    GPS en vivo y fichas de puntos clave que aparecen por cercanía.
@@ -15,12 +16,15 @@ Progressive Web App (offline, instalable) + tubería de datos en R para la
 ```
 inmersive_app/
   inputs/            # insumos crudos (resolución PDF, shapefile del límite)
-  data_prep/         # R (sf/terra/rgee) — genera los datos que consume la app
-    01_reproject_zones.R   ✅ límite 9377→4326  (corre; 31,07 ha verificadas)
-    02_process_traces.R    ✅ GPX → trails.geojson (listo para los trazados reales)
-    03_ndvi_timeseries.R   ⧗ plantilla (necesita rgee/Earth Engine + zonas)
-    04_ortho_tiles.R       ⧗ plantilla (necesita la ortofoto GeoTIFF)
+  data_prep/         # R (sf) + Python (fitz/PIL) — genera los datos de la app
+    01_reproject_zones.R   ✅ límite RUNAP 9377→4326 (corre; 31,07 ha)
+    02_process_traces.R    ✅ GPX → trails.geojson (para trazados GPS futuros)
+    03_ndvi_timeseries.R   ⧗ plantilla (necesita rgee/Earth Engine)
+    04_ortho_tiles.R       ⧗ plantilla (necesita ortofoto GeoTIFF — ver ECW abajo)
     05_carbon_allometry.R  ✅ inventario → carbon.json (corre con datos demo)
+    06_process_ortofoto_layers.R  ✅ shapes_ortofoto 3116→4326: boundary/zones/caminos
+    07_pdf_to_content.py   ✅ ortofoto_caminos.pdf → senderos+POIs reales + mapa PNG (ES/EN)
+    08_add_species_en.py   ✅ nombres comunes en inglés para species.json
   app/public/        # la PWA (sin build; HTML/CSS/JS + librerías vendorizadas)
     index.html  css/  js/app.js  sw.js  manifest.webmanifest  icons/
     vendor/     # maplibre-gl + pmtiles (offline)
@@ -42,24 +46,35 @@ python -m http.server 5173 --directory public   # o: npm run serve
 
 | Pilar | Hecho | Pendiente |
 |---|---|---|
-| 1 Recorridos | UI, GPS `watchPosition`, cercanía, filtros temáticos, mapa MapLibre + límite | trazados GPS reales + puntos/fotos del propietario (muestra por ahora) |
-| 2 Restauración | tarjeta de carbono en vivo (demo), paneles NDVI/ortofoto | ortofoto GeoTIFF, inventario de árboles, digitalizar las 5 zonas |
-| 3 Especies | catálogo 62 spp, filtros, enlaces Pl@ntNet/Merlin/iNat, inventario | proyecto iNaturalist "Cantares"; fotos por especie |
+| 1 Recorridos | UI ES/EN, GPS robusto, cercanía, **6 senderos reales + 12 POIs reales**, mapa con **límite + 4 zonas + red de caminos** reales | trazados GPS por sendero (POIs en posición aproximada); fotos/audio por punto |
+| 2 Restauración | carbono en vivo (demo), paneles NDVI/ortofoto, **mapa ilustrado de senderos** | convertir ECW→GeoTIFF (abajo), NDVI, inventario de árboles |
+| 3 Especies | catálogo 62 spp ES/EN, filtros, enlaces Pl@ntNet/Merlin/iNat | proyecto iNaturalist "Cantares"; fotos por especie |
 
-**Verificado** (Chrome, este build): catálogo de especies renderiza; filtros
-62→8; navegación por pestañas; carga de datos (zonas 31,07 ha, 8 puntos, 62
-especies, 4 recorridos); tarjeta de carbono 11,36 t CO₂e. El **mapa MapLibre no
-se pudo verificar visualmente** en el navegador de automatización (WebGL por
-software se congela); el código y los datos son correctos — **probar en un
-celular real**.
+**Verificado** (Chrome, este build): toggle ES/EN completo (pestañas, filtros,
+especies, senderos); nombres de senderos completos en los chips; catálogo 62
+especies con nombres en inglés; carga de las 4 capas geo reales; sin errores JS;
+tarjeta de carbono 11,36 t CO₂e. El **render del mapa MapLibre no se puede ver**
+en el navegador de automatización (WebGL por software se congela) — código y
+datos correctos, **probar en un celular real** para ver mapa + GPS.
 
-## Hallazgo importante
+## Insumos del propietario ya integrados
 
-El shapefile entregado es **solo el límite** del predio (1 polígono, campos
-RUNAP), **no** las 5 zonas de manejo. La zonificación (Conservación/Restauración/…)
-existe únicamente como mapa (Figura 1 de la resolución). Para las capas de zonas
-hay que **digitalizarlas** (trazar en sitio o georreferenciar la Figura 1) →
-`inputs/maps/zones_5.geojson`.
+`shapes_ortofoto/` (EPSG:3116) y `ortofoto_caminos.pdf` fueron procesados:
+- **límite, zonas de manejo (conservación, uso intensivo, agroecosistema,
+  transición) y red de caminos** → capas reales del mapa (script 06).
+- **6 senderos reales** (Las Aguas, Las Cascadas, Los Encenillos, Helechos y
+  Orquídeas, Tororoi, La Cabaña) y **12 POIs reales** (miradores, cabaña, vivero,
+  arboretum, jardín de colibríes, cascadas…) del PDF (script 07). *Las posiciones
+  de los POIs son aproximadas (afín desde el PDF) hasta el trazado GPS real.*
+- El PDF se rasterizó a `img/mapa_senderos.png` (mapa ilustrado en la app).
+- Nota: la zonificación de estos shapes (2020) difiere de la Res.201/2021.
+
+## Pendiente: la ortofoto (ECW)
+
+`Ortofoto_Cantares.ecw` (~4,4 cm/píxel, WGS84) **no** se puede leer con el GDAL
+instalado (ECW es propietario). Para el comparador antes/después en el mapa:
+convertir a GeoTIFF/COG en **QGIS** (`Exportar → Guardar como → GTiff`) a
+`inputs/ortho/cantares_ortho.tif`, luego correr `04_ortho_tiles.R`.
 
 ## Notas técnicas
 

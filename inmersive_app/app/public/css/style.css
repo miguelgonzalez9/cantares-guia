@@ -42,6 +42,12 @@ body {
 .brand-text strong { font-size: 16px; letter-spacing: 0.3px; }
 .brand-text span { font-size: 11px; opacity: 0.82; }
 
+.header-right { display: flex; align-items: center; gap: 8px; }
+.lang-toggle {
+  border: 1.5px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.12);
+  color: #fff; font-size: 12px; font-weight: 700; padding: 5px 10px;
+  border-radius: 999px; cursor: pointer; min-width: 38px;
+}
 .gps-chip {
   display: flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 600;
@@ -205,8 +211,11 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
   font-size: 11px; font-weight: 600; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 3px;
 }
-.tab span { font-size: 20px; filter: grayscale(0.4); }
+.tab span:first-child { font-size: 20px; filter: grayscale(0.4); }
+.tab span:last-child { font-size: 11px; }
 .tab.is-active { color: var(--forest); }
-.tab.is-active span { filter: none; }
+.tab.is-active span:first-child { filter: none; }
+
+.illus-map { width: 100%; border-radius: 12px; border: 1px solid var(--line); margin-top: 8px; }
 
 .hidden { display: none !important; }
