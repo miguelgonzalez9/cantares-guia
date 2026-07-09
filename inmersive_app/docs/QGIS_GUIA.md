@@ -66,7 +66,26 @@ arboles
 - Tramo sin recorrido → deja el campo **vacío**; se ve como sendero gris, no se ilumina.
 - **NO uses formato JSON** (`["agua"]`) en el campo de texto — solo la lista con comas: `agua,aves`.
 
-3. **Guardar:** clic derecho en la capa → **Exportar → Guardar objetos como…**
+### Conectar tramos (autoensamblado / snapping)
+
+**No necesitas una sola línea continua.** La app maneja el sendero como varios tramos;
+sólo hace falta que los extremos se toquen (y cada tramo puede tener su propio `routes`).
+
+Para que los extremos se "peguen" solos:
+1. **Ver → Barras de herramientas → Autoensamblado** (icono de **imán**). Actívalo.
+2. Configura al lado: modo **Todas las capas**, tipo **Vértice y segmento**, tolerancia ~12 px.
+   Activa también **Edición topológica** (icono a la derecha del imán).
+3. Al dibujar verás un **cuadro magenta** sobre los vértices existentes = ahí se ensambla.
+
+- **Tramo nuevo pegado a uno existente:** con *Añadir línea*, haz el **primer clic sobre el
+  extremo** de la línea existente (espera el cuadro magenta) y sigue trazando.
+- **Pegar una línea que ya dibujaste:** usa la **Herramienta de Vértices** (barra de
+  Digitalización) → clic en el vértice del extremo de tu línea → arrástralo al extremo de la
+  otra línea (cuadro magenta) → clic para soltar → **Ctrl+S**.
+- **Fusionar en un solo objeto** (rara vez necesario): selecciona ambas líneas →
+  *Editar → Editar geometría → Fusionar objetos seleccionados*.
+
+4. **Guardar:** clic derecho en la capa → **Exportar → Guardar objetos como…**
    → Formato **GeoJSON** → CRS **EPSG:4326** → archivo
    `…/app/public/data/trails.geojson` (reemplaza el existente).
 
