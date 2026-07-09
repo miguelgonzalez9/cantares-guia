@@ -41,7 +41,7 @@ const I18N = {
     legend: 'Leyenda', lg_trails: 'Senderos', lg_route: 'Recorrido activo', lg_start: 'Inicio', lg_end: 'Fin',
     lg_point: 'Punto clave', lg_zones: 'Zonas de manejo',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
-    base_label: 'Imagen satelital', base_hd: 'Actual (HD)',
+    base_label: 'Imagen satelital', base_hd: 'Actual (HD)', base_ortho: 'Ortofoto',
     rest_title: 'Restauración',
     rest_lead: 'De potrero de kikuyo a bosque. La reserva tiene <strong>16,4 ha en restauración</strong>, donde el ganado salió hacia ~2019 y hoy crecen especies nativas.',
     ndvi_h: '🌿 Reverdecimiento (NDVI)', ndvi_p: 'Serie temporal Sentinel-2 2019 → hoy en la zona de restauración vs. la de conservación (control).',
@@ -76,7 +76,7 @@ const I18N = {
     legend: 'Legend', lg_trails: 'Trails', lg_route: 'Active route', lg_start: 'Start', lg_end: 'End',
     lg_point: 'Key point', lg_zones: 'Management zones',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
-    base_label: 'Satellite image', base_hd: 'Current (HD)',
+    base_label: 'Satellite image', base_hd: 'Current (HD)', base_ortho: 'Orthophoto',
     rest_title: 'Restoration',
     rest_lead: 'From kikuyu pasture to forest. The reserve has <strong>16.4 ha under restoration</strong>, where cattle left around 2019 and native species now grow.',
     ndvi_h: '🌿 Greening (NDVI)', ndvi_p: 'Sentinel-2 time series 2019 → today in the restoration zone vs. the conservation zone (control).',
@@ -121,6 +121,23 @@ async function loadJSON(url) {
   return res.json();
 }
 
+// Accept a field as a JSON array OR a QGIS "a,b" text field OR null/empty → array.
+function toArray(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') return v.split(',').map((s) => s.trim()).filter(Boolean);
+  return [];
+}
+// Normalize QGIS-authored properties so the map filters and JS always see arrays/bools.
+function normalizeFeatures(fc) {
+  (fc.features || []).forEach((f) => {
+    const p = f.properties || (f.properties = {});
+    p.routes = toArray(p.routes);
+    if ('species_ids' in p) p.species_ids = toArray(p.species_ids);
+    if ('keypoint' in p) p.keypoint = (p.keypoint === true || p.keypoint === 'true');
+  });
+  return fc;
+}
+
 // ---------- map ----------
 function onStyleReady(map, cb) {
   let done = false;
@@ -131,10 +148,13 @@ function onStyleReady(map, cb) {
   run();
 }
 function baseSourceDef(stop) {
+  if (stop.pmtiles) return { type: 'raster', url: 'pmtiles://tiles/ortho.pmtiles',
+    tileSize: 512, attribution: 'Ortofoto Cantares' };
   return { type: 'raster', tiles: [stop.tiles], tileSize: 256,
     maxzoom: stop.hd ? 19 : 16,
     attribution: stop.hd ? 'Imagery © Esri, Maxar' : 'Sentinel-2 cloudless by EOX' };
 }
+function baseLabel(stop) { return stop.hd ? t('base_hd') : stop.pmtiles ? t('base_ortho') : stop.key; }
 function buildStyle() {
   return { version: 8, sources: { base: baseSourceDef(CONFIG.baseStops[state.baseIndex]) },
     layers: [
@@ -151,7 +171,7 @@ function setBaseLayer(i) {
   map.removeSource('base');
   map.addSource('base', baseSourceDef(stop));
   map.addLayer({ id: 'base', type: 'raster', source: 'base' }, 'zones-fill');
-  $('#base-year').textContent = stop.hd ? t('base_hd') : stop.key;
+  $('#base-year').textContent = baseLabel(stop);
 }
 function makeArrowIcon(map) {
   if (map.hasImage('arrow')) return;
@@ -173,6 +193,7 @@ async function initMap() {
     loadJSON(CONFIG.data.boundary), loadJSON(CONFIG.data.zones),
     loadJSON(CONFIG.data.trails), loadJSON(CONFIG.data.waypoints),
   ]);
+  normalizeFeatures(trails); normalizeFeatures(waypointsFC);   // tolerate QGIS text fields
   state.waypoints = waypointsFC.features;
   state.trails = trails.features;
 
@@ -498,8 +519,7 @@ function setLang(lang) {
   LANG = lang; localStorage.setItem('cantares_lang', lang);
   applyStaticI18n(); renderRouteBar(); selectRoute(state.activeRoute);
   renderSpeciesFilters(); renderSpeciesGrid(); renderCarbon(); renderOfflineStatus(); renderLegend();
-  const bs = CONFIG.baseStops[state.baseIndex];
-  $('#base-year').textContent = bs.hd ? t('base_hd') : bs.key;
+  $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
   if (state.openWaypointId) { const wp = state.waypoints.find((w) => w.properties.id === state.openWaypointId); if (wp) showWaypoint(wp); }
   if (state.watchId == null) setGps('off', t('gps'));
 }
@@ -512,12 +532,23 @@ async function main() {
   $('#inat-link').href = CONFIG.inatProjectUrl;
   $('#lang-toggle').onclick = () => setLang(LANG === 'es' ? 'en' : 'es');
   $('#legend-toggle').onclick = () => $('#legend').classList.toggle('collapsed');
+  window.addEventListener('online', renderOfflineStatus);
+  window.addEventListener('offline', renderOfflineStatus);
+
+  // Register the PMTiles protocol (for an optional local orthophoto layer).
+  if (window.pmtiles && maplibregl.addProtocol) {
+    try { maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile); } catch (e) { /* already registered */ }
+  }
+  // Auto-add the orthophoto to the imagery slider IF the file exists (drop it at tiles/ortho.pmtiles).
+  try {
+    const r = await fetch('tiles/ortho.pmtiles', { method: 'HEAD' });
+    if (r.ok) CONFIG.baseStops.push({ key: 'ortho', pmtiles: true });
+  } catch (e) { /* no ortho yet */ }
+
   const slider = $('#base-slider');
   slider.max = String(CONFIG.baseStops.length - 1);
   slider.value = String(state.baseIndex);
   slider.oninput = (e) => setBaseLayer(+e.target.value);
-  window.addEventListener('online', renderOfflineStatus);
-  window.addEventListener('offline', renderOfflineStatus);
 
   const [routesDoc, speciesDoc] = await Promise.all([loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species)]);
   state.routes = routesDoc.routes;
@@ -526,7 +557,7 @@ async function main() {
 
   applyStaticI18n();
   renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend();
-  $('#base-year').textContent = t('base_hd');
+  $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
 
   if (!new URLSearchParams(location.search).has('nomap')) {
     await initMap();
