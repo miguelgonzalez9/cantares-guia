@@ -85,6 +85,27 @@ Para que los extremos se "peguen" solos:
 - **Fusionar en un solo objeto** (rara vez necesario): selecciona ambas líneas →
   *Editar → Editar geometría → Fusionar objetos seleccionados*.
 
+### Modelo mental: tramos + etiquetas (NO un objeto por recorrido)
+
+Un **recorrido NO es una geometría aparte**. Es *"todos los tramos etiquetados con ese
+recorrido"* en el campo `routes`. Así, un tramo compartido puede estar en varios recorridos
+(`agua,aves`) sin duplicar geometría.
+
+**Fragmentar la red en tramos:**
+- Traza cada tramo como una línea separada entre cruces (con el imán) — es lo más limpio; o
+- **Dividir objetos (Split Features)** para cortar una línea existente en un cruce; o
+- **Vector → Herramientas de geometría → Partes múltiples a partes simples** si es multiparte.
+
+**"Crear un recorrido" = etiquetar un subconjunto:**
+1. Con la herramienta de **Selección**, marca los tramos de ese recorrido (Shift-clic / por área).
+2. **Calculadora de campos** (ábaco) → marca **"Actualizar sólo los objetos seleccionados"** →
+   **Actualizar campo existente: `routes`** → expresión (añade sin borrar):
+   ```
+   if("routes" is null OR "routes" = '', 'agua', "routes" || ',agua')
+   ```
+3. Repite por cada recorrido (`aves`, `arboles`, `restauracion`) con su subconjunto.
+   Córrela **una sola vez por recorrido** (dos veces con la misma etiqueta la duplica).
+
 4. **Guardar:** clic derecho en la capa → **Exportar → Guardar objetos como…**
    → Formato **GeoJSON** → CRS **EPSG:4326** → archivo
    `…/app/public/data/trails.geojson` (reemplaza el existente).
