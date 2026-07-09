@@ -1,27 +1,32 @@
 // Cantares — Guía interactiva de la reserva / Interactive reserve guide
 // Minimal-vanilla PWA. Globals `maplibregl` and `pmtiles` come from vendored scripts.
 
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const CONFIG = {
-  center: [-75.4503, 5.0818],
-  zoom: 15.5,
+  center: [-75.4503, 5.0818], zoom: 15.6,
   maxBounds: [[-75.462, 5.072], [-75.439, 5.092]],
-  proximityMeters: 25,
-  reTriggerMeters: 60,
+  proximityMeters: 25, reTriggerMeters: 60,
   inatProjectUrl: 'https://www.inaturalist.org/projects/reserva-natural-cantares',
   data: {
-    boundary: 'data/boundary.geojson',
-    zones: 'data/zones.geojson',
-    caminos: 'data/caminos.geojson',
-    waypoints: 'data/waypoints.geojson',
-    routes: 'data/routes.json',
-    species: 'data/species.json',
+    boundary: 'data/boundary.geojson', zones: 'data/zones.geojson',
+    trails: 'data/trails.geojson', waypoints: 'data/waypoints.geojson',
+    routes: 'data/routes.json', species: 'data/species.json',
   },
+  // Base imagery time-slider stops. EOX Sentinel-2 cloudless = free, keyless,
+  // yearly (10 m) — good for forest-change. 'hd' = current Esri World Imagery.
+  baseStops: [
+    { key: '2019', tiles: eox(2019) }, { key: '2020', tiles: eox(2020) },
+    { key: '2021', tiles: eox(2021) }, { key: '2022', tiles: eox(2022) },
+    { key: '2023', tiles: eox(2023) }, { key: '2024', tiles: eox(2024) },
+    { key: '2025', tiles: eox(2025) }, { key: 'hd', tiles: ESRI, hd: true },
+  ],
 };
+function eox(y) { return `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${y}_3857/default/g/{z}/{y}/{x}.jpg`; }
 
 const state = {
-  map: null, routes: [], routesById: {}, species: [], waypoints: [],
+  map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
   activeRoute: null, userPos: null, watchId: null, firstFix: false,
-  lastTriggered: {}, openWaypointId: null,
+  lastTriggered: {}, openWaypointId: null, baseIndex: 7,
 };
 
 // ---------- i18n ----------
@@ -33,6 +38,10 @@ const I18N = {
     gps_timeout: 'Sin respuesta', gps_unsupported: 'GPS no disponible', gps_insecure: 'El GPS requiere HTTPS',
     gps_hint_denied: 'Activa el permiso de ubicación para este sitio en el navegador.',
     approx_note: 'Posición aproximada — se reemplaza con el punto GPS real.',
+    legend: 'Leyenda', lg_trails: 'Senderos', lg_route: 'Recorrido activo', lg_start: 'Inicio', lg_end: 'Fin',
+    lg_point: 'Punto clave', lg_zones: 'Zonas de manejo',
+    z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
+    base_label: 'Imagen satelital', base_hd: 'Actual (HD)',
     rest_title: 'Restauración',
     rest_lead: 'De potrero de kikuyo a bosque. La reserva tiene <strong>16,4 ha en restauración</strong>, donde el ganado salió hacia ~2019 y hoy crecen especies nativas.',
     ndvi_h: '🌿 Reverdecimiento (NDVI)', ndvi_p: 'Serie temporal Sentinel-2 2019 → hoy en la zona de restauración vs. la de conservación (control).',
@@ -50,7 +59,7 @@ const I18N = {
     fact_rest: 'Restauración', fact_rest_v: '16,4 ha · Conservación 10,5 ha',
     fact_water: 'Agua', fact_water_v: 'Quebradas La Peña y La Arenosa → Río Blanco → Río Chinchiná',
     fact_reg: 'Registro', fact_reg_v: 'Parques Nacionales Naturales, Res. 201 de 2021',
-    map_illus: 'Mapa ilustrado de senderos', zones_h: 'Zonas de manejo',
+    map_illus: 'Mapa ilustrado de senderos',
     grp_flora: 'Flora', grp_ave: 'Aves', grp_mamifero: 'Mamíferos',
     online: '🟢 En línea. Abre el mapa aquí (wifi) para guardar los tiles y luego funciona sin señal en el sendero.',
     offline: '⚪ Sin conexión. La app y el contenido guardado siguen disponibles.',
@@ -64,6 +73,10 @@ const I18N = {
     gps_timeout: 'Timed out', gps_unsupported: 'GPS unavailable', gps_insecure: 'GPS needs HTTPS',
     gps_hint_denied: 'Enable location permission for this site in your browser.',
     approx_note: 'Approximate position — to be replaced by the real GPS point.',
+    legend: 'Legend', lg_trails: 'Trails', lg_route: 'Active route', lg_start: 'Start', lg_end: 'End',
+    lg_point: 'Key point', lg_zones: 'Management zones',
+    z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
+    base_label: 'Satellite image', base_hd: 'Current (HD)',
     rest_title: 'Restoration',
     rest_lead: 'From kikuyu pasture to forest. The reserve has <strong>16.4 ha under restoration</strong>, where cattle left around 2019 and native species now grow.',
     ndvi_h: '🌿 Greening (NDVI)', ndvi_p: 'Sentinel-2 time series 2019 → today in the restoration zone vs. the conservation zone (control).',
@@ -81,7 +94,7 @@ const I18N = {
     fact_rest: 'Restoration', fact_rest_v: '16.4 ha · Conservation 10.5 ha',
     fact_water: 'Water', fact_water_v: 'La Peña & La Arenosa creeks → Río Blanco → Río Chinchiná',
     fact_reg: 'Registry', fact_reg_v: 'National Natural Parks, Resolution 201 of 2021',
-    map_illus: 'Illustrated trail map', zones_h: 'Management zones',
+    map_illus: 'Illustrated trail map',
     grp_flora: 'Plants', grp_ave: 'Birds', grp_mamifero: 'Mammals',
     online: '🟢 Online. Open the map here (wifi) to cache tiles, then it works with no signal on the trail.',
     offline: '⚪ Offline. The app and cached content are still available.',
@@ -91,24 +104,21 @@ const I18N = {
 };
 let LANG = localStorage.getItem('cantares_lang') || 'es';
 const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.es[k] || k;
-// bilingual data field: prefer <field>_en in English, fall back to base field
 const L = (obj, field) => (LANG === 'en' && obj[field + '_en']) ? obj[field + '_en'] : obj[field];
 
 // ---------- utilities ----------
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-
 function haversine(a, b) {
-  const R = 6371000, toRad = Math.PI / 180;
-  const dLat = (b[1] - a[1]) * toRad, dLon = (b[0] - a[0]) * toRad;
-  const la1 = a[1] * toRad, la2 = b[1] * toRad;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (b[1] - a[1]) * r, dLon = (b[0] - a[0]) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 async function loadJSON(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`${url}: ${r.status}`);
-  return r.json();
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: ${res.status}`);
+  return res.json();
 }
 
 // ---------- map ----------
@@ -120,30 +130,51 @@ function onStyleReady(map, cb) {
   setTimeout(() => clearInterval(iv), 10000);
   run();
 }
+function baseSourceDef(stop) {
+  return { type: 'raster', tiles: [stop.tiles], tileSize: 256,
+    maxzoom: stop.hd ? 19 : 16,
+    attribution: stop.hd ? 'Imagery © Esri, Maxar' : 'Sentinel-2 cloudless by EOX' };
+}
 function buildStyle() {
-  return {
-    version: 8,
-    sources: { esri: { type: 'raster',
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-      tileSize: 256, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics', maxzoom: 19 } },
+  return { version: 8, sources: { base: baseSourceDef(CONFIG.baseStops[state.baseIndex]) },
     layers: [
       { id: 'bg', type: 'background', paint: { 'background-color': '#c9d3c6' } },
-      { id: 'esri', type: 'raster', source: 'esri' },
-    ],
-  };
+      { id: 'base', type: 'raster', source: 'base' },
+    ] };
+}
+function setBaseLayer(i) {
+  state.baseIndex = i;
+  const map = state.map;
+  const stop = CONFIG.baseStops[i];
+  if (!map || !map.getSource('base')) return;
+  if (map.getLayer('base')) map.removeLayer('base');
+  map.removeSource('base');
+  map.addSource('base', baseSourceDef(stop));
+  map.addLayer({ id: 'base', type: 'raster', source: 'base' }, 'zones-fill');
+  $('#base-year').textContent = stop.hd ? t('base_hd') : stop.key;
+}
+function makeArrowIcon(map) {
+  if (map.hasImage('arrow')) return;
+  const s = 22, c = document.createElement('canvas'); c.width = c.height = s;
+  const x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.strokeStyle = '#1b4332'; x.lineWidth = 2.5;
+  x.beginPath(); x.moveTo(5, 4); x.lineTo(18, 11); x.lineTo(5, 18); x.lineTo(9, 11); x.closePath();
+  x.fill(); x.stroke();
+  map.addImage('arrow', x.getImageData(0, 0, s, s));
 }
 
-const ZONE_COLORS = {
-  conservacion: '#1b4332', uso_intensivo: '#b5651d',
-  agroecosistema: '#a3b18a', transicion: '#52796f',
-};
+const ZONE_COLORS = { conservacion: '#1b4332', uso_intensivo: '#b5651d', agroecosistema: '#a3b18a', transicion: '#52796f' };
+const zoneMatch = (prop) => ['match', ['get', 'zona'],
+  'conservacion', ZONE_COLORS.conservacion, 'uso_intensivo', ZONE_COLORS.uso_intensivo,
+  'agroecosistema', ZONE_COLORS.agroecosistema, 'transicion', ZONE_COLORS.transicion, '#888'];
 
 async function initMap() {
-  const [boundary, zones, caminos, waypointsFC] = await Promise.all([
+  const [boundary, zones, trails, waypointsFC] = await Promise.all([
     loadJSON(CONFIG.data.boundary), loadJSON(CONFIG.data.zones),
-    loadJSON(CONFIG.data.caminos), loadJSON(CONFIG.data.waypoints),
+    loadJSON(CONFIG.data.trails), loadJSON(CONFIG.data.waypoints),
   ]);
   state.waypoints = waypointsFC.features;
+  state.trails = trails.features;
 
   const map = new maplibregl.Map({
     container: 'map', style: buildStyle(), center: CONFIG.center, zoom: CONFIG.zoom,
@@ -157,38 +188,40 @@ async function initMap() {
     const finish = () => { if (!settled) { settled = true; resolve(); } };
     setTimeout(finish, 11000);
     onStyleReady(map, () => {
-      // Management zones (colored fills)
+      makeArrowIcon(map);
+      // zones
       map.addSource('zones', { type: 'geojson', data: zones });
       map.addLayer({ id: 'zones-fill', type: 'fill', source: 'zones',
-        paint: { 'fill-color': ['match', ['get', 'zona'],
-          'conservacion', ZONE_COLORS.conservacion, 'uso_intensivo', ZONE_COLORS.uso_intensivo,
-          'agroecosistema', ZONE_COLORS.agroecosistema, 'transicion', ZONE_COLORS.transicion, '#888'],
-          'fill-opacity': 0.22 } });
+        paint: { 'fill-color': zoneMatch(), 'fill-opacity': 0.22 } });
       map.addLayer({ id: 'zones-line', type: 'line', source: 'zones',
-        paint: { 'line-color': ['match', ['get', 'zona'],
-          'conservacion', ZONE_COLORS.conservacion, 'uso_intensivo', ZONE_COLORS.uso_intensivo,
-          'agroecosistema', ZONE_COLORS.agroecosistema, 'transicion', ZONE_COLORS.transicion, '#888'],
-          'line-width': 1, 'line-opacity': 0.5 } });
-
-      // Reserve boundary outline
+        paint: { 'line-color': zoneMatch(), 'line-width': 1, 'line-opacity': 0.5 } });
+      // boundary
       map.addSource('boundary', { type: 'geojson', data: boundary });
       map.addLayer({ id: 'boundary-line', type: 'line', source: 'boundary',
-        paint: { 'line-color': '#ffffff', 'line-width': 3, 'line-dasharray': [2, 1.4] } });
-
-      // Trail network (path footprint)
-      map.addSource('caminos', { type: 'geojson', data: caminos });
-      map.addLayer({ id: 'caminos-fill', type: 'fill', source: 'caminos',
-        paint: { 'fill-color': '#f4a259', 'fill-opacity': 0.85 } });
-      map.addLayer({ id: 'caminos-line', type: 'line', source: 'caminos',
-        paint: { 'line-color': '#8a5a24', 'line-width': 1 } });
-
-      // Waypoints
+        paint: { 'line-color': '#fff', 'line-width': 3, 'line-dasharray': [2, 1.4] } });
+      // trails — all as neutral lines, plus a highlighted layer + direction arrows
+      map.addSource('trails', { type: 'geojson', data: trails });
+      map.addLayer({ id: 'trails-all', type: 'line', source: 'trails',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#f4f1de', 'line-width': 2.2, 'line-opacity': 0.85 } });
+      map.addLayer({ id: 'trails-hl', type: 'line', source: 'trails', filter: ['==', 'id', '___none___'],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#e07a1f', 'line-width': 5 } });
+      map.addLayer({ id: 'trails-arrows', type: 'symbol', source: 'trails', filter: ['==', 'id', '___none___'],
+        layout: { 'symbol-placement': 'line', 'symbol-spacing': 55, 'icon-image': 'arrow',
+          'icon-size': 0.8, 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+      // route start/end markers
+      map.addSource('route-ends', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({ id: 'route-ends', type: 'circle', source: 'route-ends',
+        paint: { 'circle-radius': 8,
+          'circle-color': ['match', ['get', 'kind'], 'start', '#2f9e44', 'end', '#e03131', '#888'],
+          'circle-stroke-color': '#fff', 'circle-stroke-width': 2.5 } });
+      // waypoints
       map.addSource('waypoints', { type: 'geojson', data: waypointsFC });
       map.addLayer({ id: 'waypoints-pt', type: 'circle', source: 'waypoints',
-        paint: { 'circle-radius': 7, 'circle-color': '#e07a1f',
-          'circle-stroke-color': '#fff', 'circle-stroke-width': 2.5 } });
-
-      // User location
+        paint: { 'circle-radius': 6.5, 'circle-color': '#ffd166',
+          'circle-stroke-color': '#7a4b12', 'circle-stroke-width': 2 } });
+      // user
       map.addSource('user', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({ id: 'user-halo', type: 'circle', source: 'user',
         paint: { 'circle-radius': 16, 'circle-color': '#2b8cbe', 'circle-opacity': 0.18 } });
@@ -210,21 +243,47 @@ function renderRouteBar() {
   bar.innerHTML = '';
   const all = document.createElement('button');
   all.className = 'route-chip' + (state.activeRoute === null ? ' active' : '');
-  all.dataset.route = '';
   all.innerHTML = `<span class="emoji">🗺️</span>${t('all_routes')}`;
   all.onclick = () => selectRoute(null);
   bar.appendChild(all);
-
   state.routes.forEach((r) => {
     const chip = document.createElement('button');
     chip.className = 'route-chip' + (state.activeRoute === r.id ? ' active' : '');
     chip.dataset.route = r.id;
-    // Full name, never truncated.
-    chip.innerHTML = `<span class="emoji">${r.emoji}</span>${L(r, 'name')}`;
+    chip.innerHTML = `<span class="emoji">${r.emoji}</span>${L(r, 'name')}`;   // full name, never truncated
     if (state.activeRoute === r.id) { chip.style.background = r.color; chip.style.color = '#fff'; }
     chip.onclick = () => selectRoute(r.id);
     bar.appendChild(chip);
   });
+}
+
+function routeEndpoints(id) {
+  // Pick the two vertices farthest apart among this route's segments as start/end.
+  const verts = [];
+  state.trails.forEach((tr) => {
+    if ((tr.properties.routes || []).includes(id)) {
+      const cs = tr.geometry.coordinates;
+      verts.push(cs[0], cs[cs.length - 1]);
+    }
+  });
+  if (verts.length < 2) return { type: 'FeatureCollection', features: [] };
+  let best = [verts[0], verts[1]], bestD = -1;
+  for (let i = 0; i < verts.length; i++)
+    for (let j = i + 1; j < verts.length; j++) {
+      const d = haversine(verts[i], verts[j]);
+      if (d > bestD) { bestD = d; best = [verts[i], verts[j]]; }
+    }
+  // Start = endpoint nearest the "Entrada" landmark (fallback: lower latitude)
+  const entrada = state.waypoints.find((w) => w.properties.id === 'portada');
+  let [a, b] = best;
+  const startFirst = entrada
+    ? haversine(a, entrada.geometry.coordinates) <= haversine(b, entrada.geometry.coordinates)
+    : a[1] < b[1];
+  const [s, e] = startFirst ? [a, b] : [b, a];
+  return { type: 'FeatureCollection', features: [
+    { type: 'Feature', properties: { kind: 'start' }, geometry: { type: 'Point', coordinates: s } },
+    { type: 'Feature', properties: { kind: 'end' }, geometry: { type: 'Point', coordinates: e } },
+  ] };
 }
 
 function selectRoute(id) {
@@ -233,8 +292,21 @@ function selectRoute(id) {
   renderRouteBar();
 
   const map = state.map;
-  if (map && map.getLayer && map.getLayer('waypoints-pt')) {
-    map.setFilter('waypoints-pt', id ? ['in', route.theme, ['get', 'themes']] : null);
+  if (map && map.getLayer && map.getLayer('trails-hl')) {
+    if (id) {
+      const hlFilter = ['in', id, ['get', 'routes']];
+      map.setFilter('trails-hl', hlFilter);
+      map.setFilter('trails-arrows', hlFilter);
+      map.setPaintProperty('trails-hl', 'line-color', route.color);
+      map.getSource('route-ends').setData(routeEndpoints(id));
+      // waypoints: this route's key points + always-on landmarks (routes empty)
+      map.setFilter('waypoints-pt', ['any', ['in', id, ['get', 'routes']], ['==', ['length', ['get', 'routes']], 0]]);
+    } else {
+      map.setFilter('trails-hl', ['==', 'id', '___none___']);
+      map.setFilter('trails-arrows', ['==', 'id', '___none___']);
+      map.getSource('route-ends').setData({ type: 'FeatureCollection', features: [] });
+      map.setFilter('waypoints-pt', null);
+    }
   }
 
   const info = $('#route-info');
@@ -242,77 +314,61 @@ function selectRoute(id) {
     info.classList.remove('hidden');
     info.style.borderLeftColor = route.color;
     info.innerHTML = `<h3>${route.emoji} ${L(route, 'name')}</h3><p>${L(route, 'summary')}</p>`;
-  } else {
-    info.classList.add('hidden');
-  }
+  } else info.classList.add('hidden');
 }
 
 // ---------- waypoint card ----------
-const THEME_COLORS = { agua: '#2b8cbe', arboles: '#238b45', aves: '#d94801', restauracion: '#88419d', info: '#5b6b60' };
-function themeLabel(th) {
-  const map = { agua: { es: 'Agua', en: 'Water' }, arboles: { es: 'Árboles', en: 'Trees' },
-    aves: { es: 'Aves', en: 'Birds' }, restauracion: { es: 'Restauración', en: 'Restoration' },
-    info: { es: 'Info', en: 'Info' } };
-  return (map[th] && map[th][LANG]) || th;
+const ROUTE_COLORS = { agua: '#2b8cbe', aves: '#d94801', arboles: '#238b45', restauracion: '#88419d' };
+function routeLabel(rid) {
+  const r = state.routesById[rid];
+  return r ? L(r, 'name') : rid;
 }
-
 function showWaypoint(wp) {
   if (!wp) return;
   const p = wp.properties;
   state.openWaypointId = p.id;
-  const badges = (p.themes || []).map((th) =>
-    `<span class="badge" style="background:${THEME_COLORS[th] || '#5b6b60'}">${themeLabel(th)}</span>`).join('');
+  const badges = (p.routes || []).map((rid) =>
+    `<span class="badge" style="background:${ROUTE_COLORS[rid] || '#5b6b60'}">${routeLabel(rid)}</span>`).join('');
   const speciesChips = (p.species_ids || []).map((sid) => {
     const s = state.species.find((x) => x.id === sid);
     return s ? `<span class="chip" data-species="${sid}">${L(s, 'common_name')}</span>` : '';
   }).join('');
-
   $('#wp-content').innerHTML = `
     <div class="wp-theme-badges">${badges}</div>
     <h2 class="wp-title">${L(p, 'title') || p.name}</h2>
     ${p.photo ? `<img class="wp-photo" src="${p.photo}" alt="${p.name}">` : ''}
     <p class="wp-desc">${L(p, 'description') || ''}</p>
     ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
-    ${p.approx ? `<p class="tiny muted" style="margin-top:10px">${t('approx_note')}</p>` : ''}
-  `;
+    ${p.approx ? `<p class="tiny muted" style="margin-top:10px">${t('approx_note')}</p>` : ''}`;
   $('#waypoint-card').classList.remove('hidden');
-  $$('#wp-content .chip').forEach((chip) => {
-    chip.onclick = () => { switchView('especies'); highlightSpecies(chip.dataset.species); };
-  });
+  $$('#wp-content .chip').forEach((chip) =>
+    chip.onclick = () => { switchView('especies'); highlightSpecies(chip.dataset.species); });
 }
 function closeWaypoint() { $('#waypoint-card').classList.add('hidden'); state.openWaypointId = null; }
 
 // ---------- geolocation ----------
-function setGps(status, label) {
-  $('#gps-chip').className = `gps-chip gps-${status}`;
-  $('#gps-label').textContent = label || t('gps');
-}
+function setGps(status, label) { $('#gps-chip').className = `gps-chip gps-${status}`; $('#gps-label').textContent = label || t('gps'); }
 function locate() {
   if (state.watchId != null) { stopTracking(); return; }
   if (!('geolocation' in navigator)) { setGps('error', t('gps_unsupported')); toast(t('gps_unsupported')); return; }
   const localhost = ['localhost', '127.0.0.1'].includes(location.hostname);
-  if (!window.isSecureContext && !localhost) { toast(t('gps_insecure')); }
+  if (!window.isSecureContext && !localhost) toast(t('gps_insecure'));
   state.firstFix = false;
   setGps('searching', t('gps_searching'));
   $('#locate-btn').classList.add('tracking');
-  const opts = { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 };
-  navigator.geolocation.getCurrentPosition(onPosition, onGeoError, opts); // quick first fix
-  state.watchId = navigator.geolocation.watchPosition(onPosition, onGeoError,
-    { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 });
+  navigator.geolocation.getCurrentPosition(onPosition, onGeoError, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+  state.watchId = navigator.geolocation.watchPosition(onPosition, onGeoError, { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 });
 }
 function stopTracking() {
   if (state.watchId != null) navigator.geolocation.clearWatch(state.watchId);
-  state.watchId = null;
-  $('#locate-btn').classList.remove('tracking');
-  setGps('off', t('gps'));
+  state.watchId = null; $('#locate-btn').classList.remove('tracking'); setGps('off', t('gps'));
 }
 function onPosition(pos) {
   const { longitude, latitude, accuracy } = pos.coords;
   state.userPos = [longitude, latitude];
   setGps('on', `±${Math.round(accuracy)} m`);
   const src = state.map && state.map.getSource('user');
-  if (src) src.setData({ type: 'FeatureCollection',
-    features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: state.userPos }, properties: {} }] });
+  if (src) src.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: state.userPos }, properties: {} }] });
   if (state.map) {
     if (!state.firstFix) { state.map.flyTo({ center: state.userPos, zoom: 17, duration: 900 }); state.firstFix = true; }
     else state.map.easeTo({ center: state.userPos, duration: 600 });
@@ -322,34 +378,28 @@ function onPosition(pos) {
 function onGeoError(err) {
   const msg = err.code === 1 ? t('gps_denied') : err.code === 2 ? t('gps_unavailable') : t('gps_timeout');
   setGps('error', msg);
-  if (err.code === 1) { stopTracking(); toast(t('gps_hint_denied')); }
-  else toast(msg);
+  if (err.code === 1) { stopTracking(); toast(t('gps_hint_denied')); } else toast(msg);
 }
 function checkProximity() {
   if (!state.userPos) return;
   state.waypoints.forEach((wp) => {
     const id = wp.properties.id;
     if (state.activeRoute) {
-      const route = state.routesById[state.activeRoute];
-      if (!(wp.properties.themes || []).includes(route.theme)) return;
+      const rts = wp.properties.routes || [];
+      if (rts.length && !rts.includes(state.activeRoute)) return;
     }
     const d = haversine(state.userPos, wp.geometry.coordinates);
     if (d <= CONFIG.proximityMeters && !state.lastTriggered[id]) {
       state.lastTriggered[id] = true;
       toast('📍 ' + (L(wp.properties, 'title') || wp.properties.name));
       showWaypoint(wp);
-    } else if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) {
-      state.lastTriggered[id] = false;
-    }
+    } else if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) state.lastTriggered[id] = false;
   });
 }
 let toastTimer = null;
 function toast(msg) {
-  const el = $('#proximity-toast');
-  el.textContent = msg;
-  el.classList.remove('hidden');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.add('hidden'), 3400);
+  const el = $('#proximity-toast'); el.textContent = msg; el.classList.remove('hidden');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hidden'), 3400);
 }
 
 // ---------- species ----------
@@ -367,12 +417,10 @@ function renderSpeciesFilters() {
   });
 }
 function filteredSpecies() {
-  return state.species.filter((s) =>
-    speciesFilter === 'all' ? true : speciesFilter === 'flagship' ? s.flagship : s.group === speciesFilter);
+  return state.species.filter((s) => speciesFilter === 'all' ? true : speciesFilter === 'flagship' ? s.flagship : s.group === speciesFilter);
 }
 function renderSpeciesGrid(highlightId) {
-  const grid = $('#species-grid');
-  const list = filteredSpecies();
+  const grid = $('#species-grid'), list = filteredSpecies();
   $('#species-count').textContent = `${list.length} ${t('count_suffix')}`;
   grid.innerHTML = '';
   list.forEach((s) => {
@@ -389,8 +437,7 @@ function renderSpeciesGrid(highlightId) {
   });
   if (highlightId) {
     const el = $(`#sp-${highlightId}`);
-    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.style.outline = '2px solid var(--sun)'; setTimeout(() => el.style.outline = '', 2000); }
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.outline = '2px solid var(--sun)'; setTimeout(() => el.style.outline = '', 2000); }
   }
 }
 function highlightSpecies(id) {
@@ -406,7 +453,7 @@ function switchView(name) {
   if (name === 'recorridos' && state.map) setTimeout(() => state.map.resize(), 60);
 }
 
-// ---------- restoration: carbon card ----------
+// ---------- restoration carbon ----------
 async function renderCarbon() {
   try {
     const c = await loadJSON('data/carbon.json');
@@ -421,12 +468,22 @@ async function renderCarbon() {
 }
 
 // ---------- offline / SW ----------
-function renderOfflineStatus() {
-  $('#offline-status').innerHTML = navigator.onLine ? t('online') : t('offline');
-}
+function renderOfflineStatus() { $('#offline-status').innerHTML = navigator.onLine ? t('online') : t('offline'); }
 async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   try { await navigator.serviceWorker.register('sw.js'); } catch (e) { console.warn('SW', e); }
+}
+
+// ---------- legend ----------
+function renderLegend() {
+  const zones = ['conservacion', 'uso_intensivo', 'agroecosistema', 'transicion'];
+  $('#legend-body').innerHTML = `
+    <div class="lg-row"><span class="lg-line" style="background:#f4f1de"></span>${t('lg_trails')}</div>
+    <div class="lg-row"><span class="lg-line" style="background:#e07a1f;height:4px"></span>${t('lg_route')}</div>
+    <div class="lg-row"><span class="lg-dot" style="background:#2f9e44"></span>${t('lg_start')} · <span class="lg-dot" style="background:#e03131;margin-left:4px"></span>${t('lg_end')}</div>
+    <div class="lg-row"><span class="lg-dot" style="background:#ffd166;border-color:#7a4b12"></span>${t('lg_point')}</div>
+    <div class="lg-sep">${t('lg_zones')}</div>
+    ${zones.map((z) => `<div class="lg-row"><span class="lg-sw" style="background:${ZONE_COLORS[z]}"></span>${t('z_' + z)}</div>`).join('')}`;
 }
 
 // ---------- language ----------
@@ -435,24 +492,15 @@ function applyStaticI18n() {
   $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   $$('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
   $('#lang-toggle').textContent = LANG === 'es' ? 'EN' : 'ES';
-}
-function renderDynamic() {
-  renderRouteBar();
-  if (state.activeRoute !== null || $('#route-info')) selectRoute(state.activeRoute);
-  renderSpeciesFilters();
-  renderSpeciesGrid();
-  renderCarbon();
-  renderOfflineStatus();
-  if (state.openWaypointId) {
-    const wp = state.waypoints.find((w) => w.properties.id === state.openWaypointId);
-    if (wp) showWaypoint(wp);
-  }
+  $('#base-caption').textContent = t('base_label');
 }
 function setLang(lang) {
-  LANG = lang;
-  localStorage.setItem('cantares_lang', lang);
-  applyStaticI18n();
-  renderDynamic();
+  LANG = lang; localStorage.setItem('cantares_lang', lang);
+  applyStaticI18n(); renderRouteBar(); selectRoute(state.activeRoute);
+  renderSpeciesFilters(); renderSpeciesGrid(); renderCarbon(); renderOfflineStatus(); renderLegend();
+  const bs = CONFIG.baseStops[state.baseIndex];
+  $('#base-year').textContent = bs.hd ? t('base_hd') : bs.key;
+  if (state.openWaypointId) { const wp = state.waypoints.find((w) => w.properties.id === state.openWaypointId); if (wp) showWaypoint(wp); }
   if (state.watchId == null) setGps('off', t('gps'));
 }
 
@@ -463,22 +511,22 @@ async function main() {
   $('#locate-btn').onclick = locate;
   $('#inat-link').href = CONFIG.inatProjectUrl;
   $('#lang-toggle').onclick = () => setLang(LANG === 'es' ? 'en' : 'es');
+  $('#legend-toggle').onclick = () => $('#legend').classList.toggle('collapsed');
+  const slider = $('#base-slider');
+  slider.max = String(CONFIG.baseStops.length - 1);
+  slider.value = String(state.baseIndex);
+  slider.oninput = (e) => setBaseLayer(+e.target.value);
   window.addEventListener('online', renderOfflineStatus);
   window.addEventListener('offline', renderOfflineStatus);
 
-  const [routesDoc, speciesDoc] = await Promise.all([
-    loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species),
-  ]);
+  const [routesDoc, speciesDoc] = await Promise.all([loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species)]);
   state.routes = routesDoc.routes;
   state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
   state.species = speciesDoc.species;
 
   applyStaticI18n();
-  renderRouteBar();
-  renderSpeciesFilters();
-  renderSpeciesGrid();
-  renderOfflineStatus();
-  renderCarbon();
+  renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend();
+  $('#base-year').textContent = t('base_hd');
 
   if (!new URLSearchParams(location.search).has('nomap')) {
     await initMap();

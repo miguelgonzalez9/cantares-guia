@@ -96,7 +96,7 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .route-chip .emoji { font-size: 15px; }
 
 .locate-btn {
-  position: absolute; right: 14px; bottom: 16px; z-index: 5;
+  position: absolute; right: 14px; bottom: 84px; z-index: 5;
   width: 48px; height: 48px; border-radius: 50%;
   background: var(--card); border: none; box-shadow: var(--shadow);
   font-size: 22px; color: var(--water); cursor: pointer;
@@ -104,8 +104,32 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .locate-btn.tracking { color: #fff; background: var(--water); }
 
+/* Legend */
+.legend { position: absolute; left: 10px; bottom: 84px; z-index: 6;
+  background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; max-width: 62%; }
+.legend-toggle { width: 100%; border: none; background: var(--forest); color: #fff;
+  font-size: 12px; font-weight: 700; padding: 7px 12px; cursor: pointer; display: flex;
+  justify-content: space-between; align-items: center; gap: 10px; }
+.legend .chev { transition: transform .15s; }
+.legend.collapsed .chev { transform: rotate(-90deg); }
+.legend.collapsed .legend-body { display: none; }
+.legend-body { padding: 8px 12px 10px; font-size: 11.5px; color: var(--ink); }
+.lg-row { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
+.lg-sep { margin: 6px 0 3px; font-weight: 700; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .3px; }
+.lg-line { display: inline-block; width: 18px; height: 2.5px; border-radius: 2px; }
+.lg-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; }
+.lg-sw { display: inline-block; width: 14px; height: 11px; border-radius: 3px; opacity: 0.8; }
+
+/* Base-imagery time slider */
+.base-slider-box { position: absolute; left: 10px; right: 10px; bottom: 14px; z-index: 5;
+  background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 8px 14px 10px; }
+.base-slider-head { display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
+.base-slider-head strong { color: var(--forest); font-size: 13px; }
+.base-slider { width: 100%; accent-color: var(--moss); }
+
 .route-info {
-  position: absolute; left: 10px; right: 74px; bottom: 18px; z-index: 4;
+  position: absolute; left: 10px; right: 10px; bottom: 150px; z-index: 4;
   background: var(--card); border-radius: 14px; box-shadow: var(--shadow);
   padding: 12px 14px; border-left: 5px solid var(--leaf);
 }

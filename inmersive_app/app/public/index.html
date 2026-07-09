@@ -36,6 +36,17 @@
       <div id="map"></div>
       <div id="route-bar" class="route-bar"></div>
       <button id="locate-btn" class="locate-btn" title="GPS" aria-label="GPS">◎</button>
+
+      <div id="legend" class="legend collapsed">
+        <button id="legend-toggle" class="legend-toggle" aria-label="Leyenda"><span data-i18n="legend">Leyenda</span> <span class="chev">▾</span></button>
+        <div id="legend-body" class="legend-body"></div>
+      </div>
+
+      <div id="base-slider-box" class="base-slider-box">
+        <div class="base-slider-head"><span id="base-caption">Imagen satelital</span><strong id="base-year">Actual (HD)</strong></div>
+        <input id="base-slider" class="base-slider" type="range" min="0" max="7" step="1" value="7" />
+      </div>
+
       <div id="route-info" class="route-info hidden"></div>
       <div id="waypoint-card" class="waypoint-card hidden" role="dialog" aria-live="polite">
         <button class="card-close" id="wp-close" aria-label="Cerrar">×</button>

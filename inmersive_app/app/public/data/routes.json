@@ -10,64 +10,40 @@
   },
   "routes": [
     {
-      "id": "aguas",
-      "name": "Sendero Las Aguas",
-      "name_en": "Waters Trail",
+      "id": "agua",
+      "name": "Recorrido del Agua",
+      "name_en": "Water Route",
       "emoji": "💧",
       "color": "#2b8cbe",
-      "theme": "agua",
-      "summary": "Quebradas, nacimientos y el bosque ribereño que regula el agua de la cuenca del Río Blanco.",
-      "summary_en": "Creeks, springs and the riparian forest that regulates water in the Río Blanco watershed."
+      "summary": "Quebradas, nacimientos, cascadas y el bosque ribereño que regula el agua de la cuenca del Río Blanco.",
+      "summary_en": "Creeks, springs, waterfalls and the riparian forest that regulates water in the Río Blanco watershed."
     },
     {
-      "id": "cascadas",
-      "name": "Sendero Las Cascadas",
-      "name_en": "Waterfalls Trail",
-      "emoji": "🌊",
-      "color": "#1f6f8b",
-      "theme": "agua",
-      "summary": "Baja hasta las cascadas por bosque húmedo de fuerte pendiente.",
-      "summary_en": "Descends to the waterfalls through steep humid forest."
-    },
-    {
-      "id": "encenillos",
-      "name": "Sendero Los Encenillos",
-      "name_en": "Encenillos Trail",
-      "emoji": "🌳",
-      "color": "#238b45",
-      "theme": "arboles",
-      "summary": "Encenillos, robles y el bosque en restauración camino a la cabaña.",
-      "summary_en": "Encenillo and oak trees and the restoring forest on the way to the cabin."
-    },
-    {
-      "id": "helechos",
-      "name": "Sendero de Helechos y Orquídeas",
-      "name_en": "Ferns & Orchids Trail",
-      "emoji": "🌿",
-      "color": "#40916c",
-      "theme": "arboles",
-      "summary": "Helechos arbóreos y epífitas en las zonas de mayor humedad.",
-      "summary_en": "Tree ferns and epiphytes in the most humid areas."
-    },
-    {
-      "id": "tororoi",
-      "name": "Sendero Tororoi",
-      "name_en": "Tororoi Trail",
+      "id": "aves",
+      "name": "Recorrido de Aves",
+      "name_en": "Birding Route",
       "emoji": "🐦",
       "color": "#d94801",
-      "theme": "aves",
-      "summary": "Nombrado por el tororoi; buen sendero para aves de sotobosque. Trae Merlin.",
-      "summary_en": "Named after the antpitta; great for understory birds. Bring Merlin."
+      "summary": "Barranquero, tororoi, colibríes y tángaras. Trae audífonos y la app Merlin.",
+      "summary_en": "Motmot, antpitta, hummingbirds and tanagers. Bring headphones and the Merlin app."
     },
     {
-      "id": "cabana",
-      "name": "Sendero La Cabaña",
-      "name_en": "Cabin Trail",
-      "emoji": "🏚️",
-      "color": "#8d6e63",
-      "theme": "arboles",
-      "summary": "Conecta la portada, la cabaña y los miradores.",
-      "summary_en": "Connects the entrance, the cabin and the lookouts."
+      "id": "arboles",
+      "name": "Recorrido de Árboles",
+      "name_en": "Trees Route",
+      "emoji": "🌳",
+      "color": "#238b45",
+      "summary": "Robles, encenillos, helechos arbóreos y el arboretum del bosque montano.",
+      "summary_en": "Oaks, encenillos, tree ferns and the montane-forest arboretum."
+    },
+    {
+      "id": "restauracion",
+      "name": "Recorrido de Restauración",
+      "name_en": "Restoration Route",
+      "emoji": "🌱",
+      "color": "#88419d",
+      "summary": "De potrero de kikuyo a bosque: el vivero y las áreas en restauración.",
+      "summary_en": "From kikuyu pasture to forest: the nursery and the areas under restoration."
     }
   ]
 }

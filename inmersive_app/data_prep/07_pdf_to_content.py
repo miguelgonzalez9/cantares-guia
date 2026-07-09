@@ -83,66 +83,60 @@ def pos(label):
                          sum(h[1] for h in hits) / len(hits))
     return to_lonlat((PX0 + PX1) / 2, (PY0 + PY1) / 2)
 
-# --- the 6 real senderos (routes) ---
+# --- thematic RECORRIDOS (routes); each is composed of trail segments + key points ---
 routes = [
-    {"id": "aguas", "name": "Sendero Las Aguas", "name_en": "Waters Trail", "emoji": "💧", "color": "#2b8cbe",
-     "theme": "agua", "summary": "Quebradas, nacimientos y el bosque ribereño que regula el agua de la cuenca del Río Blanco.",
-     "summary_en": "Creeks, springs and the riparian forest that regulates water in the Río Blanco watershed."},
-    {"id": "cascadas", "name": "Sendero Las Cascadas", "name_en": "Waterfalls Trail", "emoji": "🌊", "color": "#1f6f8b",
-     "theme": "agua", "summary": "Baja hasta las cascadas por bosque húmedo de fuerte pendiente.",
-     "summary_en": "Descends to the waterfalls through steep humid forest."},
-    {"id": "encenillos", "name": "Sendero Los Encenillos", "name_en": "Encenillos Trail", "emoji": "🌳", "color": "#238b45",
-     "theme": "arboles", "summary": "Encenillos, robles y el bosque en restauración camino a la cabaña.",
-     "summary_en": "Encenillo and oak trees and the restoring forest on the way to the cabin."},
-    {"id": "helechos", "name": "Sendero de Helechos y Orquídeas", "name_en": "Ferns & Orchids Trail", "emoji": "🌿", "color": "#40916c",
-     "theme": "arboles", "summary": "Helechos arbóreos y epífitas en las zonas de mayor humedad.",
-     "summary_en": "Tree ferns and epiphytes in the most humid areas."},
-    {"id": "tororoi", "name": "Sendero Tororoi", "name_en": "Tororoi Trail", "emoji": "🐦", "color": "#d94801",
-     "theme": "aves", "summary": "Nombrado por el tororoi; buen sendero para aves de sotobosque. Trae Merlin.",
-     "summary_en": "Named after the antpitta; great for understory birds. Bring Merlin."},
-    {"id": "cabana", "name": "Sendero La Cabaña", "name_en": "Cabin Trail", "emoji": "🏚️", "color": "#8d6e63",
-     "theme": "arboles", "summary": "Conecta la portada, la cabaña y los miradores.",
-     "summary_en": "Connects the entrance, the cabin and the lookouts."},
+    {"id": "agua", "name": "Recorrido del Agua", "name_en": "Water Route", "emoji": "💧", "color": "#2b8cbe",
+     "summary": "Quebradas, nacimientos, cascadas y el bosque ribereño que regula el agua de la cuenca del Río Blanco.",
+     "summary_en": "Creeks, springs, waterfalls and the riparian forest that regulates water in the Río Blanco watershed."},
+    {"id": "aves", "name": "Recorrido de Aves", "name_en": "Birding Route", "emoji": "🐦", "color": "#d94801",
+     "summary": "Barranquero, tororoi, colibríes y tángaras. Trae audífonos y la app Merlin.",
+     "summary_en": "Motmot, antpitta, hummingbirds and tanagers. Bring headphones and the Merlin app."},
+    {"id": "arboles", "name": "Recorrido de Árboles", "name_en": "Trees Route", "emoji": "🌳", "color": "#238b45",
+     "summary": "Robles, encenillos, helechos arbóreos y el arboretum del bosque montano.",
+     "summary_en": "Oaks, encenillos, tree ferns and the montane-forest arboretum."},
+    {"id": "restauracion", "name": "Recorrido de Restauración", "name_en": "Restoration Route", "emoji": "🌱", "color": "#88419d",
+     "summary": "De potrero de kikuyo a bosque: el vivero y las áreas en restauración.",
+     "summary_en": "From kikuyu pasture to forest: the nursery and the areas under restoration."},
 ]
 
 # --- POIs (waypoints): real names from the PDF ---
-# (search_name, theme, title_es, title_en, desc_es, desc_en, species)
+# (search_name, routes, keypoint, title_es, title_en, desc_es, desc_en, species)
 POIS = [
-    ("Portada", "info", "Entrada", "Entrance",
+    ("Portada", [], False, "Entrada", "Entrance",
      "Portada e inicio de los recorridos de la reserva.", "Gateway and start of the reserve trails.", []),
-    ("Casa", "info", "Casa", "House",
+    ("Casa", [], False, "Casa", "House",
      "Casa principal del predio, en la zona de uso intensivo.", "Main house of the property, in the intensive-use zone.", []),
-    ("Cabaña", "info", "La Cabaña", "The Cabin",
+    ("Cabaña", [], False, "La Cabaña", "The Cabin",
      "Cabaña de descanso; punto de encuentro de varios senderos.", "Rest cabin; meeting point of several trails.", []),
-    ("Vivero", "restauracion", "Vivero", "Nursery",
+    ("Vivero", ["restauracion"], True, "Vivero", "Nursery",
      "Vivero donde se propagan las especies nativas para la restauración.", "Nursery where native species are propagated for restoration.", ["arboloco","encenillo","drago"]),
-    ("Arboretum", "arboles", "Arboretum", "Arboretum",
+    ("Arboretum", ["arboles"], True, "Arboretum", "Arboretum",
      "Colección de árboles nativos representativos del bosque montano.", "Collection of native trees representative of the montane forest.", ["roble","yarumo","cedro-negro"]),
-    ("Bosque de los Sietecueros", "arboles", "Bosque de los Sietecueros", "Sietecueros Grove",
+    ("Bosque de los Sietecueros", ["arboles"], True, "Bosque de los Sietecueros", "Sietecueros Grove",
      "Rodal dominado por sietecueros (Tibouchina), llamativos por su flor morada.", "Stand dominated by sietecueros (Tibouchina), striking for their purple flowers.", []),
-    ("Jardín de los Colibríes", "aves", "Jardín de los Colibríes", "Hummingbird Garden",
+    ("Jardín de los Colibríes", ["aves"], True, "Jardín de los Colibríes", "Hummingbird Garden",
      "Jardín con flores que atraen colibríes; excelente para fotografía y observación.", "Flower garden that attracts hummingbirds; great for photography and watching.", ["barranquero"]),
-    ("Nido del Aguila", "aves", "Nido del Águila", "Eagle's Nest",
+    ("Nido del Aguila", ["aves"], True, "Nido del Águila", "Eagle's Nest",
      "Mirador alto asociado a aves rapaces.", "High lookout associated with birds of prey.", []),
-    ("Cascadas", "agua", "Cascadas", "Waterfalls",
+    ("Cascadas", ["agua"], True, "Cascadas", "Waterfalls",
      "Saltos de agua en la red hídrica de la reserva.", "Waterfalls in the reserve's stream network.", ["helecho-arboreo"]),
-    ("Mirador 1", "info", "Mirador 1", "Lookout 1",
+    ("Mirador 1", [], False, "Mirador 1", "Lookout 1",
      "Primer mirador del recorrido.", "First lookout on the route.", []),
-    ("Mirador 2", "info", "Mirador 2", "Lookout 2",
+    ("Mirador 2", [], False, "Mirador 2", "Lookout 2",
      "Mirador intermedio sobre el mosaico de bosque y restauración.", "Mid lookout over the forest and restoration mosaic.", []),
-    ("Mirador 3 — Ciudad de Manizales", "info", "Mirador 3 — Ciudad de Manizales", "Lookout 3 — Manizales City",
+    ("Mirador 3 — Ciudad de Manizales", [], False, "Mirador 3 — Ciudad de Manizales", "Lookout 3 — Manizales City",
      "Mirador con vista a la ciudad de Manizales.", "Lookout with a view of the city of Manizales.", []),
 ]
 
 features = []
-for sname, theme, title, title_en, desc, desc_en, species in POIS:
+for sname, rts, keypoint, title, title_en, desc, desc_en, species in POIS:
     lon, lat = pos(sname)
     wid = (sname.lower().replace(" ", "-").replace("á","a").replace("í","i")
            .replace("ñ","n").replace("—","").replace("é","e").replace("ó","o"))
     features.append({
         "type": "Feature",
         "properties": {
-            "id": wid, "name": title, "themes": [theme],
+            "id": wid, "name": title, "routes": rts, "keypoint": keypoint,
             "title": title, "title_en": title_en,
             "description": desc, "description_en": desc_en,
             "species_ids": species, "photo": None, "audio": None, "approx": True,

@@ -7,9 +7,8 @@
       "properties": {
         "id": "portada",
         "name": "Entrada",
-        "themes": [
-          "info"
-        ],
+        "routes": [],
+        "keypoint": false,
         "title": "Entrada",
         "title_en": "Entrance",
         "description": "Portada e inicio de los recorridos de la reserva.",
@@ -32,9 +31,8 @@
       "properties": {
         "id": "casa",
         "name": "Casa",
-        "themes": [
-          "info"
-        ],
+        "routes": [],
+        "keypoint": false,
         "title": "Casa",
         "title_en": "House",
         "description": "Casa principal del predio, en la zona de uso intensivo.",
@@ -57,9 +55,8 @@
       "properties": {
         "id": "cabana",
         "name": "La Cabaña",
-        "themes": [
-          "info"
-        ],
+        "routes": [],
+        "keypoint": false,
         "title": "La Cabaña",
         "title_en": "The Cabin",
         "description": "Cabaña de descanso; punto de encuentro de varios senderos.",
@@ -82,9 +79,10 @@
       "properties": {
         "id": "vivero",
         "name": "Vivero",
-        "themes": [
+        "routes": [
           "restauracion"
         ],
+        "keypoint": true,
         "title": "Vivero",
         "title_en": "Nursery",
         "description": "Vivero donde se propagan las especies nativas para la restauración.",
@@ -111,9 +109,10 @@
       "properties": {
         "id": "arboretum",
         "name": "Arboretum",
-        "themes": [
+        "routes": [
           "arboles"
         ],
+        "keypoint": true,
         "title": "Arboretum",
         "title_en": "Arboretum",
         "description": "Colección de árboles nativos representativos del bosque montano.",
@@ -140,9 +139,10 @@
       "properties": {
         "id": "bosque-de-los-sietecueros",
         "name": "Bosque de los Sietecueros",
-        "themes": [
+        "routes": [
           "arboles"
         ],
+        "keypoint": true,
         "title": "Bosque de los Sietecueros",
         "title_en": "Sietecueros Grove",
         "description": "Rodal dominado por sietecueros (Tibouchina), llamativos por su flor morada.",
@@ -165,9 +165,10 @@
       "properties": {
         "id": "jardin-de-los-colibries",
         "name": "Jardín de los Colibríes",
-        "themes": [
+        "routes": [
           "aves"
         ],
+        "keypoint": true,
         "title": "Jardín de los Colibríes",
         "title_en": "Hummingbird Garden",
         "description": "Jardín con flores que atraen colibríes; excelente para fotografía y observación.",
@@ -192,9 +193,10 @@
       "properties": {
         "id": "nido-del-aguila",
         "name": "Nido del Águila",
-        "themes": [
+        "routes": [
           "aves"
         ],
+        "keypoint": true,
         "title": "Nido del Águila",
         "title_en": "Eagle's Nest",
         "description": "Mirador alto asociado a aves rapaces.",
@@ -217,9 +219,10 @@
       "properties": {
         "id": "cascadas",
         "name": "Cascadas",
-        "themes": [
+        "routes": [
           "agua"
         ],
+        "keypoint": true,
         "title": "Cascadas",
         "title_en": "Waterfalls",
         "description": "Saltos de agua en la red hídrica de la reserva.",
@@ -244,9 +247,8 @@
       "properties": {
         "id": "mirador-1",
         "name": "Mirador 1",
-        "themes": [
-          "info"
-        ],
+        "routes": [],
+        "keypoint": false,
         "title": "Mirador 1",
         "title_en": "Lookout 1",
         "description": "Primer mirador del recorrido.",
@@ -269,9 +271,8 @@
       "properties": {
         "id": "mirador-2",
         "name": "Mirador 2",
-        "themes": [
-          "info"
-        ],
+        "routes": [],
+        "keypoint": false,
         "title": "Mirador 2",
         "title_en": "Lookout 2",
         "description": "Mirador intermedio sobre el mosaico de bosque y restauración.",
@@ -294,9 +295,8 @@
       "properties": {
         "id": "mirador-3--ciudad-de-manizales",
         "name": "Mirador 3 — Ciudad de Manizales",
-        "themes": [
-          "info"
-        ],
+        "routes": [],
+        "keypoint": false,
         "title": "Mirador 3 — Ciudad de Manizales",
         "title_en": "Lookout 3 — Manizales City",
         "description": "Mirador con vista a la ciudad de Manizales.",
