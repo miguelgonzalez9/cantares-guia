@@ -1,0 +1,9 @@
+{
+  "note": "DEMO DATA — replace inputs/inventory/key_trees.csv",
+  "n_trees": 20,
+  "agb_total_kg": 6594,
+  "carbon_total_kg": 3099,
+  "co2e_total_t": 11.36,
+  "co2e_ci_t": [8.04, 15.29],
+  "method": "Chave et al. 2014 pantropical (with height); C fraction 0.47; CO2e x44/12; 95% CI by tree bootstrap (2000 reps)"
+}

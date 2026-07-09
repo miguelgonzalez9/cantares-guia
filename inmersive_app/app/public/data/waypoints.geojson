@@ -1,0 +1,126 @@
+{
+  "type": "FeatureCollection",
+  "_meta": "MUESTRA. Reemplazar con puntos GPS reales del propietario (punto + fotos + nota de voz por sitio).",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "wp-inicio",
+        "name": "Casa e inicio del sendero",
+        "themes": ["info"],
+        "title": "Bienvenido a Cantares",
+        "description": "Reserva Natural de la Sociedad Civil, 31 ha dentro de la Reserva Forestal Río Blanco, a 2.500 m de altura. Aquí empieza el recorrido por un bosque muy húmedo montano bajo en restauración.",
+        "species_ids": [],
+        "photo": null,
+        "audio": null,
+        "sample": true
+      },
+      "geometry": { "type": "Point", "coordinates": [-75.45200, 5.08000] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "wp-quebrada",
+        "name": "Quebrada La Peña",
+        "themes": ["agua"],
+        "title": "El agua que nace en el bosque",
+        "description": "Una de las quebradas que abastece el predio y alimenta la cuenca del Río Blanco → Río Chinchiná. El bosque ribereño de alta pendiente regula el caudal y evita la erosión.",
+        "species_ids": ["helecho-arboreo"],
+        "photo": null,
+        "audio": null,
+        "sample": true
+      },
+      "geometry": { "type": "Point", "coordinates": [-75.45155, 5.08050] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "wp-mirador",
+        "name": "Mirador",
+        "themes": ["info"],
+        "title": "Paisaje de la cuenca",
+        "description": "Punto de descanso y observación. Desde aquí se ve el mosaico de bosque conservado, rastrojos en regeneración y las áreas en restauración.",
+        "species_ids": [],
+        "photo": null,
+        "audio": null,
+        "sample": true
+      },
+      "geometry": { "type": "Point", "coordinates": [-75.45080, 5.08090] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "wp-robledal",
+        "name": "Robledal",
+        "themes": ["arboles"],
+        "title": "Robles de niebla",
+        "description": "El roble (Quercus humboldtii) es objeto de conservación de la reserva; en la zona alta alcanza 20 m de altura y 40 cm de diámetro. Su bellota alimenta al carpintero de los robles.",
+        "species_ids": ["roble", "carpintero-de-los-robles"],
+        "photo": null,
+        "audio": null,
+        "sample": true
+      },
+      "geometry": { "type": "Point", "coordinates": [-75.45020, 5.08120] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "wp-restauracion",
+        "name": "Zona en restauración",
+        "themes": ["restauracion"],
+        "title": "De potrero a bosque",
+        "description": "Hasta ~2019 esto fue pasto de kikuyo para ganado. Hoy son 16,4 ha en restauración con siembra de arboloco, yarumo, encenillo, drago y roble, más regeneración natural.",
+        "species_ids": ["arboloco", "yarumo", "encenillo", "drago"],
+        "photo": null,
+        "audio": null,
+        "sample": true
+      },
+      "geometry": { "type": "Point", "coordinates": [-75.44970, 5.08160] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "wp-aves",
+        "name": "Punto de aves",
+        "themes": ["aves"],
+        "title": "Escucha el bosque",
+        "description": "Buen sitio para el barranquero (Momotus momota), tángaras y la mirla. Graba el canto con Merlin o BirdNET y súmalo al inventario de Cantares.",
+        "species_ids": ["barranquero", "mirla", "tangara-real"],
+        "photo": null,
+        "audio": null,
+        "sample": true
+      },
+      "geometry": { "type": "Point", "coordinates": [-75.44920, 5.08210] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "wp-helechos",
+        "name": "Helechos arbóreos",
+        "themes": ["arboles", "agua"],
+        "title": "Fósiles vivientes",
+        "description": "Los helechos arbóreos (Cyathea caracasana) son indicadores de humedad y buen estado del bosque. Crecen en las zonas de mayor humedad cerca del agua.",
+        "species_ids": ["helecho-arboreo"],
+        "photo": null,
+        "audio": null,
+        "sample": true
+      },
+      "geometry": { "type": "Point", "coordinates": [-75.44870, 5.08260] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "wp-nacimiento",
+        "name": "Nacimiento de agua",
+        "themes": ["agua"],
+        "title": "Donde empieza la quebrada",
+        "description": "Área de nacimiento con vegetación tolerante a encharcamiento. Estas fuentes hídricas abastecen la casa del predio y la fauna local.",
+        "species_ids": [],
+        "photo": null,
+        "audio": null,
+        "sample": true
+      },
+      "geometry": { "type": "Point", "coordinates": [-75.44830, 5.08300] }
+    }
+  ]
+}

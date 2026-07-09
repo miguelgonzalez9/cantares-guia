@@ -1,0 +1,15 @@
+{
+  "name": "cantares-guia",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Guía interactiva, monitor de restauración y juego de especies — Reserva Natural Cantares",
+  "type": "module",
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "serve": "npx --yes serve public -l 5173"
+  },
+  "dependencies": {
+    "maplibre-gl": "^4.7.1",
+    "pmtiles": "^3.2.1"
+  }
+}

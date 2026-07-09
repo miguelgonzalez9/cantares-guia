@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2d6a4f"/>
+      <stop offset="1" stop-color="#1b4332"/>
+    </linearGradient>
+    <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d8f3dc" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#d8f3dc" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <!-- back ridge -->
+  <path d="M0 360 L120 250 L210 330 L300 235 L400 335 L512 260 L512 512 L0 512 Z" fill="#40916c" opacity="0.55"/>
+  <!-- mist band -->
+  <rect x="0" y="300" width="512" height="70" fill="url(#mist)" opacity="0.5"/>
+  <!-- front ridge -->
+  <path d="M0 420 L150 320 L280 405 L380 340 L512 430 L512 512 L0 512 Z" fill="#245c43"/>
+  <!-- tree -->
+  <g transform="translate(256 150)">
+    <rect x="-9" y="150" width="18" height="90" rx="6" fill="#e8f2ea"/>
+    <path d="M0 -20 L70 90 L-70 90 Z" fill="#d8f3dc"/>
+    <path d="M0 40 L92 175 L-92 175 Z" fill="#b7e4c7"/>
+    <path d="M0 100 L110 250 L-110 250 Z" fill="#95d5b2"/>
+  </g>
+</svg>

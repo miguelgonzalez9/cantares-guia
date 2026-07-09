@@ -1,0 +1,15 @@
+{
+  "name": "Cantares — Guía de la Reserva",
+  "short_name": "Cantares",
+  "description": "Guía interactiva de senderos, monitor de restauración y juego de especies de la Reserva Natural Cantares.",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1b4332",
+  "theme_color": "#1b4332",
+  "lang": "es",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "type": "FeatureCollection",
+  "_meta": "MUESTRA. Reemplazar con trazados GPS reales (GPX del celular → data_prep/02_process_traces.R).",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "sendero-principal",
+        "name": "Sendero principal (muestra)",
+        "themes": ["agua", "arboles", "aves", "restauracion"],
+        "sample": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-75.45200, 5.08000],
+          [-75.45155, 5.08050],
+          [-75.45080, 5.08090],
+          [-75.45020, 5.08120],
+          [-75.44970, 5.08160],
+          [-75.44920, 5.08210],
+          [-75.44870, 5.08260],
+          [-75.44830, 5.08300]
+        ]
+      }
+    }
+  ]
+}
