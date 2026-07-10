@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "note": "Catálogo de imágenes curadas de la reserva (especies + puntos clave). Lo GENERA y actualiza data_prep/10_process_photos.py a partir de las fotos en inputs/photos/incoming/. Puedes editar a mano los campos 'credit', 'license', 'caption', 'caption_en' y 'is_primary'; el script los conserva al re-procesar. NO edites 'file'/'thumb'/'w'/'h'/'bytes'.",
+    "schema": {
+      "file": "ruta a la imagen web (WebP) desde app/public/",
+      "jpg": "respaldo JPEG para navegadores sin WebP",
+      "thumb": "miniatura WebP para el grid",
+      "subject_type": "species | waypoint",
+      "subject_id": "id de la especie (species.json) o del punto (waypoints.geojson)",
+      "is_primary": "true = imagen principal de esa especie/punto (una sola)",
+      "credit": "autor/fotógrafo",
+      "license": "licencia de uso (por defecto CC BY 4.0)",
+      "caption": "pie de foto (ES)",
+      "caption_en": "pie de foto (EN)",
+      "taken": "fecha/hora EXIF (ISO 8601) si la foto la trae",
+      "lat": "latitud EXIF si está dentro de la reserva (se omite/obscurece para taxones sensibles)",
+      "lon": "longitud EXIF (idem)",
+      "w": "ancho px",
+      "h": "alto px",
+      "bytes": "peso del WebP"
+    },
+    "default_credit": "Reserva Natural Cantares",
+    "default_license": "CC BY 4.0",
+    "sensitive_note": "Para especies marcadas como sensibles (orquídeas, endémicas, fauna vulnerable) el script NO escribe lat/lon exactas — solo una celda gruesa o nada. Ver docs/MEDIA_SYSTEM.md."
+  },
+  "photos": []
+}

@@ -1,0 +1,39 @@
+{
+  "_meta": {
+    "note": "Datos de visita que edita la reserva — NO requiere programar. Deja un campo como \"\" (comillas vacías) si aún no lo tienes: la app lo mostrará como «por completar». Cada campo tiene su versión en inglés con el sufijo _en. Las reglas y el bloque de seguridad ya traen texto por defecto; cámbialos si quieres.",
+    "por_completar": ["hours", "phone", "whatsapp", "how_to_arrive", "parking", "entry", "rules (lista)"],
+    "ejemplo_hours": "Sáb–Dom 8:00–16:00 · entre semana con reserva previa",
+    "ejemplo_how_to_arrive": "Vereda Las Palomas, ~5 km de Manizales por la vía a El Arenillo. En Waze/Maps buscar «Reserva Cantares».",
+    "ejemplo_parking": "Parqueo en la portada para ~6 vehículos.",
+    "ejemplo_entry": "Aporte de conservación: $XX por persona. Niños < 8 gratis."
+  },
+  "hours": "",
+  "hours_en": "",
+  "phone": "",
+  "whatsapp": "",
+  "how_to_arrive": "",
+  "how_to_arrive_en": "",
+  "parking": "",
+  "parking_en": "",
+  "entry": "",
+  "entry_en": "",
+  "rules": [
+    "Quédate en los senderos marcados.",
+    "No recolectes plantas, flores ni animales.",
+    "No dejes basura: todo lo que entra, sale contigo.",
+    "Observa la fauna a distancia; no la alimentes ni la persigas.",
+    "Prohibido hacer fuego."
+  ],
+  "rules_en": [
+    "Stay on the marked trails.",
+    "Do not collect plants, flowers or animals.",
+    "Leave no trash: pack out everything you bring in.",
+    "Watch wildlife from a distance; do not feed or chase it.",
+    "No open fires."
+  ],
+  "emergency_national": "123",
+  "emergency_national_label": "Emergencias (Colombia)",
+  "emergency_national_label_en": "Emergencies (Colombia)",
+  "if_lost": "Si te pierdes, quédate donde estás: te encontrarán más rápido. Abrígate y resguárdate del viento y la lluvia. Si tienes pito, haz tres pitidos seguidos, descansa y repite (gasta menos energía que gritar). Cuida la batería del teléfono.",
+  "if_lost_en": "If you get lost, stay put: you'll be found faster. Add layers and shelter from wind and rain. If you have a whistle, blow three times, rest, and repeat (it saves more energy than shouting). Conserve your phone battery."
+}

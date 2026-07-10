@@ -1,7 +1,9 @@
-// Cantares service worker — offline app shell + data, runtime-cache map tiles.
-const VERSION = 'cantares-v2';
+// Cantares service worker — offline app shell + data, runtime-cache map tiles + fotos.
+const VERSION = 'cantares-v4';
 const SHELL = `${VERSION}-shell`;
 const TILES = `${VERSION}-tiles`;
+const IMAGES = `${VERSION}-img`;
+const IMAGES_MAX = 350;   // tope de fotos en caché (especies + puntos) — evita crecer sin límite
 
 const SHELL_ASSETS = [
   'index.html',
@@ -18,7 +20,17 @@ const SHELL_ASSETS = [
   'data/waypoints.geojson',
   'data/routes.json',
   'data/species.json',
+  'data/reserve_info.json',
+  'data/media.json',
 ];
+
+// Recorta un caché a `max` entradas (FIFO): borra las más viejas.
+async function trimCache(name, max) {
+  const cache = await caches.open(name);
+  const keys = await cache.keys();
+  if (keys.length <= max) return;
+  for (const k of keys.slice(0, keys.length - max)) await cache.delete(k);
+}
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -46,6 +58,25 @@ self.addEventListener('fetch', (e) => {
         try {
           const res = await fetch(e.request);
           if (res.ok) cache.put(e.request, res.clone());
+          return res;
+        } catch (err) {
+          return hit || Response.error();
+        }
+      })
+    );
+    return;
+  }
+
+  // Fotos curadas (img/…): cache-first con caché propio y tope. Se guardan a
+  // medida que se ven; con wifi en la entrada, quedan disponibles en el sendero.
+  if (url.origin === location.origin && /\/img\//.test(url.pathname)) {
+    e.respondWith(
+      caches.open(IMAGES).then(async (cache) => {
+        const hit = await cache.match(e.request);
+        if (hit) return hit;
+        try {
+          const res = await fetch(e.request);
+          if (res.ok) { cache.put(e.request, res.clone()); trimCache(IMAGES, IMAGES_MAX); }
           return res;
         } catch (err) {
           return hit || Response.error();

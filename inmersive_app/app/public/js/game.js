@@ -17,7 +17,9 @@ const GAME_CFG = {
   photoMaxPx: 1280, photoQuality: 0.82,
   // Puntos base por grupo. La fauna vale más: es más difícil de fotografiar
   // y en Cantares toda la fauna está aún SIN confirmar en campo.
-  basePoints: { flora: 10, ave: 25, mamifero: 40, otro: 15 },
+  // Anfibios: crípticos, nocturnos, indicadores de salud del ecosistema y
+  // globalmente amenazados → alto valor. Toda la fauna de Cantares aún sin confirmar.
+  basePoints: { flora: 10, ave: 25, mamifero: 40, anfibio: 45, otro: 15 },
   flagshipBonus: 10,     // especie bandera ★
   confirmMultiplier: 3,  // especie con status 'possible' → ¡primera confirmación!
   firstEverBonus: 15,    // primer registro histórico de esa especie en este dispositivo
@@ -49,7 +51,7 @@ export const GAME_I18N = {
     g_auto_wait: 'Consultando Pl@ntNet…', g_auto_fail: 'No se pudo identificar automáticamente. Usa el buscador.',
     g_auto_pick: 'Sugerencias — toca la correcta:',
     g_search_ph: 'Busca por nombre común o científico…',
-    g_group_q: 'Tipo de ser vivo:', g_g_flora: '🌳 Planta', g_g_ave: '🐦 Ave', g_g_mamifero: '🐾 Mamífero', g_g_otro: '🦋 Otro',
+    g_group_q: 'Tipo de ser vivo:', g_g_flora: '🌳 Planta', g_g_ave: '🐦 Ave', g_g_mamifero: '🐾 Mamífero', g_g_anfibio: '🐸 Anfibio', g_g_otro: '🦋 Otro',
     g_not_listed: '➕ No está en la lista — registrar hallazgo nuevo',
     g_finding_name: 'Nombre (si lo conoces) o descripción corta',
     g_step_confirm: 'Paso 3 · Confirmar', g_save: '💾 Guardar avistamiento', g_back: '← Atrás',
@@ -94,7 +96,7 @@ export const GAME_I18N = {
     g_auto_wait: 'Asking Pl@ntNet…', g_auto_fail: 'Automatic ID failed. Use the search box.',
     g_auto_pick: 'Suggestions — tap the right one:',
     g_search_ph: 'Search by common or scientific name…',
-    g_group_q: 'Kind of living thing:', g_g_flora: '🌳 Plant', g_g_ave: '🐦 Bird', g_g_mamifero: '🐾 Mammal', g_g_otro: '🦋 Other',
+    g_group_q: 'Kind of living thing:', g_g_flora: '🌳 Plant', g_g_ave: '🐦 Bird', g_g_mamifero: '🐾 Mammal', g_g_anfibio: '🐸 Amphibian', g_g_otro: '🦋 Other',
     g_not_listed: '➕ Not on the list — log a new finding',
     g_finding_name: 'Name (if you know it) or short description',
     g_step_confirm: 'Step 3 · Confirm', g_save: '💾 Save sighting', g_back: '← Back',
@@ -405,7 +407,7 @@ function renderWizardPhoto(body) {
 }
 
 function renderWizardId(body) {
-  const groups = [['flora', T('g_g_flora')], ['ave', T('g_g_ave')], ['mamifero', T('g_g_mamifero')], ['otro', T('g_g_otro')]];
+  const groups = [['flora', T('g_g_flora')], ['ave', T('g_g_ave')], ['mamifero', T('g_g_mamifero')], ['anfibio', T('g_g_anfibio')], ['otro', T('g_g_otro')]];
   const canAuto = !!GAME_CFG.plantnetApiKey && navigator.onLine;
   body.innerHTML = `
     <h2>${T('g_step_id')}</h2>
@@ -628,22 +630,47 @@ function openRecords() {
 }
 
 // ---------- exportación (mantiene vivo el inventario) ----------
+// Formato Darwin Core: se puede publicar en SiB Colombia → GBIF sin retrabajo.
+// Las coordenadas de especies sensibles (orquídeas, endémicas, o marcadas
+// "sensitive":true en species.json) se RETIENEN para no exponer su ubicación.
+const SENSITIVE_FAMILIES = new Set(['Orchidaceae']);
+function speciesRec(id) { return (CTX.state.species || []).find((s) => s.id === id) || null; }
+function isSensitive(id) {
+  const s = speciesRec(id);
+  return !!s && (s.sensitive === true || SENSITIVE_FAMILIES.has(s.family));
+}
 function obsRowsForExport() {
   const byId = Object.fromEntries(allPlayers.map((p) => [p.id, p]));
-  return allObs.map((o) => ({
-    datetime: o.time,
-    player: (byId[o.playerId] || {}).name || o.playerId,
-    kind: o.kind,
-    species_id: o.speciesId || '',
-    scientific_name: o.sci || '',
-    common_name: o.common || '',
-    group: o.group || '',
-    lat: o.lat != null ? o.lat : '',
-    lon: o.lon != null ? o.lon : '',
-    accuracy_m: o.acc != null ? o.acc : '',
-    confirmed_possible: o.confirmedPossible ? 1 : 0,
-    points: o.points,
-  }));
+  return allObs.map((o) => {
+    const s = o.speciesId ? speciesRec(o.speciesId) : null;
+    const withhold = o.speciesId && isSensitive(o.speciesId) && o.lat != null;
+    const hasCoord = o.lat != null && !withhold;
+    return {
+      occurrenceID: `cantares:${o.id}`,
+      basisOfRecord: 'HumanObservation',
+      eventDate: o.time || '',
+      scientificName: o.sci || '',
+      vernacularName: o.common || '',
+      taxonRank: s ? (String(s.scientific_name || '').trim().includes(' ') ? 'species' : 'genus') : '',
+      family: (s && s.family) || '',
+      kingdom: o.group === 'flora' ? 'Plantae' : (o.group ? 'Animalia' : ''),
+      individualCount: 1,
+      recordedBy: (byId[o.playerId] || {}).name || o.playerId,
+      occurrenceStatus: 'present',
+      country: 'Colombia', countryCode: 'CO', stateProvince: 'Caldas',
+      locality: 'Reserva Natural Cantares',
+      decimalLatitude: hasCoord ? o.lat : '',
+      decimalLongitude: hasCoord ? o.lon : '',
+      geodeticDatum: hasCoord ? 'EPSG:4326' : '',
+      coordinateUncertaintyInMeters: hasCoord && o.acc != null ? o.acc : '',
+      identificationVerificationStatus: 'unverified',
+      identificationRemarks: o.kind === 'finding'
+        ? 'Candidate new record for the reserve; needs review'
+        : 'Matched to reserve inventory; not expert-verified',
+      informationWithheld: withhold ? 'Coordinates withheld: sensitive species' : '',
+      dynamicProperties: JSON.stringify({ gamePoints: o.points, confirmedPossible: !!o.confirmedPossible, group: o.group || '' }),
+    };
+  });
 }
 function download(name, mime, content) {
   const a = document.createElement('a');
@@ -664,7 +691,12 @@ function exportJSON() {
   const rows = obsRowsForExport();
   if (!rows.length) { CTX.toast(T('g_records_empty')); return; }
   download(`cantares_avistamientos_${new Date().toISOString().slice(0, 10)}.json`, 'application/json',
-    JSON.stringify({ reserve: 'Reserva Natural Cantares', exported: new Date().toISOString(), observations: rows }, null, 2));
+    JSON.stringify({
+      reserve: 'Reserva Natural Cantares', exported: new Date().toISOString(),
+      standard: 'Darwin Core (Occurrence)', datasetName: 'Expedición Cantares — avistamientos de visitantes',
+      note: 'Coordenadas de especies sensibles retenidas (informationWithheld). Apto para SiB Colombia → GBIF.',
+      occurrences: rows,
+    }, null, 2));
 }
 
 // ---------- capa de observaciones en el mapa ----------

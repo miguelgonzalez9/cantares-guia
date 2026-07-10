@@ -96,6 +96,70 @@ avistamiento guarda **hora exacta, especie, coordenadas GPS + precisión y foto*
 ranking con premio, «Mis registros» con miniatura y borrado, insignia 📸 en el grid
 de especies. Persiste en IndexedDB tras recargar.
 
+## Primer arranque y datos de visita (Nivel 1 del diagnóstico UX)
+
+Dos piezas nuevas para que un turista «entienda» la app en <30 s y encuentre lo
+básico de una visita, siguiendo mejores prácticas de apps de parques (NPS, Seek/Merlin).
+
+**Onboarding de primer arranque** (`index.html` + `js/app.js`): al abrir por primera
+vez aparece una pantalla con elección de idioma **Español / English** (en palabras, no
+banderas), tres puntos de valor (mapa con GPS · especies+juego · funciona offline) y un
+botón que cae directo al mapa. Sin login, sin tutorial. Se muestra una sola vez
+(`localStorage: cantares_onboarded`); reaparece si el visitante borra datos.
+
+**«Planea tu visita»** — pestaña Info (`data/reserve_info.json`, cacheado offline):
+horarios, contacto (tel/WhatsApp con botón de llamada), cómo llegar, parqueo, entrada,
+normas de la reserva, y un bloque de **Seguridad** con «si te pierdes» + botón de
+**Emergencias 123**. Los campos vacíos se muestran como «Por completar».
+
+> **Qué debes rellenar tú** (editar `app/public/data/reserve_info.json`, sin programar):
+> `hours`, `phone`, `whatsapp`, `how_to_arrive`, `parking`, `entry` (y sus `_en`).
+> Las `rules` y el texto de seguridad ya traen valores por defecto — cámbialos si quieres.
+> El `_meta` del archivo trae ejemplos de cada campo. Tras editar, recarga dos veces
+> (service worker) o usa incógnito para ver el cambio.
+
+## Sistema de imágenes (inventario + puntos clave)
+
+Cómo se guardan, clasifican y sirven las fotos. Detalle completo en
+[`docs/MEDIA_SYSTEM.md`](docs/MEDIA_SYSTEM.md). En una frase: **el dueño suelta
+fotos en una carpeta nombrada como el `id` de la especie/punto**, corre un script
+y la app las muestra — originales fuera del repo, solo versiones web adentro.
+
+- **Alimentar** (sin programar): soltar fotos en
+  `inputs/photos/incoming/especies/<id>/` o `.../puntos/<id>/` (ver el README de
+  esa carpeta). Ids en `data/species.json` y `data/waypoints.geojson`.
+- **Procesar**: `python data_prep/10_process_photos.py` → genera WebP + JPG +
+  miniatura, lee fecha/GPS EXIF, avisa si un GPS cae fuera de la reserva, oscurece
+  coordenadas de especies sensibles, y actualiza `data/media.json`.
+- **Mostrar**: la tarjeta de especie enseña la miniatura (carga perezosa); la ficha
+  del punto usa la foto real. Sin foto, se ve como antes (progresivo).
+- **Offline**: `sw.js` cachea las fotos vistas en un caché propio con tope (350).
+
+## Datos aprovechables (Darwin Core)
+
+El export del juego (CSV/JSON) sale en **Darwin Core** (`occurrenceID`,
+`basisOfRecord=HumanObservation`, `eventDate`, `scientificName`, `decimalLatitude/Longitude`,
+`coordinateUncertaintyInMeters`, `identificationVerificationStatus`, …), publicable
+en **SiB Colombia → GBIF** sin retrabajo. Las coordenadas de especies sensibles
+(familia Orchidaceae o `"sensitive": true` en `species.json`) se **retienen**
+(`informationWithheld`) — protección anti-saqueo. El grupo `anfibio` ya puntúa
+como fauna de alto valor (45 pts) y tiene su filtro y su opción de captura.
+
+## Despliegue en GitHub Pages
+
+La PWA se publica sola vía GitHub Actions (`.github/workflows/deploy-pages.yml`),
+que sube **solo** `inmersive_app/app/public` (no los datos crudos ni la ortofoto).
+La app usa rutas relativas, así que funciona bajo `usuario.github.io/<repo>/`.
+
+Pasos únicos del dueño (una vez):
+1. Crear un repositorio en GitHub (público) y conectarlo:
+   `git remote add origin https://github.com/<usuario>/<repo>.git`
+2. `git push -u origin main`
+3. En GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+4. Cada `push` a `main` que toque `app/public/` re-publica en 1–2 min.
+   La URL sale en la pestaña **Actions** o en **Settings → Pages**.
+5. Con esa URL, se genera el **QR** para la señal de la portada.
+
 ## Insumos del propietario ya integrados
 
 `shapes_ortofoto/` (EPSG:3116) y `ortofoto_caminos.pdf` fueron procesados:

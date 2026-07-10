@@ -26,6 +26,14 @@ build/
 *.pmtiles
 *.mbtiles
 
+# --- Fotos: originales crudos NO se versionan (pesados). Solo las versiones
+#     web optimizadas en app/public/img/ entran al repo (las genera el script
+#     data_prep/10_process_photos.py). Ver docs/MEDIA_SYSTEM.md.
+inmersive_app/inputs/photos/incoming/**
+inmersive_app/inputs/photos/_originals/**
+!inmersive_app/inputs/photos/incoming/README.md
+!inmersive_app/inputs/photos/incoming/.gitkeep
+
 # --- Secrets ---
 .env
 .env.*

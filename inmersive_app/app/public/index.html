@@ -14,6 +14,21 @@
   <script src="vendor/pmtiles.js"></script>
 </head>
 <body>
+  <!-- Primer arranque: idioma + propuesta de valor, sin login, cae al mapa -->
+  <div id="onboarding" class="onboarding hidden" role="dialog" aria-modal="true">
+    <div class="ob-card">
+      <img src="icons/icon.svg" class="ob-logo" alt="" />
+      <h1 id="ob-title">Bienvenido a Cantares</h1>
+      <div class="ob-langs">
+        <button class="ob-lang" data-lang="es">Español</button>
+        <button class="ob-lang" data-lang="en">English</button>
+      </div>
+      <ul class="ob-points" id="ob-points"></ul>
+      <p class="ob-tip" id="ob-tip"></p>
+      <button id="ob-go" class="ob-go"></button>
+    </div>
+  </div>
+
   <header class="app-header">
     <div class="brand">
       <img src="icons/icon.svg" alt="" class="brand-mark" />
@@ -112,6 +127,9 @@
           <li><strong data-i18n="fact_water">Agua</strong> <span data-i18n="fact_water_v"></span></li>
           <li><strong data-i18n="fact_reg">Registro</strong> <span data-i18n="fact_reg_v"></span></li>
         </ul>
+        <!-- Planea tu visita — se llena desde data/reserve_info.json -->
+        <div id="visit-info"></div>
+
         <h2 data-i18n="map_illus" style="margin-top:18px">Mapa ilustrado de senderos</h2>
         <img class="illus-map" src="img/mapa_senderos.png" alt="Mapa de senderos" loading="lazy" />
         <div id="offline-status" class="offline-status" style="margin-top:14px"></div>

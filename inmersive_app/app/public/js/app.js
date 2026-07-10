@@ -13,6 +13,7 @@ const CONFIG = {
     boundary: 'data/boundary.geojson', zones: 'data/zones.geojson',
     trails: 'data/trails.geojson', waypoints: 'data/waypoints.geojson',
     routes: 'data/routes.json', species: 'data/species.json',
+    reserveInfo: 'data/reserve_info.json', media: 'data/media.json',
   },
   // Base imagery time-slider stops. Esri Wayback = free, keyless, sub-meter.
   // Labeled by the REAL acquisition date over the reserve (from the Wayback
@@ -31,7 +32,29 @@ const state = {
   map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
   activeRoute: null, userPos: null, watchId: null, firstFix: false,
   lastTriggered: {}, openWaypointId: null, baseIndex: 2, zonesVisible: true,
+  reserveInfo: null, media: { bySubject: {} },
 };
+
+// ---------- media (fotos curadas de especies y puntos, desde media.json) ----------
+function indexMedia(doc) {
+  const bySubject = {};
+  (doc && doc.photos || []).forEach((p) => {
+    const key = `${p.subject_type}:${p.subject_id}`;
+    (bySubject[key] = bySubject[key] || []).push(p);
+  });
+  // la principal primero
+  Object.values(bySubject).forEach((arr) => arr.sort((a, b) => (b.is_primary === true) - (a.is_primary === true)));
+  return { bySubject };
+}
+function photosFor(type, id) { return state.media.bySubject[`${type}:${id}`] || []; }
+function primaryPhoto(type, id) { const a = photosFor(type, id); return a[0] || null; }
+// <picture> WebP + respaldo JPEG. `cls` para estilo, `alt` texto alternativo.
+function pictureTag(ph, cls, alt) {
+  if (!ph) return '';
+  const src = ph.thumb || ph.file;
+  return `<picture class="${cls}"><source srcset="${src}" type="image/webp">` +
+    `<img src="${ph.jpg || ph.file}" alt="${(alt || '').replace(/"/g, '&quot;')}" loading="lazy"></picture>`;
+}
 
 // ---------- i18n ----------
 const I18N = {
@@ -42,6 +65,7 @@ const I18N = {
     gps_timeout: 'Sin respuesta', gps_unsupported: 'GPS no disponible', gps_insecure: 'El GPS requiere HTTPS',
     gps_hint_denied: 'Activa el permiso de ubicación para este sitio en el navegador.',
     approx_note: 'Posición aproximada — se reemplaza con el punto GPS real.',
+    more_info: 'Más información', sample_photo: 'foto de muestra',
     legend: 'Leyenda', lg_trails: 'Senderos', lg_route: 'Recorrido activo', lg_start: 'Inicio', lg_end: 'Fin',
     lg_point: 'Punto clave', lg_zones: 'Zonas de manejo', lg_zones_toggle: 'Mostrar/ocultar zonas',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
@@ -68,6 +92,17 @@ const I18N = {
     grp_flora: 'Flora', grp_ave: 'Aves', grp_mamifero: 'Mamíferos',
     online: '🟢 En línea. Abre el mapa aquí (wifi) para guardar los tiles y luego funciona sin señal en el sendero.',
     offline: '⚪ Sin conexión. La app y el contenido guardado siguen disponibles.',
+    ob_title: 'Bienvenido a Cantares',
+    ob_p_map: 'Mapa con tu ubicación en vivo en el sendero',
+    ob_p_species: 'Especies, avistamientos y un juego de exploración',
+    ob_p_offline: 'Funciona sin señal una vez cargada',
+    ob_tip: 'Consejo: abre el mapa ahora con wifi para guardarlo y usarlo sin conexión.',
+    ob_go: 'Explorar la reserva →',
+    visit_h: 'Planea tu visita', v_hours: '🕑 Horarios', v_contact: '📞 Contacto',
+    v_arrive: '🚗 Cómo llegar', v_parking: '🅿️ Parqueo', v_entry: '🎟️ Entrada',
+    v_rules_h: '📋 Normas de la reserva', v_safety_h: '🛟 Seguridad',
+    v_lost: 'Si te pierdes', v_emergency: 'Emergencias', v_call: 'Llamar',
+    v_pending: 'Por completar', v_whatsapp: 'WhatsApp',
     demo_note: 'Cifras de DEMOSTRACIÓN. Reemplaza <code>inputs/inventory/key_trees.csv</code> y corre <code>data_prep/05_carbon_allometry.R</code>.',
     key_trees: 'árboles clave', agb: 'biomasa aérea',
   },
@@ -78,6 +113,7 @@ const I18N = {
     gps_timeout: 'Timed out', gps_unsupported: 'GPS unavailable', gps_insecure: 'GPS needs HTTPS',
     gps_hint_denied: 'Enable location permission for this site in your browser.',
     approx_note: 'Approximate position — to be replaced by the real GPS point.',
+    more_info: 'More info', sample_photo: 'sample photo',
     legend: 'Legend', lg_trails: 'Trails', lg_route: 'Active route', lg_start: 'Start', lg_end: 'End',
     lg_point: 'Key point', lg_zones: 'Management zones', lg_zones_toggle: 'Show/hide zones',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
@@ -104,6 +140,17 @@ const I18N = {
     grp_flora: 'Plants', grp_ave: 'Birds', grp_mamifero: 'Mammals',
     online: '🟢 Online. Open the map here (wifi) to cache tiles, then it works with no signal on the trail.',
     offline: '⚪ Offline. The app and cached content are still available.',
+    ob_title: 'Welcome to Cantares',
+    ob_p_map: 'A map with your live position on the trail',
+    ob_p_species: 'Species, sightings and an exploration game',
+    ob_p_offline: 'Works with no signal once loaded',
+    ob_tip: 'Tip: open the map now on wifi to save it and use it offline.',
+    ob_go: 'Explore the reserve →',
+    visit_h: 'Plan your visit', v_hours: '🕑 Hours', v_contact: '📞 Contact',
+    v_arrive: '🚗 Getting there', v_parking: '🅿️ Parking', v_entry: '🎟️ Entry',
+    v_rules_h: '📋 Reserve rules', v_safety_h: '🛟 Safety',
+    v_lost: 'If you get lost', v_emergency: 'Emergencies', v_call: 'Call',
+    v_pending: 'To be filled in', v_whatsapp: 'WhatsApp',
     demo_note: 'DEMO figures. Replace <code>inputs/inventory/key_trees.csv</code> and run <code>data_prep/05_carbon_allometry.R</code>.',
     key_trees: 'key trees', agb: 'above-ground biomass',
   },
@@ -265,10 +312,13 @@ async function initMap() {
       map.addLayer({ id: 'user-dot', type: 'circle', source: 'user',
         paint: { 'circle-radius': 7, 'circle-color': '#2b8cbe', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
 
-      map.on('click', 'waypoints-pt', (e) =>
-        showWaypoint(state.waypoints.find((w) => w.properties.id === e.features[0].properties.id)));
-      map.on('mouseenter', 'waypoints-pt', () => map.getCanvas().style.cursor = 'pointer');
-      map.on('mouseleave', 'waypoints-pt', () => map.getCanvas().style.cursor = '');
+      const wpAt = (e) => state.waypoints.find((w) => w.properties.id === e.features[0].properties.id);
+      // Hover (desktop) and tap (mobile) both open the anchored mini-popup.
+      map.on('mouseenter', 'waypoints-pt', (e) => { map.getCanvas().style.cursor = 'pointer'; cancelClosePopup(); miniPopup(wpAt(e)); });
+      map.on('mouseleave', 'waypoints-pt', () => { map.getCanvas().style.cursor = ''; scheduleClosePopup(); });
+      map.on('click', 'waypoints-pt', (e) => { state._wpClick = true; miniPopup(wpAt(e)); });
+      // Click on empty map closes the mini-popup.
+      map.on('click', () => { if (state._wpClick) { state._wpClick = false; return; } removePopup(); });
       finish();
     });
   });
@@ -385,6 +435,56 @@ function routeLabel(rid) {
   const r = state.routesById[rid];
   return r ? L(r, 'name') : rid;
 }
+// Sample photo (placeholder) until real per-point photos exist: an SVG data URI
+// tinted with the point's route color + emoji.
+function samplePhoto(wp) {
+  if (wp.properties.photo) return wp.properties.photo;
+  const mp = primaryPhoto('waypoint', wp.properties.id);   // foto curada real (media.json)
+  if (mp) return mp.jpg || mp.file;                        // jpg: universal en background-image
+  const rid = (wp.properties.routes || [])[0];
+  const color = ROUTE_COLORS[rid] || '#40916c';
+  const emoji = (state.routesById[rid] && state.routesById[rid].emoji) || '📍';
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='220'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${color}'/><stop offset='1' stop-color='#1b4332'/></linearGradient></defs><rect width='400' height='220' fill='url(#g)'/><circle cx='200' cy='92' r='36' fill='#ffffff30'/><circle cx='200' cy='92' r='7' fill='#ffffffcc'/><text x='200' y='168' font-size='16' fill='#ffffffcc' text-anchor='middle' font-family='sans-serif'>${t('sample_photo')}</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+// Sticky-hover close: on hover devices the popup closes when the pointer leaves
+// the point AND the popup (small grace period so the user can reach the button).
+const canHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+let popupCloseTimer = null;
+function removePopup() { if (state.popup) { state.popup.remove(); state.popup = null; } }
+function scheduleClosePopup() { if (!canHover) return; clearTimeout(popupCloseTimer); popupCloseTimer = setTimeout(removePopup, 260); }
+function cancelClosePopup() { clearTimeout(popupCloseTimer); }
+
+// Small popup anchored to the point (hover on desktop, tap on mobile).
+function miniPopup(wp) {
+  if (!wp || !state.map) return;
+  cancelClosePopup();
+  if (state.popup) state.popup.remove();
+  const p = wp.properties;
+  const rid = (p.routes || [])[0];
+  const badge = rid ? `<span class="mp-badge" style="background:${ROUTE_COLORS[rid] || '#5b6b60'}">${routeLabel(rid)}</span>` : '';
+  const full = L(p, 'description') || '';
+  const desc = full ? full.slice(0, 85) + (full.length > 85 ? '…' : '') : '';
+  const html = `<div class="mini-pop">
+    <div class="mp-photo" style="background-image:url('${samplePhoto(wp)}')"></div>
+    <div class="mp-body">${badge}
+      <strong>${L(p, 'title') || p.name}</strong>
+      ${desc ? `<p>${desc}</p>` : ''}
+      <button class="mp-more" type="button">${t('more_info')} ›</button>
+    </div></div>`;
+  state.popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, maxWidth: '250px', offset: 12, className: 'cantares-popup' })
+    .setLngLat(wp.geometry.coordinates).setHTML(html).addTo(state.map);
+  const el = state.popup.getElement();
+  if (el) {
+    el.addEventListener('mouseenter', cancelClosePopup);
+    el.addEventListener('mouseleave', scheduleClosePopup);
+    const btn = el.querySelector('.mp-more');
+    if (btn) btn.onclick = () => { removePopup(); showWaypoint(wp); };
+  }
+}
+
+// Full detail "page" overlaid on the map (opened from the mini-popup's More button).
 function showWaypoint(wp) {
   if (!wp) return;
   const p = wp.properties;
@@ -397,12 +497,14 @@ function showWaypoint(wp) {
     return s ? `<span class="chip" data-species="${s.id}">${L(s, 'common_name')}</span>` : '';
   }).join('');
   $('#wp-content').innerHTML = `
-    <div class="wp-theme-badges">${badges}</div>
-    <h2 class="wp-title">${L(p, 'title') || p.name}</h2>
-    ${p.photo ? `<img class="wp-photo" src="${p.photo}" alt="${p.name}">` : ''}
-    <p class="wp-desc">${L(p, 'description') || ''}</p>
-    ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
-    ${p.approx ? `<p class="tiny muted" style="margin-top:10px">${t('approx_note')}</p>` : ''}`;
+    <div class="wp-photo-hdr" style="background-image:url('${samplePhoto(wp)}')"></div>
+    <div class="wp-inner">
+      <div class="wp-theme-badges">${badges}</div>
+      <h2 class="wp-title">${L(p, 'title') || p.name}</h2>
+      <p class="wp-desc">${L(p, 'description') || ''}</p>
+      ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
+      ${p.approx ? `<p class="tiny muted" style="margin-top:10px">${t('approx_note')}</p>` : ''}
+    </div>`;
   $('#waypoint-card').classList.remove('hidden');
   $$('#wp-content .chip').forEach((chip) =>
     chip.onclick = () => { switchView('especies'); highlightSpecies(chip.dataset.species); });
@@ -455,7 +557,7 @@ function checkProximity() {
     if (d <= CONFIG.proximityMeters && !state.lastTriggered[id]) {
       state.lastTriggered[id] = true;
       toast('📍 ' + (L(wp.properties, 'title') || wp.properties.name));
-      showWaypoint(wp);
+      miniPopup(wp);   // arriving shows the small popup; visitor taps "Más info" to expand
     } else if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) state.lastTriggered[id] = false;
   });
 }
@@ -490,7 +592,10 @@ function renderSpeciesGrid(highlightId) {
     const card = document.createElement('div');
     card.className = `species-card ${s.flagship ? 'flagship' : ''} ${s.status === 'possible' ? 'status-possible' : ''}`;
     card.id = `sp-${s.id}`;
+    const ph = primaryPhoto('species', s.id);
+    card.classList.toggle('has-thumb', !!ph);
     card.innerHTML = `
+      ${ph ? pictureTag(ph, 'sp-thumb', L(s, 'common_name')) : ''}
       ${s.flagship ? '<span class="star">★</span>' : ''}
       <p class="species-common">${L(s, 'common_name')}</p>
       <p class="species-sci">${s.scientific_name}</p>
@@ -508,6 +613,73 @@ function highlightSpecies(id) {
   if (!state.species.find((x) => x.id === id)) return;
   speciesFilter = 'all'; renderSpeciesFilters(); renderSpeciesGrid(id);
 }
+
+// ---------- onboarding (primer arranque) ----------
+function renderOnboarding() {
+  $('#ob-title').textContent = t('ob_title');
+  $('#ob-go').textContent = t('ob_go');
+  $('#ob-tip').textContent = t('ob_tip');
+  $('#ob-points').innerHTML = [
+    ['🗺️', t('ob_p_map')], ['🦋', t('ob_p_species')], ['📶', t('ob_p_offline')],
+  ].map(([e, txt]) => `<li><span class="ob-e">${e}</span>${txt}</li>`).join('');
+  $$('#onboarding .ob-lang').forEach((b) => b.classList.toggle('sel', b.dataset.lang === LANG));
+}
+function showOnboarding() {
+  const ob = $('#onboarding');
+  renderOnboarding();
+  ob.classList.remove('hidden');
+  $$('#onboarding .ob-lang').forEach((b) => b.onclick = () => { setLang(b.dataset.lang); renderOnboarding(); });
+  $('#ob-go').onclick = () => {
+    localStorage.setItem('cantares_onboarded', '1');
+    ob.classList.add('hidden');
+    switchView('recorridos');
+  };
+}
+
+// ---------- planea tu visita ----------
+function renderVisitInfo() {
+  const el = $('#visit-info');
+  if (!el) return;
+  const info = state.reserveInfo;
+  if (!info) { el.innerHTML = ''; return; }
+  const pending = `<span class="v-pending">${t('v_pending')}</span>`;
+  const val = (field) => { const v = L(info, field); return v ? escapeHtml(v) : pending; };
+  const phone = info.phone || '';
+  const wa = (info.whatsapp || '').replace(/[^\d]/g, '');
+  const contactBits = [];
+  if (phone) contactBits.push(`<a class="v-link" href="tel:${escapeAttr(phone)}">${t('v_call')} ${escapeHtml(phone)}</a>`);
+  if (wa) contactBits.push(`<a class="v-link" href="https://wa.me/${wa}" target="_blank" rel="noopener">${t('v_whatsapp')}</a>`);
+  const contactHtml = contactBits.length ? contactBits.join(' · ') : pending;
+  const rules = L(info, 'rules') || [];
+  const emgLabel = L(info, 'emergency_national_label') || t('v_emergency');
+  const emg = info.emergency_national || '123';
+
+  el.innerHTML = `
+    <div class="panel visit-panel">
+      <h2>${t('visit_h')}</h2>
+      <div class="v-grid">
+        <div class="v-row"><span class="v-key">${t('v_hours')}</span><span class="v-v">${val('hours')}</span></div>
+        <div class="v-row"><span class="v-key">${t('v_contact')}</span><span class="v-v">${contactHtml}</span></div>
+        <div class="v-row"><span class="v-key">${t('v_arrive')}</span><span class="v-v">${val('how_to_arrive')}</span></div>
+        <div class="v-row"><span class="v-key">${t('v_parking')}</span><span class="v-v">${val('parking')}</span></div>
+        <div class="v-row"><span class="v-key">${t('v_entry')}</span><span class="v-v">${val('entry')}</span></div>
+      </div>
+    </div>
+    ${rules.length ? `<div class="panel visit-panel">
+      <h2>${t('v_rules_h')}</h2>
+      <ul class="v-rules">${rules.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ul>
+    </div>` : ''}
+    <div class="panel visit-panel v-safety">
+      <h2>${t('v_safety_h')}</h2>
+      <p class="v-lost"><strong>${t('v_lost')}:</strong> ${escapeHtml(L(info, 'if_lost') || '')}</p>
+      <div class="v-emergency">
+        <a class="v-emg-btn" href="tel:${escapeAttr(emg)}">🆘 ${escapeHtml(emgLabel)}: ${escapeHtml(emg)}</a>
+        ${phone ? `<a class="v-emg-btn v-emg-reserve" href="tel:${escapeAttr(phone)}">📞 ${escapeHtml(phone)}</a>` : ''}
+      </div>
+    </div>`;
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escapeAttr(s) { return escapeHtml(s); }
 
 // ---------- navigation ----------
 function switchView(name) {
@@ -577,7 +749,7 @@ function applyStaticI18n() {
 function setLang(lang) {
   LANG = lang; localStorage.setItem('cantares_lang', lang);
   applyStaticI18n(); renderRouteBar(); selectRoute(state.activeRoute);
-  renderSpeciesFilters(); renderSpeciesGrid(); renderCarbon(); renderOfflineStatus(); renderLegend(); refreshGameUI();
+  renderSpeciesFilters(); renderSpeciesGrid(); renderCarbon(); renderOfflineStatus(); renderLegend(); refreshGameUI(); renderVisitInfo();
   $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
   if (state.openWaypointId) { const wp = state.waypoints.find((w) => w.properties.id === state.openWaypointId); if (wp) showWaypoint(wp); }
   if (state.watchId == null) setGps('off', t('gps'));
@@ -617,14 +789,23 @@ async function main() {
     baseSwapTimer = setTimeout(() => setBaseLayer(i), 130);          // debounce the heavy layer swap
   };
 
-  const [routesDoc, speciesDoc] = await Promise.all([loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species)]);
+  const [routesDoc, speciesDoc, reserveInfo, mediaDoc] = await Promise.all([
+    loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species),
+    loadJSON(CONFIG.data.reserveInfo).catch(() => null),
+    loadJSON(CONFIG.data.media).catch(() => null),
+  ]);
   state.routes = routesDoc.routes;
   state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
   state.species = speciesDoc.species;
+  state.reserveInfo = reserveInfo;
+  state.media = indexMedia(mediaDoc);
 
   applyStaticI18n();
-  renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend();
+  renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend(); renderVisitInfo();
   $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
+
+  // Primer arranque: mostrar el onboarding una sola vez (no bloquea el resto de la carga).
+  if (!localStorage.getItem('cantares_onboarded')) showOnboarding();
 
   // Juego de especies (Expedición Cantares) — carga registros locales y pinta su panel.
   await initGame({ state, t, L, toast, rerenderSpecies: () => renderSpeciesGrid() });
