@@ -1,10 +1,11 @@
 // Cantares — Guía interactiva de la reserva / Interactive reserve guide
 // Minimal-vanilla PWA. Globals `maplibregl` and `pmtiles` come from vendored scripts.
 
-import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer } from './game.js';
+import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
-import { initAuthGate } from './auth-ui.js';
+import { initAuthGate, doLogout } from './auth-ui.js';
 import { initAdmin } from './admin.js';
+import { initRecorder, listWalks, walkCardHTML, downloadWalk } from './recorder.js';
 
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const CONFIG = {
@@ -35,7 +36,7 @@ const state = {
   map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
   activeRoute: null, userPos: null, watchId: null, firstFix: false,
   lastTriggered: {}, openWaypointId: null, baseIndex: 2, zonesVisible: false,
-  reserveInfo: null, media: { bySubject: {} },
+  reserveInfo: null, media: { bySubject: {} }, boundary: null,
   hiddenTypes: new Set(),   // tipos de punto ocultados por el usuario
   guiding: null,            // id del recorrido en modo "seguir" (GPS)
   flowTimer: null,          // animación de flechas/flujo sobre el recorrido
@@ -87,7 +88,13 @@ function pictureTag(ph, cls, alt) {
 const I18N = {
   es: {
     subtitle: 'Reserva Natural', tab_recorridos: 'Recorridos', tab_restauracion: 'Restauración',
-    tab_especies: 'Especies', tab_info: 'Info', all_routes: 'Todos',
+    tab_especies: 'Especies', tab_info: 'Info', tab_cuenta: 'Cuenta', all_routes: 'Todos',
+    dash_guest: 'Invitado', dash_guest_sub: 'Sin cuenta — tu progreso solo vive en este dispositivo',
+    dash_visitor: 'Visitante', dash_admin: 'Administrador', dash_logout: 'Cerrar sesión',
+    dash_create: 'Crear cuenta / entrar', dash_walks: 'recorridos', dash_dist: 'distancia',
+    dash_species: 'especies', dash_points: 'puntos', dash_walks_h: 'Mis recorridos',
+    dash_photos_h: 'Mis fotos', dash_no_walks: 'Aún no has grabado recorridos.',
+    dash_no_photos: 'Aún no has tomado fotos de especies.',
     gps: 'GPS', gps_searching: 'Buscando…', gps_denied: 'Permiso denegado', gps_unavailable: 'Sin señal',
     gps_timeout: 'Sin respuesta', gps_unsupported: 'GPS no disponible', gps_insecure: 'El GPS requiere HTTPS',
     gps_hint_denied: 'Activa el permiso de ubicación para este sitio en el navegador.',
@@ -141,7 +148,13 @@ const I18N = {
   },
   en: {
     subtitle: 'Nature Reserve', tab_recorridos: 'Trails', tab_restauracion: 'Restoration',
-    tab_especies: 'Species', tab_info: 'Info', all_routes: 'All',
+    tab_especies: 'Species', tab_info: 'Info', tab_cuenta: 'Account', all_routes: 'All',
+    dash_guest: 'Guest', dash_guest_sub: 'No account — your progress stays only on this device',
+    dash_visitor: 'Visitor', dash_admin: 'Administrator', dash_logout: 'Log out',
+    dash_create: 'Sign up / log in', dash_walks: 'walks', dash_dist: 'distance',
+    dash_species: 'species', dash_points: 'points', dash_walks_h: 'My walks',
+    dash_photos_h: 'My photos', dash_no_walks: "You haven't recorded any walks yet.",
+    dash_no_photos: "You haven't taken any species photos yet.",
     gps: 'GPS', gps_searching: 'Locating…', gps_denied: 'Permission denied', gps_unavailable: 'No signal',
     gps_timeout: 'Timed out', gps_unsupported: 'GPS unavailable', gps_insecure: 'GPS needs HTTPS',
     gps_hint_denied: 'Enable location permission for this site in your browser.',
@@ -215,6 +228,13 @@ async function loadJSON(url) {
   if (!res.ok) throw new Error(`${url}: ${res.status}`);
   return res.json();
 }
+// Longitud de una polilínea [[lng,lat],...] en metros, y formateo.
+function pathLengthM(coords) {
+  let d = 0;
+  for (let i = 1; i < coords.length; i++) d += haversine(coords[i - 1], coords[i]);
+  return d;
+}
+function fmtDist(m) { return m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 0 : 2) + ' km' : Math.round(m) + ' m'; }
 
 // Accept a field as a JSON array OR a QGIS "a,b" text field OR null/empty → array.
 function toArray(v) {
@@ -309,6 +329,7 @@ async function initMap() {
   else { trails = await loadJSON(CONFIG.data.trails); normalizeFeatures(trails); state.trails = trails.features; }
   if (state.waypoints.length) { waypointsFC = { type: 'FeatureCollection', features: state.waypoints }; }
   else { waypointsFC = await loadJSON(CONFIG.data.waypoints); normalizeFeatures(waypointsFC); state.waypoints = waypointsFC.features; }
+  state.boundary = boundary;   // para la imagen descargable del historial de recorridos
 
   const map = new maplibregl.Map({
     container: 'map', style: buildStyle(), center: CONFIG.center, zoom: CONFIG.zoom,
@@ -579,6 +600,7 @@ function renderRouteInfo(route, built) {
     <div class="ri-scroll">
       <h3>${route.emoji} ${L(route, 'name')}</h3>
       <p>${L(route, 'summary')}</p>
+      ${built ? `<div class="ri-stats"><span class="ri-stat">📏 ${fmtDist(pathLengthM(built.path))}</span></div>` : ''}
       ${(sLbl || eLbl) ? `<div class="ri-ends">
         ${sLbl ? `<span class="ri-end-item"><span class="ri-dot start"></span>${t('lg_start')}: ${escapeHtml(sLbl)}</span>` : ''}
         ${eLbl ? `<span class="ri-end-item"><span class="ri-dot end"></span>${t('lg_end')}: ${escapeHtml(eLbl)}</span>` : ''}
@@ -873,12 +895,46 @@ function renderVisitInfo() {
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s); }
 
+// ---------- cuenta / dashboard ----------
+async function renderDashboard() {
+  const el = $('#dashboard'); if (!el) return;
+  const user = Cloud.currentUser();
+  const walks = await listWalks();
+  const totalDist = walks.reduce((s, w) => s + (w.distanceM || 0), 0);
+  const sum = accountSummary();
+  const photos = capturedPhotos(24);
+  const name = user ? user.username : t('dash_guest');
+  const roleLabel = user ? (user.role === 'admin' ? t('dash_admin') : t('dash_visitor')) : t('dash_guest_sub');
+  const initial = (name || '?').trim().charAt(0).toUpperCase() || '·';
+  el.innerHTML = `
+    <div class="dash-head">
+      <div class="dash-avatar">${escapeHtml(initial)}</div>
+      <div class="dash-id"><h1>${escapeHtml(name)}</h1><p class="muted">${roleLabel}</p></div>
+    </div>
+    ${user ? `<button class="dash-logout" id="dash-logout">${t('dash_logout')}</button>`
+           : `<button class="dash-cta" id="dash-cta">${t('dash_create')}</button>`}
+    <div class="dash-stats">
+      <div class="dash-stat"><b>${walks.length}</b><span>${t('dash_walks')}</span></div>
+      <div class="dash-stat"><b>${fmtDist(totalDist)}</b><span>${t('dash_dist')}</span></div>
+      <div class="dash-stat"><b>${sum.nSpecies}</b><span>${t('dash_species')}</span></div>
+      <div class="dash-stat"><b>${sum.points}</b><span>${t('dash_points')}</span></div>
+    </div>
+    <h2 class="dash-h2">${t('dash_walks_h')}</h2>
+    ${walks.length ? `<div class="dash-walks">${walks.map((w) => walkCardHTML(w)).join('')}</div>` : `<p class="muted">${t('dash_no_walks')}</p>`}
+    <h2 class="dash-h2">${t('dash_photos_h')}</h2>
+    ${photos.length ? `<div class="dash-photos">${photos.map((ph) => `<figure><img src="${ph.url}" alt="" loading="lazy"><figcaption>${escapeHtml(ph.common)}</figcaption></figure>`).join('')}</div>` : `<p class="muted">${t('dash_no_photos')}</p>`}`;
+  const lo = $('#dash-logout'); if (lo) lo.onclick = doLogout;
+  const cta = $('#dash-cta'); if (cta) cta.onclick = () => { localStorage.removeItem('cantares_guest'); location.reload(); };
+  $$('#dashboard .rec-dl').forEach((b) => b.onclick = () => { const w = walks.find((x) => x.id === b.dataset.id); if (w) downloadWalk(w); });
+}
+
 // ---------- navigation ----------
 function switchView(name) {
   $$('.view').forEach((v) => v.classList.remove('is-active'));
   $(`#view-${name}`).classList.add('is-active');
   $$('.tab').forEach((tab) => tab.classList.toggle('is-active', tab.dataset.view === name));
   if (name === 'recorridos' && state.map) setTimeout(() => state.map.resize(), 60);
+  if (name === 'cuenta') renderDashboard();
 }
 
 // ---------- restoration carbon ----------
@@ -1077,6 +1133,7 @@ async function main() {
       onStyleReady(state.map, () => { try { gameAddMapLayer(); } catch (e) { console.warn('gameAddMapLayer', e); } });
       initAdmin({ state, map: state.map, t, L, LANG, toast,
         typeColor: (tp) => typeMeta(tp).color, refreshWaypoints, refreshSpecies });
+      initRecorder({ state, t, L, toast });   // grabar recorrido + historial (todos)
     }
     registerSW();
   };

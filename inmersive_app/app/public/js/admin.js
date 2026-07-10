@@ -18,7 +18,7 @@ export function initAdmin(ctx) {
   fab.id = 'admin-fab'; fab.className = 'admin-fab'; fab.title = 'Administrar';
   fab.textContent = '🛠️';
   fab.onclick = openPanel;
-  document.body.appendChild(fab);
+  (document.getElementById('view-recorridos') || document.body).appendChild(fab);
 }
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -95,7 +95,10 @@ function editPunto(id) {
       <label>Ubicación</label>
       <div class="admin-loc">
         <span id="f-loc">${coords ? `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}` : 'sin fijar'}</span>
-        <button type="button" class="admin-pick" id="f-pick">📍 Fijar en el mapa</button>
+        <div class="admin-loc-btns">
+          <button type="button" class="admin-pick gps" id="f-gps">📡 Mi ubicación</button>
+          <button type="button" class="admin-pick" id="f-pick">📍 En el mapa</button>
+        </div>
       </div>
       <div class="admin-err" id="f-err"></div>
       <div class="admin-actions">
@@ -106,7 +109,16 @@ function editPunto(id) {
     </div>`;
   let loc = coords ? coords.slice() : null;
   let photoUrl = p.photo || null;
+  const setLoc = (lng, lat) => { loc = [lng, lat]; const s = body.querySelector('#f-loc'); if (s) s.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`; };
 
+  body.querySelector('#f-gps').onclick = () => {
+    if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
+    const btn = body.querySelector('#f-gps'); const orig = btn.textContent; btn.textContent = 'Buscando…'; btn.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLoc(pos.coords.longitude, pos.coords.latitude); btn.textContent = orig; btn.disabled = false; CTX.toast(`📡 Ubicación fijada (±${Math.round(pos.coords.accuracy)} m)`); },
+      (e) => { btn.textContent = orig; btn.disabled = false; CTX.toast(e.code === 1 ? 'Permiso de ubicación denegado' : 'No se pudo obtener ubicación'); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+  };
   body.querySelector('#f-pick').onclick = () => {
     CTX.toast('Toca el mapa para fijar el punto');
     closePanel();

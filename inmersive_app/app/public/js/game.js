@@ -212,6 +212,19 @@ export function capturedBadge(speciesId) {
   return n ? `<span class="cap-badge" title="${T('g_captured')}">📸${n > 1 ? '×' + n : ''}</span>` : '';
 }
 
+// ---------- API para el dashboard de cuenta ----------
+export function accountSummary() {
+  const p = currentPlayer();
+  if (!p) return { points: 0, nSpecies: 0, nObs: 0 };
+  return { points: playerPoints(p.id), nSpecies: distinctSpecies(p.id), nObs: playerObs(p.id).length };
+}
+export function capturedPhotos(limit = 24) {
+  const p = currentPlayer();
+  if (!p) return [];
+  return playerObs(p.id).filter((o) => o.photo).slice(-limit).reverse()
+    .map((o) => ({ url: URL.createObjectURL(o.photo), common: o.common || o.sci || '', group: o.group || '', time: o.time, lat: o.lat, lon: o.lon }));
+}
+
 // ---------- especie del día (determinista por fecha) — sólo plantas ----------
 function speciesOfDay() {
   const list = CTX.state.species.filter((s) => s.group === 'flora');
@@ -531,6 +544,9 @@ function renderWizardConfirm(body) {
     };
     await dbPut('obs', obs);
     allObs.push(obs);
+    // Avisar al grabador de recorridos (si hay uno activo) dónde se tomó la foto.
+    if (obs.lat != null && obs.lon != null)
+      window.dispatchEvent(new CustomEvent('cantares:capture', { detail: { lng: obs.lon, lat: obs.lat, name: obs.common || obs.sci || '' } }));
     // Empuje al inventario global (Supabase) — best-effort, no bloquea el juego.
     if (CTX.cloud && CTX.cloud.enabled) (async () => {
       try {
