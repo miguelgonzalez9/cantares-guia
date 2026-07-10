@@ -626,6 +626,7 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-err { color: #b02a2a; font-size: 12.5px; min-height: 16px; margin-top: 8px; }
 .admin-loc-btns { display: flex; gap: 6px; }
 .admin-pick.gps { background: var(--moss); }
+.admin-pick.map-pick { width: 100%; background: var(--water); margin: 2px 0 6px; padding: 11px; }
 /* editor de recorridos: emoji + paleta + senderos ordenados */
 .admin-emojis, .admin-palette { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .admin-emoji { width: 34px; height: 34px; border: 1.5px solid var(--line); background: var(--card);

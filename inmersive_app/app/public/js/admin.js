@@ -60,6 +60,7 @@ function renderPanel() {
 
 // ---------------- PUNTOS ----------------
 function renderPuntos() {
+  clearHighlight();
   const body = document.getElementById('admin-body');
   const pts = CTX.state.waypoints.slice().sort((a, b) => (a.properties.title || '').localeCompare(b.properties.title || ''));
   body.innerHTML = `
@@ -169,6 +170,7 @@ function editPunto(id) {
 
 // ---------------- ESPECIES ----------------
 function renderEspecies() {
+  clearHighlight();
   const body = document.getElementById('admin-body');
   const sp = CTX.state.species.slice().sort((a, b) => (a.common_name || '').localeCompare(b.common_name || ''));
   body.innerHTML = `
@@ -256,18 +258,23 @@ function fmtLen(cs) { const m = lenM(cs); return m >= 1000 ? (m / 1000).toFixed(
 let draw = null;
 function drawInit() {
   const map = CTX.map;
+  if (!styleReady()) return false;
   if (!map.getSource('admin-draw')) {
-    const empty = { type: 'FeatureCollection', features: [] };
-    map.addSource('admin-draw', { type: 'geojson', data: empty });
-    map.addSource('admin-draw-v', { type: 'geojson', data: empty });
-    map.addLayer({ id: 'admin-draw-line', type: 'line', source: 'admin-draw',
-      layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#e07a1f', 'line-width': 5 } });
-    map.addLayer({ id: 'admin-draw-v', type: 'circle', source: 'admin-draw-v',
-      paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#e07a1f', 'circle-stroke-width': 2 } });
+    try {
+      const empty = { type: 'FeatureCollection', features: [] };
+      map.addSource('admin-draw', { type: 'geojson', data: empty });
+      map.addSource('admin-draw-v', { type: 'geojson', data: empty });
+      map.addLayer({ id: 'admin-draw-line', type: 'line', source: 'admin-draw',
+        layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#e07a1f', 'line-width': 5 } });
+      map.addLayer({ id: 'admin-draw-v', type: 'circle', source: 'admin-draw-v',
+        paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#e07a1f', 'circle-stroke-width': 2 } });
+    } catch (e) { return false; }
   }
+  return true;
 }
 function drawUpdate() {
   const map = CTX.map, cs = draw.coords;
+  if (!map.getSource('admin-draw')) return;
   map.getSource('admin-draw').setData({ type: 'FeatureCollection', features: cs.length > 1 ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: cs } }] : [] });
   map.getSource('admin-draw-v').setData({ type: 'FeatureCollection', features: cs.map((c) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: c } })) });
 }
@@ -301,7 +308,8 @@ function endDraw(keep) {
   onDone(keep && coords.length > 1 ? coords : null);
 }
 function startVertexDraw(onDone) {
-  drawInit(); draw = { coords: [], onDone, mode: 'vertex' };
+  if (!drawInit()) { CTX.toast('Espera a que cargue el mapa'); onDone(null); return; }
+  draw = { coords: [], onDone, mode: 'vertex' };
   closePanel();
   CTX.map.getCanvas().style.cursor = 'crosshair';
   CTX.toast('Toca el mapa para trazar el sendero');
@@ -311,7 +319,8 @@ function startVertexDraw(onDone) {
 }
 function startGpsDraw(onDone) {
   if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
-  drawInit(); draw = { coords: [], onDone, mode: 'gps' };
+  if (!drawInit()) { CTX.toast('Espera a que cargue el mapa'); onDone(null); return; }
+  draw = { coords: [], onDone, mode: 'gps' };
   closePanel();
   CTX.toast('Grabando… camina el sendero');
   draw.watchId = navigator.geolocation.watchPosition((p) => {
@@ -321,8 +330,75 @@ function startGpsDraw(onDone) {
   showDrawHud();
 }
 
+// ---------------- resaltar senderos en el mapa ----------------
+const trailFeat = (id) => CTX.state.trails.find((t) => t.properties.id === id);
+function orderColor(i, n) {
+  if (n <= 1) return '#2f9e44';
+  const hue = 130 - (i / (n - 1)) * 130;   // verde (inicio) → rojo (fin) = dirección
+  return `hsl(${Math.round(hue)}, 75%, 45%)`;
+}
+const styleReady = () => CTX.map && CTX.map.isStyleLoaded && CTX.map.isStyleLoaded();
+function ensureHl() {
+  const map = CTX.map;
+  if (!styleReady()) return false;   // evita "Style is not done loading" y no rompe el resto
+  if (!map.getSource('admin-hl')) {
+    try {
+      map.addSource('admin-hl', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({ id: 'admin-hl-line', type: 'line', source: 'admin-hl',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': ['coalesce', ['get', '_c'], '#ffd000'], 'line-width': 7, 'line-opacity': 0.95 } });
+    } catch (e) { return false; }   // nunca romper el editor por un estado transitorio del mapa
+  }
+  return true;
+}
+function setHl(features) { if (!ensureHl()) return; CTX.map.getSource('admin-hl').setData({ type: 'FeatureCollection', features }); }
+function clearHighlight() { const s = styleReady() && CTX.map.getSource('admin-hl'); if (s) s.setData({ type: 'FeatureCollection', features: [] }); }
+function highlightSegments(ids) {
+  setHl(ids.map((tid, i) => { const tr = trailFeat(tid); return tr ? { type: 'Feature', properties: { _c: orderColor(i, ids.length) }, geometry: tr.geometry } : null; }).filter(Boolean));
+}
+
+// ---------------- elegir senderos en el mapa (crear recorrido interactivo) ----------------
+let pick = null, _routeDraft = null;
+function startRoutePick(id) {
+  const map = CTX.map;
+  closePanel();
+  map.getCanvas().style.cursor = 'crosshair';
+  CTX.toast('Toca los senderos en orden. Toca uno de nuevo para quitarlo.');
+  const seg = _routeDraft.segments;
+  pick = { id, orig: seg.slice(), handler: null };
+  const update = () => { highlightSegments(seg); updatePickHud(seg.length); };
+  pick.handler = (e) => {
+    const f = map.queryRenderedFeatures(e.point, { layers: ['trails-all'] });
+    if (!f.length) return;
+    const tid = f[0].properties.id; if (tid == null) return;
+    const i = seg.indexOf(tid);
+    if (i >= 0) seg.splice(i, 1); else seg.push(tid);
+    update();
+  };
+  map.on('click', pick.handler);
+  showPickHud(); update();
+}
+function showPickHud() {
+  let h = document.getElementById('admin-pick-hud');
+  if (!h) { h = document.createElement('div'); h.id = 'admin-pick-hud'; h.className = 'admin-draw-hud'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
+}
+function updatePickHud(n) {
+  const h = document.getElementById('admin-pick-hud'); if (!h) return;
+  h.innerHTML = `<span class="adh-n">${n} sendero(s)</span><button id="apk-done" class="adh-done">✓ Listo</button><button id="apk-cancel">✕</button>`;
+  h.querySelector('#apk-done').onclick = () => endPick(true);
+  h.querySelector('#apk-cancel').onclick = () => endPick(false);
+}
+function endPick(keep) {
+  const map = CTX.map, id = pick.id;
+  if (!keep) _routeDraft.segments = pick.orig;   // ✕ = descartar cambios de esta sesión
+  map.off('click', pick.handler); map.getCanvas().style.cursor = ''; pick = null;
+  const h = document.getElementById('admin-pick-hud'); if (h) h.remove();
+  openPanel(); editRecorrido(id);
+}
+
 // ---------------- SENDEROS ----------------
 function renderSenderos() {
+  clearHighlight();
   const body = document.getElementById('admin-body');
   const trails = CTX.state.trails.slice().sort((a, b) => (a.properties.name || '').localeCompare(b.properties.name || ''));
   body.innerHTML = `
@@ -380,10 +456,14 @@ function editSendero(id) {
     try { await upsertTrail(row); await CTX.refreshTrails(); renderSenderos(); CTX.toast('Sendero guardado'); }
     catch (e) { body.querySelector('#tr-err').textContent = e.message; }
   };
+  // Ilumina en el mapa el sendero que se está editando.
+  if (coords && coords.length > 1) setHl([{ type: 'Feature', properties: { _c: '#ffd000' }, geometry: { type: 'LineString', coordinates: coords } }]);
+  else clearHighlight();
 }
 
 // ---------------- RECORRIDOS ----------------
 function renderRecorridos() {
+  clearHighlight();
   const body = document.getElementById('admin-body');
   const routes = CTX.state.routes.slice();
   body.innerHTML = `
@@ -399,7 +479,14 @@ function renderRecorridos() {
 }
 function editRecorrido(id) {
   const body = document.getElementById('admin-body');
-  const r = id ? CTX.state.routesById[id] : { id: rid('rec'), color: PALETTE[0], emoji: EMOJIS[0], segments: [], sort: CTX.state.routes.length };
+  let r;
+  if (_routeDraft && ((id && _routeDraft.id === id) || (!id && _routeDraft._new))) {
+    const base = id ? CTX.state.routesById[id] : { color: PALETTE[0], emoji: EMOJIS[0], sort: CTX.state.routes.length };
+    r = { ...base, ..._routeDraft };   // restaurar formulario tras elegir en el mapa
+  } else {
+    r = id ? CTX.state.routesById[id] : { id: rid('rec'), color: PALETTE[0], emoji: EMOJIS[0], segments: [], sort: CTX.state.routes.length };
+  }
+  _routeDraft = null;
   let segWork = (r.segments || []).slice();
   let color = r.color || PALETTE[0], emoji = r.emoji || EMOJIS[0];
   const wpOpts = (sel) => '<option value="">—</option>' + CTX.state.waypoints.map((w) => `<option value="${w.properties.id}" ${sel === w.properties.id ? 'selected' : ''}>${esc(CTX.L(w.properties, 'title') || w.properties.id)}</option>`).join('');
@@ -412,6 +499,7 @@ function editRecorrido(id) {
       <label>Resumen (ES)</label><textarea id="rt-sum" rows="2">${esc(r.summary)}</textarea>
       <label>Summary (EN)</label><textarea id="rt-sum-en" rows="2">${esc(r.summary_en)}</textarea>
       <label>Senderos en orden (define la dirección)</label>
+      <button type="button" class="admin-pick map-pick" id="rt-pick">🗺️ Elegir en el mapa</button>
       <div id="rt-segs"></div>
       <label>Punto de inicio</label><select id="rt-start">${wpOpts(r.start_id)}</select>
       <label>Punto de fin</label><select id="rt-end">${wpOpts(r.end_id)}</select>
@@ -433,9 +521,16 @@ function editRecorrido(id) {
     el.querySelectorAll('[data-up]').forEach((b) => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [segWork[i - 1], segWork[i]] = [segWork[i], segWork[i - 1]]; renderSegs(); } });
     el.querySelectorAll('[data-down]').forEach((b) => b.onclick = () => { const i = +b.dataset.down; if (i < segWork.length - 1) { [segWork[i + 1], segWork[i]] = [segWork[i], segWork[i + 1]]; renderSegs(); } });
     el.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { segWork.splice(+b.dataset.rm, 1); renderSegs(); });
+    highlightSegments(segWork);   // iluminar en el mapa según el orden
   };
   renderSegs();
-  body.querySelector('#rt-cancel').onclick = renderRecorridos;
+  const saveDraft = () => { _routeDraft = { id: r.id, _new: !id, sort: r.sort,
+    name: body.querySelector('#rt-name').value, name_en: body.querySelector('#rt-name-en').value,
+    emoji, color, summary: body.querySelector('#rt-sum').value, summary_en: body.querySelector('#rt-sum-en').value,
+    start_id: body.querySelector('#rt-start').value, end_id: body.querySelector('#rt-end').value,
+    segments: segWork.slice() }; };
+  body.querySelector('#rt-pick').onclick = () => { saveDraft(); startRoutePick(id); };
+  body.querySelector('#rt-cancel').onclick = () => { clearHighlight(); renderRecorridos(); };
   if (id) body.querySelector('#rt-del').onclick = async () => {
     if (!confirm('¿Eliminar este recorrido?')) return;
     try { await deleteRoute(id); await CTX.refreshRoutes(); renderRecorridos(); CTX.toast('Recorrido eliminado'); }
