@@ -1,49 +1,29 @@
 {
   "_meta": {
-    "note": "Senderos reales tomados de ortofoto_caminos.pdf.",
-    "themes": [
-      "agua",
-      "arboles",
-      "aves",
-      "restauracion"
-    ]
+    "note": "Recorridos temáticos. Los ids deben coincidir con el campo `routes` de trails.geojson y waypoints.geojson (ver docs/QGIS_GUIA.md).",
+    "themes": ["agua", "aves", "arboles", "flora", "paisaje", "regeneracion", "nocturno"]
   },
   "routes": [
-    {
-      "id": "agua",
-      "name": "Recorrido del Agua",
-      "name_en": "Water Route",
-      "emoji": "💧",
-      "color": "#2b8cbe",
-      "summary": "Quebradas, nacimientos, cascadas y el bosque ribereño que regula el agua de la cuenca del Río Blanco.",
-      "summary_en": "Creeks, springs, waterfalls and the riparian forest that regulates water in the Río Blanco watershed."
-    },
-    {
-      "id": "aves",
-      "name": "Recorrido de Aves",
-      "name_en": "Birding Route",
-      "emoji": "🐦",
-      "color": "#d94801",
-      "summary": "Barranquero, tororoi, colibríes y tángaras. Trae audífonos y la app Merlin.",
-      "summary_en": "Motmot, antpitta, hummingbirds and tanagers. Bring headphones and the Merlin app."
-    },
-    {
-      "id": "arboles",
-      "name": "Recorrido de Árboles",
-      "name_en": "Trees Route",
-      "emoji": "🌳",
-      "color": "#238b45",
-      "summary": "Robles, encenillos, helechos arbóreos y el arboretum del bosque montano.",
-      "summary_en": "Oaks, encenillos, tree ferns and the montane-forest arboretum."
-    },
-    {
-      "id": "restauracion",
-      "name": "Recorrido de Restauración",
-      "name_en": "Restoration Route",
-      "emoji": "🌱",
-      "color": "#88419d",
+    { "id": "agua", "name": "Recorrido del Agua", "name_en": "Water Route", "emoji": "💧", "color": "#2b8cbe",
+      "summary": "Quebradas, nacimientos, cascadas y el bosque ribereño de la cuenca del Río Blanco.",
+      "summary_en": "Creeks, springs, waterfalls and the riparian forest of the Río Blanco watershed." },
+    { "id": "aves", "name": "Recorrido de Aves", "name_en": "Birding Route", "emoji": "🐦", "color": "#d94801",
+      "summary": "Barranquero, águila crestada, colibríes y tángaras. Trae audífonos y Merlin.",
+      "summary_en": "Motmot, crested eagle, hummingbirds and tanagers. Bring headphones and Merlin." },
+    { "id": "arboles", "name": "Recorrido de Árboles", "name_en": "Trees Route", "emoji": "🌳", "color": "#238b45",
+      "summary": "Robles, encenillos, helechos arbóreos y el bosque montano.",
+      "summary_en": "Oaks, encenillos, tree ferns and the montane forest." },
+    { "id": "flora", "name": "Recorrido de Flora", "name_en": "Flora Route", "emoji": "🌸", "color": "#c2255c",
+      "summary": "Orquídeas, sietecueros y la flora del bosque muy húmedo montano.",
+      "summary_en": "Orchids, sietecueros and the flora of the very humid montane forest." },
+    { "id": "paisaje", "name": "Recorrido del Paisaje", "name_en": "Scenic Route", "emoji": "🏞️", "color": "#1098ad",
+      "summary": "Miradores con vistas a la reserva, la cuenca y la ciudad de Manizales.",
+      "summary_en": "Lookouts over the reserve, the watershed and the city of Manizales." },
+    { "id": "regeneracion", "name": "Recorrido de Regeneración", "name_en": "Regeneration Route", "emoji": "🌱", "color": "#6a4c93",
       "summary": "De potrero de kikuyo a bosque: el vivero y las áreas en restauración.",
-      "summary_en": "From kikuyu pasture to forest: the nursery and the areas under restoration."
-    }
+      "summary_en": "From kikuyu pasture to forest: the nursery and the areas under restoration." },
+    { "id": "nocturno", "name": "Recorrido Nocturno", "name_en": "Night Route", "emoji": "🦉", "color": "#3b5bdb",
+      "summary": "Fauna nocturna: tigrillo, pacas, búhos y las voces del bosque de noche.",
+      "summary_en": "Nocturnal wildlife: oncilla, pacas, owls and the forest's voices at night." }
   ]
 }

@@ -62,7 +62,8 @@ aves,arboles
 arboles
 ```
 
-- Ids válidos: **`agua`, `aves`, `arboles`, `restauracion`** (sin tildes, minúscula).
+- Ids válidos: **`agua`, `aves`, `arboles`, `flora`, `paisaje`, `regeneracion`, `nocturno`**
+  (sin tildes, minúscula). *La app normaliza acentos/mayúsculas al importar, pero es mejor escribirlos así.*
 - Tramo sin recorrido → deja el campo **vacío**; se ve como sendero gris, no se ilumina.
 - **NO uses formato JSON** (`["agua"]`) en el campo de texto — solo la lista con comas: `agua,aves`.
 

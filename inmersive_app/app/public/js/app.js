@@ -348,7 +348,8 @@ function selectRoute(id) {
 }
 
 // ---------- waypoint card ----------
-const ROUTE_COLORS = { agua: '#2b8cbe', aves: '#d94801', arboles: '#238b45', restauracion: '#88419d' };
+const ROUTE_COLORS = { agua: '#2b8cbe', aves: '#d94801', arboles: '#238b45',
+  flora: '#c2255c', paisaje: '#1098ad', regeneracion: '#6a4c93', nocturno: '#3b5bdb' };
 function routeLabel(rid) {
   const r = state.routesById[rid];
   return r ? L(r, 'name') : rid;
