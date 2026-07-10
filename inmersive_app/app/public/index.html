@@ -42,10 +42,15 @@
         <div id="legend-body" class="legend-body"></div>
       </div>
 
-      <div id="base-slider-box" class="base-slider-box">
-        <div class="base-slider-head"><span id="base-caption">Imagen satelital</span><strong id="base-year">Actual (HD)</strong></div>
-        <input id="base-slider" class="base-slider" type="range" min="0" max="2" step="1" value="2" />
-        <div id="base-ticks" class="base-ticks"></div>
+      <div id="base-slider-box" class="base-slider-box collapsed">
+        <button id="base-toggle" class="base-toggle" title="Imagen satelital / año">🕑 <b id="base-year">2024</b></button>
+        <div class="base-panel">
+          <div class="base-caption" id="base-caption">Imagen satelital</div>
+          <div class="base-vtrack">
+            <input id="base-slider" class="base-slider" type="range" min="0" max="2" step="1" value="2" />
+            <div id="base-ticks" class="base-ticks"></div>
+          </div>
+        </div>
       </div>
 
       <div id="route-info" class="route-info hidden"></div>

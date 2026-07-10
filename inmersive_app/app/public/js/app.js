@@ -316,11 +316,24 @@ function routeEndpoints(id) {
   ] };
 }
 
+// Name of the waypoint of this route nearest to a coordinate (for start/end labels).
+function nearestRouteWaypoint(coord, id) {
+  let best = null, bd = Infinity;
+  state.waypoints.forEach((w) => {
+    const rts = w.properties.routes || [];
+    if (rts.length && !rts.includes(id)) return;   // route's points + always-on landmarks
+    const d = haversine(coord, w.geometry.coordinates);
+    if (d < bd) { bd = d; best = w; }
+  });
+  return best ? (L(best.properties, 'title') || best.properties.name) : null;
+}
+
 function selectRoute(id) {
   state.activeRoute = id;
   const route = id ? state.routesById[id] : null;
   renderRouteBar();
 
+  const ends = id ? routeEndpoints(id) : { type: 'FeatureCollection', features: [] };
   const map = state.map;
   if (map && map.getLayer && map.getLayer('trails-hl')) {
     if (id) {
@@ -328,8 +341,7 @@ function selectRoute(id) {
       map.setFilter('trails-hl', hlFilter);
       map.setFilter('trails-arrows', hlFilter);
       map.setPaintProperty('trails-hl', 'line-color', route.color);
-      map.getSource('route-ends').setData(routeEndpoints(id));
-      // waypoints: this route's key points + always-on landmarks (routes empty)
+      map.getSource('route-ends').setData(ends);
       map.setFilter('waypoints-pt', ['any', ['in', id, ['get', 'routes']], ['==', ['length', ['get', 'routes']], 0]]);
     } else {
       map.setFilter('trails-hl', ['==', 'id', '___none___']);
@@ -341,9 +353,21 @@ function selectRoute(id) {
 
   const info = $('#route-info');
   if (route) {
+    const sf = ends.features.find((f) => f.properties.kind === 'start');
+    const ef = ends.features.find((f) => f.properties.kind === 'end');
+    const sn = sf ? nearestRouteWaypoint(sf.geometry.coordinates, id) : null;
+    const en = ef ? nearestRouteWaypoint(ef.geometry.coordinates, id) : null;
     info.classList.remove('hidden');
     info.style.borderLeftColor = route.color;
-    info.innerHTML = `<h3>${route.emoji} ${L(route, 'name')}</h3><p>${L(route, 'summary')}</p>`;
+    info.innerHTML = `
+      <button class="ri-close" id="ri-close" aria-label="Cerrar">×</button>
+      <h3>${route.emoji} ${L(route, 'name')}</h3>
+      <p>${L(route, 'summary')}</p>
+      ${(sn || en) ? `<div class="ri-ends">
+        ${sn ? `<span class="ri-end-item"><span class="ri-dot start"></span>${t('lg_start')}: ${sn}</span>` : ''}
+        ${en ? `<span class="ri-end-item"><span class="ri-dot end"></span>${t('lg_end')}: ${en}</span>` : ''}
+      </div>` : ''}`;
+    $('#ri-close').onclick = () => info.classList.add('hidden');
   } else info.classList.add('hidden');
 }
 
@@ -558,6 +582,7 @@ async function main() {
   $('#inat-link').href = CONFIG.inatProjectUrl;
   $('#lang-toggle').onclick = () => setLang(LANG === 'es' ? 'en' : 'es');
   $('#legend-toggle').onclick = () => $('#legend').classList.toggle('collapsed');
+  $('#base-toggle').onclick = () => $('#base-slider-box').classList.toggle('collapsed');
   window.addEventListener('online', renderOfflineStatus);
   window.addEventListener('offline', renderOfflineStatus);
 
