@@ -6,6 +6,7 @@ import { isAdmin, upsertWaypoint, deleteWaypoint, upsertSpecies, deleteSpecies, 
 import { doLogout } from './auth-ui.js';
 
 let CTX = null;
+let _pointDraft = null, moveMarker = null;
 const TIPOS = ['mirador', 'avistamiento', 'agua', 'flora', 'servicio', 'punto'];
 const GROUPS = ['flora', 'ave', 'mamifero', 'anfibio', 'otro'];
 const PALETTE = ['#2b8cbe', '#d94801', '#238b45', '#c2255c', '#1098ad', '#6a4c93', '#3b5bdb', '#e07a1f', '#0f766e', '#b45309', '#7c3aed', '#0b7285'];
@@ -79,8 +80,10 @@ function renderPuntos() {
 function editPunto(id) {
   const body = document.getElementById('admin-body');
   const existing = id ? CTX.state.waypoints.find((w) => w.properties.id === id) : null;
-  const p = existing ? existing.properties : { id: rid('punto'), routes: [], species_ids: [], tipo: 'punto' };
-  const coords = existing ? existing.geometry.coordinates : (CTX._pendingLoc || null);
+  const restore = _pointDraft && ((id && _pointDraft.id === id) || (!id && _pointDraft._new));
+  const p = restore ? _pointDraft.props : (existing ? { ...existing.properties } : { id: rid('punto'), routes: [], species_ids: [], tipo: 'punto' });
+  const coords = restore ? _pointDraft.loc : (existing ? existing.geometry.coordinates : null);
+  _pointDraft = null;
   const routeChecks = CTX.state.routes.map((r) => `
     <label class="admin-chk"><input type="checkbox" value="${r.id}" ${(p.routes || []).includes(r.id) ? 'checked' : ''}> ${esc(CTX.L(r, 'name'))}</label>`).join('');
   body.innerHTML = `
@@ -105,6 +108,7 @@ function editPunto(id) {
         <div class="admin-loc-btns">
           <button type="button" class="admin-pick gps" id="f-gps">📡 Mi ubicación</button>
           <button type="button" class="admin-pick" id="f-pick">📍 En el mapa</button>
+          <button type="button" class="admin-pick" id="f-move">✥ Arrastrar</button>
         </div>
       </div>
       <input id="f-coords" placeholder="o escribe coordenadas: lat, lng (ej: 5.08181, -75.45031)" value="${coords ? `${coords[1]}, ${coords[0]}` : ''}">
@@ -132,18 +136,23 @@ function editPunto(id) {
       (e) => { btn.textContent = orig; btn.disabled = false; CTX.toast(e.code === 1 ? 'Permiso de ubicación denegado' : 'No se pudo obtener ubicación'); },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
   };
+  const v = (sel) => body.querySelector(sel).value;
+  const saveDraftPoint = () => { _pointDraft = { id: p.id, _new: !id, loc,
+    props: { ...p, title: v('#f-title'), title_en: v('#f-title-en'), description: v('#f-desc'), description_en: v('#f-desc-en'),
+      tipo: v('#f-tipo'), routes: [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value),
+      species_ids: v('#f-species').split(',').map((s) => s.trim()).filter(Boolean), photo: photoUrl } }; };
   body.querySelector('#f-pick').onclick = () => {
+    saveDraftPoint();
     CTX.toast('Toca el mapa para fijar el punto');
     closePanel();
     CTX.map.getCanvas().style.cursor = 'crosshair';
     CTX.map.once('click', (e) => {
-      loc = [e.lngLat.lng, e.lngLat.lat];
       CTX.map.getCanvas().style.cursor = '';
-      CTX._pendingLoc = loc;
-      openPanel(); editPunto(id);   // reabrir con la ubicación fijada
-      CTX._pendingLoc = null;
+      _pointDraft.loc = [e.lngLat.lng, e.lngLat.lat];
+      openPanel(); editPunto(id);   // reabrir con la ubicación fijada (formulario preservado)
     });
   };
+  body.querySelector('#f-move').onclick = () => { saveDraftPoint(); startMovePoint(id, loc); };
   body.querySelector('#f-photo').onchange = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     body.querySelector('#f-err').textContent = 'Subiendo imagen…';
@@ -363,6 +372,26 @@ function clearHighlight() { const s = styleReady() && CTX.map.getSource('admin-h
 function highlightSegments(ids, color) {
   setHl(ids.map((tid, i) => { const tr = trailFeat(tid); return tr ? { type: 'Feature', properties: { _c: color || orderColor(i, ids.length) }, geometry: tr.geometry } : null; }).filter(Boolean));
 }
+// Resaltado tenue (glow) del sendero bajo el mouse, antes de elegirlo.
+function ensureHover() {
+  const map = CTX.map;
+  if (!styleReady()) return false;
+  if (!map.getSource('admin-hover')) {
+    try {
+      map.addSource('admin-hover', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({ id: 'admin-hover-line', type: 'line', source: 'admin-hover',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-width': 11, 'line-opacity': 0.5, 'line-blur': 1.5 } });
+    } catch (e) { return false; }
+  }
+  return true;
+}
+function setHover(tid) {
+  if (!ensureHover()) return;
+  const tr = tid ? trailFeat(tid) : null;
+  CTX.map.getSource('admin-hover').setData({ type: 'FeatureCollection', features: tr ? [{ type: 'Feature', properties: {}, geometry: tr.geometry }] : [] });
+}
+function clearHover() { const s = styleReady() && CTX.map.getSource('admin-hover'); if (s) s.setData({ type: 'FeatureCollection', features: [] }); }
 
 // ---------------- elegir senderos en el mapa (crear recorrido interactivo) ----------------
 let pick = null, _routeDraft = null;
@@ -383,6 +412,14 @@ function startRoutePick(id) {
     update();
   };
   map.on('click', pick.handler);
+  // Resaltar el sendero bajo el mouse ANTES de elegirlo (escritorio).
+  pick.hover = (e) => {
+    const f = map.queryRenderedFeatures(e.point, { layers: ['trails-all'] });
+    const tid = f.length ? f[0].properties.id : null;
+    map.getCanvas().style.cursor = tid != null ? 'pointer' : 'crosshair';
+    setHover(tid);
+  };
+  map.on('mousemove', pick.hover);
   showPickHud(); update();
 }
 function showPickHud() {
@@ -398,9 +435,35 @@ function updatePickHud(n) {
 function endPick(keep) {
   const map = CTX.map, id = pick.id;
   if (!keep) _routeDraft.segments = pick.orig;   // ✕ = descartar cambios de esta sesión
-  map.off('click', pick.handler); map.getCanvas().style.cursor = ''; pick = null;
+  map.off('click', pick.handler);
+  if (pick.hover) map.off('mousemove', pick.hover);
+  clearHover(); map.getCanvas().style.cursor = ''; pick = null;
   const h = document.getElementById('admin-pick-hud'); if (h) h.remove();
   openPanel(); editRecorrido(id);
+}
+
+// ---------------- arrastrar un punto en el mapa ----------------
+function startMovePoint(id, coords) {
+  const map = CTX.map;
+  closePanel();
+  const start = coords || map.getCenter().toArray();
+  if (moveMarker) moveMarker.remove();
+  moveMarker = new maplibregl.Marker({ draggable: true, color: '#e07a1f' }).setLngLat(start).addTo(map);
+  map.easeTo({ center: start, zoom: Math.max(map.getZoom(), 17) });
+  CTX.toast('Arrastra el pin al lugar exacto y dale ✓ Listo');
+  let h = document.getElementById('admin-move-hud');
+  if (!h) { h = document.createElement('div'); h.id = 'admin-move-hud'; h.className = 'admin-draw-hud'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
+  h.innerHTML = '<span class="adh-n">Arrastra el pin 📍</span><button id="amv-done" class="adh-done">✓ Listo</button><button id="amv-cancel">✕</button>';
+  h.querySelector('#amv-done').onclick = () => endMove(id, true);
+  h.querySelector('#amv-cancel').onclick = () => endMove(id, false);
+}
+function endMove(id, keep) {
+  if (moveMarker) {
+    if (keep) { const ll = moveMarker.getLngLat(); _pointDraft.loc = [ll.lng, ll.lat]; }
+    moveMarker.remove(); moveMarker = null;
+  }
+  const h = document.getElementById('admin-move-hud'); if (h) h.remove();
+  openPanel(); editPunto(id);
 }
 
 // ---------------- SENDEROS ----------------
