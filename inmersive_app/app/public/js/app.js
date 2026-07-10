@@ -2,6 +2,9 @@
 // Minimal-vanilla PWA. Globals `maplibregl` and `pmtiles` come from vendored scripts.
 
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer } from './game.js';
+import * as Cloud from './cloud.js';
+import { initAuthGate } from './auth-ui.js';
+import { initAdmin } from './admin.js';
 
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const CONFIG = {
@@ -31,9 +34,33 @@ function wayback(rel) { return `https://wayback.maptiles.arcgis.com/arcgis/rest/
 const state = {
   map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
   activeRoute: null, userPos: null, watchId: null, firstFix: false,
-  lastTriggered: {}, openWaypointId: null, baseIndex: 2, zonesVisible: true,
+  lastTriggered: {}, openWaypointId: null, baseIndex: 2, zonesVisible: false,
   reserveInfo: null, media: { bySubject: {} },
+  hiddenTypes: new Set(),   // tipos de punto ocultados por el usuario
+  guiding: null,            // id del recorrido en modo "seguir" (GPS)
+  flowTimer: null,          // animación de flechas/flujo sobre el recorrido
 };
+
+// ---------- tipos de punto (legend filter) ----------
+// Data-driven: the app reads the distinct `tipo` values present in
+// waypoints.geojson and renders a toggle per type. This map only supplies the
+// label/emoji/color; unknown types fall back to a neutral pin.
+const TYPE_META = {
+  mirador:      { emoji: '🔭', color: '#1098ad', es: 'Miradores',    en: 'Lookouts' },
+  avistamiento: { emoji: '🐾', color: '#d94801', es: 'Avistamientos', en: 'Wildlife' },
+  agua:         { emoji: '💧', color: '#2b8cbe', es: 'Agua',          en: 'Water' },
+  flora:        { emoji: '🌿', color: '#2f9e44', es: 'Flora',         en: 'Plants' },
+  servicio:     { emoji: '🏠', color: '#6a4c93', es: 'Servicios',     en: 'Facilities' },
+  punto:        { emoji: '📍', color: '#5b6b60', es: 'Otros puntos',  en: 'Other points' },
+};
+const typeMeta = (tp) => TYPE_META[tp] || TYPE_META.punto;
+const typeLabel = (tp) => { const m = typeMeta(tp); return LANG === 'en' ? m.en : m.es; };
+// Distinct tipos present in the loaded waypoints, in a stable, meaningful order.
+function presentTypes() {
+  const order = Object.keys(TYPE_META);
+  const seen = new Set(state.waypoints.map((w) => w.properties.tipo || 'punto'));
+  return order.filter((t) => seen.has(t));
+}
 
 // ---------- media (fotos curadas de especies y puntos, desde media.json) ----------
 function indexMedia(doc) {
@@ -68,8 +95,14 @@ const I18N = {
     more_info: 'Más información', sample_photo: 'foto de muestra',
     legend: 'Leyenda', lg_trails: 'Senderos', lg_route: 'Recorrido activo', lg_start: 'Inicio', lg_end: 'Fin',
     lg_point: 'Punto clave', lg_zones: 'Zonas de manejo', lg_zones_toggle: 'Mostrar/ocultar zonas',
+    lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
     base_label: 'Imagen satelital', base_hd: 'Actual (HD)', base_ortho: 'Ortofoto',
+    base_forest_title: 'El bosque en el tiempo', base_forest_hint: 'Desliza para ver crecer el bosque',
+    base_toggle: 'Bosque',
+    ri_points: 'Puntos del recorrido', ri_start_walk: '▶ Comenzar recorrido', ri_stop_walk: '■ Terminar recorrido',
+    guiding_on: 'Siguiendo tu ubicación en el sendero…', guiding_off: 'Recorrido terminado',
+    no_points: 'No hay puntos visibles con los filtros activos.',
     rest_title: 'Restauración',
     rest_lead: 'De potrero de kikuyo a bosque. La reserva tiene <strong>16,4 ha en restauración</strong>, donde el ganado salió hacia ~2019 y hoy crecen especies nativas.',
     ndvi_h: '🌿 Reverdecimiento (NDVI)', ndvi_p: 'Serie temporal Sentinel-2 2019 → hoy en la zona de restauración vs. la de conservación (control).',
@@ -116,8 +149,14 @@ const I18N = {
     more_info: 'More info', sample_photo: 'sample photo',
     legend: 'Legend', lg_trails: 'Trails', lg_route: 'Active route', lg_start: 'Start', lg_end: 'End',
     lg_point: 'Key point', lg_zones: 'Management zones', lg_zones_toggle: 'Show/hide zones',
+    lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
     base_label: 'Satellite image', base_hd: 'Current (HD)', base_ortho: 'Orthophoto',
+    base_forest_title: 'The forest over time', base_forest_hint: 'Slide to watch the forest grow',
+    base_toggle: 'Forest',
+    ri_points: 'Route points', ri_start_walk: '▶ Start route', ri_stop_walk: '■ End route',
+    guiding_on: 'Following your location on the trail…', guiding_off: 'Route ended',
+    no_points: 'No points visible with the active filters.',
     rest_title: 'Restoration',
     rest_lead: 'From kikuyu pasture to forest. The reserve has <strong>16.4 ha under restoration</strong>, where cattle left around 2019 and native species now grow.',
     ndvi_h: '🌿 Greening (NDVI)', ndvi_p: 'Sentinel-2 time series 2019 → today in the restoration zone vs. the conservation zone (control).',
@@ -246,19 +285,30 @@ function makeArrowIcon(map) {
   map.addImage('arrow', x.getImageData(0, 0, s, s));
 }
 
+const emptyFC = () => ({ type: 'FeatureCollection', features: [] });
+// MapLibre `match` expression coloring a point by its `tipo` (legend parity).
+function typeColorMatch() {
+  const pairs = [];
+  Object.keys(TYPE_META).forEach((tp) => { if (tp !== 'punto') pairs.push(tp, TYPE_META[tp].color); });
+  return ['match', ['get', 'tipo'], ...pairs, TYPE_META.punto.color];
+}
+
 const ZONE_COLORS = { conservacion: '#1b4332', uso_intensivo: '#b5651d', agroecosistema: '#a3b18a', transicion: '#52796f' };
 const zoneMatch = (prop) => ['match', ['get', 'zona'],
   'conservacion', ZONE_COLORS.conservacion, 'uso_intensivo', ZONE_COLORS.uso_intensivo,
   'agroecosistema', ZONE_COLORS.agroecosistema, 'transicion', ZONE_COLORS.transicion, '#888'];
 
 async function initMap() {
-  const [boundary, zones, trails, waypointsFC] = await Promise.all([
+  const [boundary, zones] = await Promise.all([
     loadJSON(CONFIG.data.boundary), loadJSON(CONFIG.data.zones),
-    loadJSON(CONFIG.data.trails), loadJSON(CONFIG.data.waypoints),
   ]);
-  normalizeFeatures(trails); normalizeFeatures(waypointsFC);   // tolerate QGIS text fields
-  state.waypoints = waypointsFC.features;
-  state.trails = trails.features;
+  // Trails/waypoints pueden venir ya cargados desde la nube (ediciones del admin);
+  // si no, se cargan de los archivos estáticos (offline / sin nube).
+  let trails, waypointsFC;
+  if (state.trails.length) { trails = { type: 'FeatureCollection', features: state.trails }; }
+  else { trails = await loadJSON(CONFIG.data.trails); normalizeFeatures(trails); state.trails = trails.features; }
+  if (state.waypoints.length) { waypointsFC = { type: 'FeatureCollection', features: state.waypoints }; }
+  else { waypointsFC = await loadJSON(CONFIG.data.waypoints); normalizeFeatures(waypointsFC); state.waypoints = waypointsFC.features; }
 
   const map = new maplibregl.Map({
     container: 'map', style: buildStyle(), center: CONFIG.center, zoom: CONFIG.zoom,
@@ -275,36 +325,45 @@ async function initMap() {
       makeArrowIcon(map);
       // zones
       map.addSource('zones', { type: 'geojson', data: zones });
+      const zv = state.zonesVisible ? 'visible' : 'none';   // apagadas por defecto
       map.addLayer({ id: 'zones-fill', type: 'fill', source: 'zones',
+        layout: { visibility: zv },
         paint: { 'fill-color': zoneMatch(), 'fill-opacity': 0.22 } });
       map.addLayer({ id: 'zones-line', type: 'line', source: 'zones',
+        layout: { visibility: zv },
         paint: { 'line-color': zoneMatch(), 'line-width': 1, 'line-opacity': 0.5 } });
       // boundary
       map.addSource('boundary', { type: 'geojson', data: boundary });
       map.addLayer({ id: 'boundary-line', type: 'line', source: 'boundary',
         paint: { 'line-color': '#fff', 'line-width': 3, 'line-dasharray': [2, 1.4] } });
-      // trails — all as neutral lines, plus a highlighted layer + direction arrows
+      // trails — all as neutral lines, plus a highlighted layer for the active route
       map.addSource('trails', { type: 'geojson', data: trails });
       map.addLayer({ id: 'trails-all', type: 'line', source: 'trails',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { 'line-color': '#f4f1de', 'line-width': 2.2, 'line-opacity': 0.85 } });
       map.addLayer({ id: 'trails-hl', type: 'line', source: 'trails', filter: ['==', 'id', '___none___'],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#e07a1f', 'line-width': 5 } });
-      map.addLayer({ id: 'trails-arrows', type: 'symbol', source: 'trails', filter: ['==', 'id', '___none___'],
-        layout: { 'symbol-placement': 'line', 'symbol-spacing': 55, 'icon-image': 'arrow',
-          'icon-size': 0.8, 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+        paint: { 'line-color': '#e07a1f', 'line-width': 6, 'line-opacity': 0.9 } });
+      // ordered route path (a single start→end LineString) for the directional
+      // flow: a marching-dash line + arrows, both oriented start→end.
+      map.addSource('route-path', { type: 'geojson', data: emptyFC() });
+      map.addLayer({ id: 'route-flow', type: 'line', source: 'route-path',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#fff', 'line-width': 3, 'line-opacity': 0.95, 'line-dasharray': [0, 4, 3] } });
+      map.addLayer({ id: 'route-arrows', type: 'symbol', source: 'route-path',
+        layout: { 'symbol-placement': 'line', 'symbol-spacing': 70, 'icon-image': 'arrow',
+          'icon-size': 0.85, 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
       // route start/end markers
-      map.addSource('route-ends', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addSource('route-ends', { type: 'geojson', data: emptyFC() });
       map.addLayer({ id: 'route-ends', type: 'circle', source: 'route-ends',
-        paint: { 'circle-radius': 8,
+        paint: { 'circle-radius': 7,
           'circle-color': ['match', ['get', 'kind'], 'start', '#2f9e44', 'end', '#e03131', '#888'],
           'circle-stroke-color': '#fff', 'circle-stroke-width': 2.5 } });
-      // waypoints
+      // waypoints — colored by tipo so they match the legend's type toggles (small dots)
       map.addSource('waypoints', { type: 'geojson', data: waypointsFC });
       map.addLayer({ id: 'waypoints-pt', type: 'circle', source: 'waypoints',
-        paint: { 'circle-radius': 6.5, 'circle-color': '#ffd166',
-          'circle-stroke-color': '#7a4b12', 'circle-stroke-width': 2 } });
+        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 3.5, 17, 5, 19, 6.5],
+          'circle-color': typeColorMatch(), 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
       // user
       map.addSource('user', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({ id: 'user-halo', type: 'circle', source: 'user',
@@ -344,88 +403,202 @@ function renderRouteBar() {
   });
 }
 
-function routeEndpoints(id) {
-  // Pick the two vertices farthest apart among this route's segments as start/end.
-  const verts = [];
-  state.trails.forEach((tr) => {
-    if ((tr.properties.routes || []).includes(id)) {
-      const cs = tr.geometry.coordinates;
-      verts.push(cs[0], cs[cs.length - 1]);
+const wpById = (id) => state.waypoints.find((w) => w.properties.id === id);
+const routeSegments = (id) => state.trails
+  .filter((tr) => (tr.properties.routes || []).includes(id))
+  .map((tr) => tr.geometry.coordinates.slice());
+
+// Resolve start/end coordinates for a route: honor explicit start_id/end_id from
+// routes.json, snap them to the nearest segment endpoint, fill any missing side
+// from the geometrically farthest endpoint pair.
+function routeStartEnd(id) {
+  const route = state.routesById[id];
+  const segs = routeSegments(id);
+  if (!segs.length) return null;
+  const endpts = [];
+  segs.forEach((cs) => { endpts.push(cs[0], cs[cs.length - 1]); });
+  let best = [endpts[0], endpts[0]], bestD = -1;
+  for (let i = 0; i < endpts.length; i++)
+    for (let j = i + 1; j < endpts.length; j++) {
+      const d = haversine(endpts[i], endpts[j]);
+      if (d > bestD) { bestD = d; best = [endpts[i], endpts[j]]; }
     }
-  });
-  if (verts.length < 2) return { type: 'FeatureCollection', features: [] };
-  let best = [verts[0], verts[1]], bestD = -1;
-  for (let i = 0; i < verts.length; i++)
-    for (let j = i + 1; j < verts.length; j++) {
-      const d = haversine(verts[i], verts[j]);
-      if (d > bestD) { bestD = d; best = [verts[i], verts[j]]; }
-    }
-  // Start = endpoint nearest the "Entrada" landmark (fallback: lower latitude)
-  const entrada = state.waypoints.find((w) => w.properties.id === 'portada');
-  let [a, b] = best;
-  const startFirst = entrada
-    ? haversine(a, entrada.geometry.coordinates) <= haversine(b, entrada.geometry.coordinates)
-    : a[1] < b[1];
-  const [s, e] = startFirst ? [a, b] : [b, a];
-  return { type: 'FeatureCollection', features: [
-    { type: 'Feature', properties: { kind: 'start' }, geometry: { type: 'Point', coordinates: s } },
-    { type: 'Feature', properties: { kind: 'end' }, geometry: { type: 'Point', coordinates: e } },
-  ] };
+  const snap = (coord) => endpts.reduce((a, p) => haversine(coord, p) < haversine(coord, a) ? p : a, endpts[0]);
+  const startWp = route && route.start_id ? wpById(route.start_id) : null;
+  const endWp   = route && route.end_id   ? wpById(route.end_id)   : null;
+  let startCoord = startWp ? snap(startWp.geometry.coordinates) : null;
+  let endCoord   = endWp   ? snap(endWp.geometry.coordinates)   : null;
+  if (startCoord && !endCoord)
+    endCoord = haversine(startCoord, best[0]) > haversine(startCoord, best[1]) ? best[0] : best[1];
+  else if (!startCoord && endCoord)
+    startCoord = haversine(endCoord, best[0]) > haversine(endCoord, best[1]) ? best[0] : best[1];
+  else if (!startCoord && !endCoord) {
+    const entrada = wpById('punto_1');   // Casa ≈ reserve entrance
+    const [a, b] = best;
+    const startFirst = entrada
+      ? haversine(a, entrada.geometry.coordinates) <= haversine(b, entrada.geometry.coordinates)
+      : a[1] < b[1];
+    startCoord = startFirst ? a : b; endCoord = startFirst ? b : a;
+  }
+  return { segs, startCoord, endCoord, startWp, endWp };
 }
 
-// Name of the waypoint of this route nearest to a coordinate (for start/end labels).
-function nearestRouteWaypoint(coord, id) {
+// Greedily chain a route's segments into ONE ordered polyline start→end, so the
+// direction arrows and the marching-dash flow all run the same, correct way.
+function buildRoutePath(id) {
+  const info = routeStartEnd(id);
+  if (!info) return null;
+  const { segs, startCoord, endCoord } = info;
+  const used = new Array(segs.length).fill(false);
+  let path = null, tail = startCoord;
+  for (let step = 0; step < segs.length; step++) {
+    let bi = -1, rev = false, bd = Infinity;
+    for (let i = 0; i < segs.length; i++) {
+      if (used[i]) continue;
+      const cs = segs[i];
+      const dHead = haversine(tail, cs[0]);
+      const dTail = haversine(tail, cs[cs.length - 1]);
+      if (dHead < bd) { bd = dHead; bi = i; rev = false; }
+      if (dTail < bd) { bd = dTail; bi = i; rev = true; }
+    }
+    if (bi < 0) break;
+    if (path && bd > 60) break;   // next piece is disconnected — stop chaining
+    used[bi] = true;
+    const seg = rev ? segs[bi].slice().reverse() : segs[bi].slice();
+    path = path ? path.concat(seg.slice(1)) : seg;
+    tail = path[path.length - 1];
+  }
+  if (!path || path.length < 2) return null;
+  if (endCoord && haversine(path[0], endCoord) < haversine(path[path.length - 1], endCoord)) path.reverse();
+  info.path = path;
+  return info;
+}
+
+// Label for a route endpoint: explicit waypoint title, else nearest route waypoint.
+function endLabel(coord, explicitWp, id) {
+  if (explicitWp) return L(explicitWp.properties, 'title') || explicitWp.properties.title;
   let best = null, bd = Infinity;
   state.waypoints.forEach((w) => {
     const rts = w.properties.routes || [];
-    if (rts.length && !rts.includes(id)) return;   // route's points + always-on landmarks
+    if (rts.length && !rts.includes(id)) return;
     const d = haversine(coord, w.geometry.coordinates);
     if (d < bd) { bd = d; best = w; }
   });
-  return best ? (L(best.properties, 'title') || best.properties.name) : null;
+  return best ? (L(best.properties, 'title') || best.properties.title) : null;
+}
+
+// ----- directional flow (marching-ants dash animation on the ordered path) -----
+// Cycling the line-dasharray gives motion in the coordinate direction (start→end).
+const DASH_SEQ = [
+  [0, 4, 3], [0.5, 4, 2.5], [1, 4, 2], [1.5, 4, 1.5], [2, 4, 1], [2.5, 4, 0.5],
+  [3, 4, 0], [0, 0.5, 3, 3.5], [0, 1, 3, 3], [0, 1.5, 3, 2.5], [0, 2, 3, 2],
+  [0, 2.5, 3, 1.5], [0, 3, 3, 1], [0, 3.5, 3, 0.5],
+];
+function stopFlow() { if (state.flowTimer) { clearInterval(state.flowTimer); state.flowTimer = null; } }
+function startFlow() {
+  stopFlow();
+  const map = state.map;
+  if (!map || !map.getLayer('route-flow')) return;
+  let i = 0;
+  state.flowTimer = setInterval(() => {
+    i = (i + 1) % DASH_SEQ.length;
+    if (map.getLayer('route-flow')) map.setPaintProperty('route-flow', 'line-dasharray', DASH_SEQ[i]);
+    else stopFlow();
+  }, 90);
+}
+
+// Combined waypoint filter: active route (if any) AND tipo not hidden.
+function applyWaypointFilter() {
+  const map = state.map;
+  if (!map || !map.getLayer('waypoints-pt')) return;
+  const parts = ['all'];
+  if (state.activeRoute)
+    parts.push(['any', ['in', state.activeRoute, ['get', 'routes']], ['==', ['length', ['get', 'routes']], 0]]);
+  const hidden = [...state.hiddenTypes];
+  if (hidden.length) parts.push(['!', ['in', ['get', 'tipo'], ['literal', hidden]]]);
+  map.setFilter('waypoints-pt', parts.length > 1 ? parts : null);
+}
+function waypointVisible(wp) {
+  const p = wp.properties;
+  if (state.hiddenTypes.has(p.tipo || 'punto')) return false;
+  if (state.activeRoute) {
+    const rts = p.routes || [];
+    if (rts.length && !rts.includes(state.activeRoute)) return false;
+  }
+  return true;
 }
 
 function selectRoute(id) {
   state.activeRoute = id;
   const route = id ? state.routesById[id] : null;
   renderRouteBar();
+  if (state.guiding && state.guiding !== id) stopGuiding();
 
-  const ends = id ? routeEndpoints(id) : { type: 'FeatureCollection', features: [] };
   const map = state.map;
+  const built = (id && route) ? buildRoutePath(id) : null;
   if (map && map.getLayer && map.getLayer('trails-hl')) {
     if (id) {
-      const hlFilter = ['in', id, ['get', 'routes']];
-      map.setFilter('trails-hl', hlFilter);
-      map.setFilter('trails-arrows', hlFilter);
+      map.setFilter('trails-hl', ['in', id, ['get', 'routes']]);
       map.setPaintProperty('trails-hl', 'line-color', route.color);
+      const pathFC = built ? { type: 'FeatureCollection', features: [
+        { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: built.path } }] } : emptyFC();
+      map.getSource('route-path').setData(pathFC);
+      const ends = built ? { type: 'FeatureCollection', features: [
+        { type: 'Feature', properties: { kind: 'start' }, geometry: { type: 'Point', coordinates: built.path[0] } },
+        { type: 'Feature', properties: { kind: 'end' }, geometry: { type: 'Point', coordinates: built.path[built.path.length - 1] } },
+      ] } : emptyFC();
       map.getSource('route-ends').setData(ends);
-      map.setFilter('waypoints-pt', ['any', ['in', id, ['get', 'routes']], ['==', ['length', ['get', 'routes']], 0]]);
+      if (built) startFlow(); else stopFlow();
     } else {
       map.setFilter('trails-hl', ['==', 'id', '___none___']);
-      map.setFilter('trails-arrows', ['==', 'id', '___none___']);
-      map.getSource('route-ends').setData({ type: 'FeatureCollection', features: [] });
-      map.setFilter('waypoints-pt', null);
+      map.getSource('route-path').setData(emptyFC());
+      map.getSource('route-ends').setData(emptyFC());
+      stopFlow();
     }
+    applyWaypointFilter();
   }
+  renderRouteInfo(route, built);
+}
 
+// Right-side vertical panel: summary, start/end, key-point list, start button.
+function renderRouteInfo(route, built) {
   const info = $('#route-info');
-  if (route) {
-    const sf = ends.features.find((f) => f.properties.kind === 'start');
-    const ef = ends.features.find((f) => f.properties.kind === 'end');
-    const sn = sf ? nearestRouteWaypoint(sf.geometry.coordinates, id) : null;
-    const en = ef ? nearestRouteWaypoint(ef.geometry.coordinates, id) : null;
-    info.classList.remove('hidden');
-    info.style.borderLeftColor = route.color;
-    info.innerHTML = `
-      <button class="ri-close" id="ri-close" aria-label="Cerrar">×</button>
+  if (!route) { info.classList.add('hidden'); return; }
+  const id = route.id;
+  const sLbl = built ? endLabel(built.path[0], built.startWp, id) : null;
+  const eLbl = built ? endLabel(built.path[built.path.length - 1], built.endWp, id) : null;
+  const pts = state.waypoints.filter((w) => {
+    const rts = w.properties.routes || [];
+    return rts.includes(id) && waypointVisible(w);
+  });
+  const guiding = state.guiding === id;
+  info.classList.remove('hidden');
+  info.style.borderTopColor = route.color;
+  info.innerHTML = `
+    <button class="ri-close" id="ri-close" aria-label="Cerrar">×</button>
+    <div class="ri-scroll">
       <h3>${route.emoji} ${L(route, 'name')}</h3>
       <p>${L(route, 'summary')}</p>
-      ${(sn || en) ? `<div class="ri-ends">
-        ${sn ? `<span class="ri-end-item"><span class="ri-dot start"></span>${t('lg_start')}: ${sn}</span>` : ''}
-        ${en ? `<span class="ri-end-item"><span class="ri-dot end"></span>${t('lg_end')}: ${en}</span>` : ''}
-      </div>` : ''}`;
-    $('#ri-close').onclick = () => info.classList.add('hidden');
-  } else info.classList.add('hidden');
+      ${(sLbl || eLbl) ? `<div class="ri-ends">
+        ${sLbl ? `<span class="ri-end-item"><span class="ri-dot start"></span>${t('lg_start')}: ${escapeHtml(sLbl)}</span>` : ''}
+        ${eLbl ? `<span class="ri-end-item"><span class="ri-dot end"></span>${t('lg_end')}: ${escapeHtml(eLbl)}</span>` : ''}
+      </div>` : ''}
+      <button class="ri-start ${guiding ? 'active' : ''}" id="ri-start" style="${guiding ? '' : `background:${route.color}`}">
+        ${guiding ? t('ri_stop_walk') : t('ri_start_walk')}</button>
+      <div class="ri-points-head">${t('ri_points')} <span class="ri-count">${pts.length}</span></div>
+      ${pts.length ? `<ul class="ri-points">${pts.map((w) => {
+        const m = typeMeta(w.properties.tipo);
+        return `<li data-wp="${w.properties.id}"><span class="ri-pdot" style="background:${m.color}"></span>${escapeHtml(L(w.properties, 'title') || w.properties.title)}</li>`;
+      }).join('')}</ul>` : `<p class="ri-empty">${t('no_points')}</p>`}
+    </div>`;
+  $('#ri-close').onclick = () => { info.classList.add('hidden'); if (state.guiding) stopGuiding(); };
+  $('#ri-start').onclick = () => (state.guiding === id ? stopGuiding() : startGuiding(id));
+  $$('#route-info .ri-points li').forEach((li) => li.onclick = () => {
+    const w = wpById(li.dataset.wp);
+    if (!w) return;
+    state.map.easeTo({ center: w.geometry.coordinates, zoom: Math.max(state.map.getZoom(), 17), duration: 600 });
+    miniPopup(w);
+  });
 }
 
 // ---------- waypoint card ----------
@@ -435,17 +608,12 @@ function routeLabel(rid) {
   const r = state.routesById[rid];
   return r ? L(r, 'name') : rid;
 }
-// Sample photo (placeholder) until real per-point photos exist: an SVG data URI
-// tinted with the point's route color + emoji.
-function samplePhoto(wp) {
+// Real curated photo for a point, or null. No placeholder: popups adapt to the
+// content they actually have (title-only if there's nothing else).
+function realPhoto(wp) {
   if (wp.properties.photo) return wp.properties.photo;
   const mp = primaryPhoto('waypoint', wp.properties.id);   // foto curada real (media.json)
-  if (mp) return mp.jpg || mp.file;                        // jpg: universal en background-image
-  const rid = (wp.properties.routes || [])[0];
-  const color = ROUTE_COLORS[rid] || '#40916c';
-  const emoji = (state.routesById[rid] && state.routesById[rid].emoji) || '📍';
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='220'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${color}'/><stop offset='1' stop-color='#1b4332'/></linearGradient></defs><rect width='400' height='220' fill='url(#g)'/><circle cx='200' cy='92' r='36' fill='#ffffff30'/><circle cx='200' cy='92' r='7' fill='#ffffffcc'/><text x='200' y='168' font-size='16' fill='#ffffffcc' text-anchor='middle' font-family='sans-serif'>${t('sample_photo')}</text></svg>`;
-  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  return mp ? (mp.jpg || mp.file) : null;                  // jpg: universal en background-image
 }
 
 // Sticky-hover close: on hover devices the popup closes when the pointer leaves
@@ -456,24 +624,27 @@ function removePopup() { if (state.popup) { state.popup.remove(); state.popup = 
 function scheduleClosePopup() { if (!canHover) return; clearTimeout(popupCloseTimer); popupCloseTimer = setTimeout(removePopup, 260); }
 function cancelClosePopup() { clearTimeout(popupCloseTimer); }
 
-// Small popup anchored to the point (hover on desktop, tap on mobile).
+// Small popup anchored to the point (hover on desktop, tap on mobile). Adapts to
+// content: title alone if bare; photo + text + "more info" when there's more.
 function miniPopup(wp) {
   if (!wp || !state.map) return;
   cancelClosePopup();
   if (state.popup) state.popup.remove();
   const p = wp.properties;
-  const rid = (p.routes || [])[0];
-  const badge = rid ? `<span class="mp-badge" style="background:${ROUTE_COLORS[rid] || '#5b6b60'}">${routeLabel(rid)}</span>` : '';
+  const tm = typeMeta(p.tipo);
+  const badge = `<span class="mp-badge" style="background:${tm.color}">${tm.emoji} ${typeLabel(p.tipo)}</span>`;
+  const photo = realPhoto(wp);
   const full = L(p, 'description') || '';
-  const desc = full ? full.slice(0, 85) + (full.length > 85 ? '…' : '') : '';
-  const html = `<div class="mini-pop">
-    <div class="mp-photo" style="background-image:url('${samplePhoto(wp)}')"></div>
+  const desc = full ? (full.length > 110 ? full.slice(0, 110) + '…' : full) : '';
+  const hasMore = !!(full || (p.species_ids || []).length || photo);
+  const html = `<div class="mini-pop${photo ? '' : ' no-photo'}">
+    ${photo ? `<div class="mp-photo" style="background-image:url('${photo}')"></div>` : ''}
     <div class="mp-body">${badge}
-      <strong>${L(p, 'title') || p.name}</strong>
-      ${desc ? `<p>${desc}</p>` : ''}
-      <button class="mp-more" type="button">${t('more_info')} ›</button>
+      <strong>${escapeHtml(L(p, 'title') || p.title)}</strong>
+      ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
+      ${hasMore ? `<button class="mp-more" type="button">${t('more_info')} ›</button>` : ''}
     </div></div>`;
-  state.popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, maxWidth: '250px', offset: 12, className: 'cantares-popup' })
+  state.popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, maxWidth: '240px', offset: 12, className: 'cantares-popup' })
     .setLngLat(wp.geometry.coordinates).setHTML(html).addTo(state.map);
   const el = state.popup.getElement();
   if (el) {
@@ -496,12 +667,17 @@ function showWaypoint(wp) {
     const s = state.species.find((x) => x.id === key || x.scientific_name.toLowerCase() === key);
     return s ? `<span class="chip" data-species="${s.id}">${L(s, 'common_name')}</span>` : '';
   }).join('');
+  const photo = realPhoto(wp);
+  const tm = typeMeta(p.tipo);
+  const desc = L(p, 'description');
   $('#wp-content').innerHTML = `
-    <div class="wp-photo-hdr" style="background-image:url('${samplePhoto(wp)}')"></div>
+    ${photo
+      ? `<div class="wp-photo-hdr" style="background-image:url('${photo}')"></div>`
+      : `<div class="wp-photo-hdr wp-no-photo" style="background:linear-gradient(135deg, ${tm.color}, var(--forest))"><span class="wp-hdr-emoji">${tm.emoji}</span></div>`}
     <div class="wp-inner">
       <div class="wp-theme-badges">${badges}</div>
-      <h2 class="wp-title">${L(p, 'title') || p.name}</h2>
-      <p class="wp-desc">${L(p, 'description') || ''}</p>
+      <h2 class="wp-title">${escapeHtml(L(p, 'title') || p.title)}</h2>
+      ${desc ? `<p class="wp-desc">${escapeHtml(desc)}</p>` : ''}
       ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
       ${p.approx ? `<p class="tiny muted" style="margin-top:10px">${t('approx_note')}</p>` : ''}
     </div>`;
@@ -512,7 +688,10 @@ function showWaypoint(wp) {
 function closeWaypoint() { $('#waypoint-card').classList.add('hidden'); state.openWaypointId = null; }
 
 // ---------- geolocation ----------
-function setGps(status, label) { $('#gps-chip').className = `gps-chip gps-${status}`; $('#gps-label').textContent = label || t('gps'); }
+function setGps(status, label) {
+  const chip = $('#gps-chip'); if (!chip) return;   // header chip removed; button color is the cue
+  chip.className = `gps-chip gps-${status}`; $('#gps-label').textContent = label || t('gps');
+}
 function locate() {
   if (state.watchId != null) { stopTracking(); return; }
   if (!('geolocation' in navigator)) { setGps('error', t('gps_unsupported')); toast(t('gps_unsupported')); return; }
@@ -545,14 +724,27 @@ function onGeoError(err) {
   setGps('error', msg);
   if (err.code === 1) { stopTracking(); toast(t('gps_hint_denied')); } else toast(msg);
 }
+// ----- guided mode: follow the visitor and surface points as they approach -----
+function startGuiding(id) {
+  state.guiding = id;
+  const built = buildRoutePath(id);
+  if (built && state.map) state.map.easeTo({ center: built.path[0], zoom: 17.5, duration: 800 });
+  if (state.watchId == null) locate();   // begin GPS follow (google-maps style)
+  toast(t('guiding_on'));
+  renderRouteInfo(state.routesById[id], built);
+}
+function stopGuiding() {
+  const wasId = state.guiding;
+  state.guiding = null;
+  if (wasId) toast(t('guiding_off'));
+  if (state.activeRoute) renderRouteInfo(state.routesById[state.activeRoute], buildRoutePath(state.activeRoute));
+}
+
 function checkProximity() {
-  if (!state.userPos) return;
+  if (!state.userPos || !state.guiding) return;   // sólo durante un recorrido iniciado
   state.waypoints.forEach((wp) => {
     const id = wp.properties.id;
-    if (state.activeRoute) {
-      const rts = wp.properties.routes || [];
-      if (rts.length && !rts.includes(state.activeRoute)) return;
-    }
+    if (!waypointVisible(wp)) return;   // only trigger points currently shown
     const d = haversine(state.userPos, wp.geometry.coordinates);
     if (d <= CONFIG.proximityMeters && !state.lastTriggered[id]) {
       state.lastTriggered[id] = true;
@@ -714,11 +906,19 @@ async function registerSW() {
 function renderLegend() {
   const zones = ['conservacion', 'uso_intensivo', 'agroecosistema', 'transicion'];
   const off = !state.zonesVisible;
+  const types = presentTypes();
   $('#legend-body').innerHTML = `
     <div class="lg-row"><span class="lg-line" style="background:#f4f1de"></span>${t('lg_trails')}</div>
     <div class="lg-row"><span class="lg-line" style="background:#e07a1f;height:4px"></span>${t('lg_route')}</div>
     <div class="lg-row"><span class="lg-dot" style="background:#2f9e44"></span>${t('lg_start')} · <span class="lg-dot" style="background:#e03131;margin-left:4px"></span>${t('lg_end')}</div>
-    <div class="lg-row"><span class="lg-dot" style="background:#ffd166;border-color:#7a4b12"></span>${t('lg_point')}</div>
+    <div class="lg-sep">${t('lg_points_head')}</div>
+    <div class="lg-types">
+      ${types.map((tp) => {
+        const m = typeMeta(tp), hidden = state.hiddenTypes.has(tp);
+        return `<button class="lg-type ${hidden ? 'off' : ''}" data-type="${tp}">
+          <span class="lg-dot" style="background:${m.color}"></span>${m.emoji} ${typeLabel(tp)}</button>`;
+      }).join('')}
+    </div>
     <div class="lg-sep lg-zones-head">${t('lg_zones')}
       <button id="zones-toggle" class="lg-eye" title="${t('lg_zones_toggle')}">${off ? '🚫' : '👁'}</button></div>
     <div id="lg-zone-rows" class="${off ? 'lg-dim' : ''}">
@@ -726,6 +926,13 @@ function renderLegend() {
     </div>`;
   const zt = $('#zones-toggle');
   if (zt) zt.onclick = toggleZones;
+  $$('#legend-body .lg-type').forEach((b) => b.onclick = () => toggleType(b.dataset.type));
+}
+function toggleType(tp) {
+  if (state.hiddenTypes.has(tp)) state.hiddenTypes.delete(tp); else state.hiddenTypes.add(tp);
+  applyWaypointFilter();
+  renderLegend();
+  if (state.activeRoute) renderRouteInfo(state.routesById[state.activeRoute], buildRoutePath(state.activeRoute));
 }
 function toggleZones() {
   state.zonesVisible = !state.zonesVisible;
@@ -738,13 +945,64 @@ function toggleZones() {
   renderLegend();
 }
 
+// ---------- draggable widgets (legend, imagery toggle) ----------
+// Pointer Events (unified mouse/touch, works on iOS) + setPointerCapture so the
+// widget tracks the finger 1:1. Positions are stored in the OFFSET-PARENT frame
+// (el.offsetLeft/Top) — mixing viewport coords with left/top caused the widget
+// to jump out from under the cursor. A small threshold keeps taps working.
+function makeDraggable(el, handle, key, onTap) {
+  const clampAndSet = (left, top) => {
+    const parent = el.offsetParent || document.body;
+    const maxX = parent.clientWidth - el.offsetWidth - 4;
+    const maxY = parent.clientHeight - el.offsetHeight - 4;
+    Object.assign(el.style, {
+      left: Math.max(4, Math.min(maxX, left)) + 'px',
+      top: Math.max(4, Math.min(maxY, top)) + 'px',
+      right: 'auto', bottom: 'auto',
+    });
+  };
+  const saved = key && localStorage.getItem(key);
+  if (saved) { try { const p = JSON.parse(saved); clampAndSet(p.left, p.top); } catch (e) { /* ignore */ } }
+  let sx, sy, startLeft, startTop, moved = false, dragging = false;
+  const move = (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!moved && Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+    if (!moved) return;
+    if (e.cancelable) e.preventDefault();
+    clampAndSet(startLeft + dx, startTop + dy);
+  };
+  const up = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    try { handle.releasePointerCapture(e.pointerId); } catch (er) { /* ignore */ }
+    handle.removeEventListener('pointermove', move);
+    handle.removeEventListener('pointerup', up);
+    handle.removeEventListener('pointercancel', up);
+    if (moved && key) localStorage.setItem(key, JSON.stringify({ left: el.offsetLeft, top: el.offsetTop }));
+    else if (!moved && onTap) onTap();
+  };
+  handle.addEventListener('pointerdown', (e) => {
+    if (e.button != null && e.button !== 0) return;
+    dragging = true; moved = false;
+    sx = e.clientX; sy = e.clientY;
+    startLeft = el.offsetLeft; startTop = el.offsetTop;
+    try { handle.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  });
+  handle.style.touchAction = 'none';
+}
+
 // ---------- language ----------
 function applyStaticI18n() {
   document.documentElement.lang = LANG;
   $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   $$('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
   $('#lang-toggle').textContent = LANG === 'es' ? 'EN' : 'ES';
-  $('#base-caption').textContent = t('base_label');
+  $('#base-caption').textContent = t('base_forest_title');
+  const bh = $('#base-hint'); if (bh) bh.textContent = t('base_forest_hint');
 }
 function setLang(lang) {
   LANG = lang; localStorage.setItem('cantares_lang', lang);
@@ -759,11 +1017,12 @@ function setLang(lang) {
 async function main() {
   $$('.tab').forEach((tab) => tab.onclick = () => switchView(tab.dataset.view));
   $('#wp-close').onclick = closeWaypoint;
-  $('#locate-btn').onclick = locate;
   $('#inat-link').href = CONFIG.inatProjectUrl;
   $('#lang-toggle').onclick = () => setLang(LANG === 'es' ? 'en' : 'es');
-  $('#legend-toggle').onclick = () => $('#legend').classList.toggle('collapsed');
-  $('#base-toggle').onclick = () => $('#base-slider-box').classList.toggle('collapsed');
+  // Legend, imagery toggle and GPS button: draggable (tap still collapses / locates).
+  makeDraggable($('#legend'), $('#legend-toggle'), 'cantares_pos_legend', () => $('#legend').classList.toggle('collapsed'));
+  makeDraggable($('#base-slider-box'), $('#base-toggle'), 'cantares_pos_base', () => $('#base-slider-box').classList.toggle('collapsed'));
+  makeDraggable($('#locate-btn'), $('#locate-btn'), 'cantares_pos_locate', locate);
   window.addEventListener('online', renderOfflineStatus);
   window.addEventListener('offline', renderOfflineStatus);
 
@@ -804,17 +1063,56 @@ async function main() {
   renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend(); renderVisitInfo();
   $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
 
-  // Primer arranque: mostrar el onboarding una sola vez (no bloquea el resto de la carga).
-  if (!localStorage.getItem('cantares_onboarded')) showOnboarding();
+  // El resto del arranque ocurre DESPUÉS de la puerta de entrada (login/invitado).
+  const enterApp = async () => {
+    await loadCloudData();                       // preferir datos de la nube (ediciones del admin)
+    renderSpeciesFilters(); renderSpeciesGrid(); renderLegend();
+    if (!localStorage.getItem('cantares_onboarded')) showOnboarding();
+    await initGame({ state, t, L, toast, rerenderSpecies: () => renderSpeciesGrid(),
+      cloud: { enabled: Cloud.cloudConfigured() && Cloud.isLoggedIn(), user: Cloud.currentUser(),
+        addSighting: Cloud.addSighting, mySightings: Cloud.mySightings, uploadImage: Cloud.uploadImage } });
+    if (!new URLSearchParams(location.search).has('nomap')) {
+      await initMap();
+      renderLegend(); applyWaypointFilter(); selectRoute(null);
+      onStyleReady(state.map, () => { try { gameAddMapLayer(); } catch (e) { console.warn('gameAddMapLayer', e); } });
+      initAdmin({ state, map: state.map, t, L, LANG, toast,
+        typeColor: (tp) => typeMeta(tp).color, refreshWaypoints, refreshSpecies });
+    }
+    registerSW();
+  };
 
-  // Juego de especies (Expedición Cantares) — carga registros locales y pinta su panel.
-  await initGame({ state, t, L, toast, rerenderSpecies: () => renderSpeciesGrid() });
-
-  if (!new URLSearchParams(location.search).has('nomap')) {
-    await initMap();
-    selectRoute(null);
-    gameAddMapLayer();   // pines de avistamientos del juego sobre el mapa
-  }
-  registerSW();
+  // Puerta de entrada: invitado / visitante (cuenta) / admin. Si la nube está
+  // desactivada, entra directo (app igual que antes).
+  await initAuthGate({ lang: LANG, onEnter: () => enterApp() });
 }
 main().catch((e) => { console.error(e); toast('Error: ' + e.message); });
+
+// ---------- puente con la nube (datos + refresco tras editar) ----------
+function cloudWaypointToFeature(r) {
+  return { type: 'Feature', properties: {
+    id: r.id, title: r.title, title_en: r.title_en, description: r.description, description_en: r.description_en,
+    tipo: r.tipo || 'punto', routes: r.routes || [], species_ids: r.species_ids || [], photo: r.photo || null,
+  }, geometry: { type: 'Point', coordinates: [r.lng, r.lat] } };
+}
+async function loadCloudData() {
+  if (!Cloud.cloudConfigured()) return;
+  try {
+    const [cw, cs] = await Promise.all([Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null)]);
+    if (cw && cw.length) { const fc = { type: 'FeatureCollection', features: cw.map(cloudWaypointToFeature) }; normalizeFeatures(fc); state.waypoints = fc.features; }
+    if (cs && cs.length) state.species = cs;
+  } catch (e) { console.warn('[cloud] datos', e && e.message); }
+}
+async function refreshWaypoints() {
+  if (!Cloud.cloudConfigured()) return;
+  const cw = await Cloud.listWaypoints();
+  const fc = { type: 'FeatureCollection', features: cw.map(cloudWaypointToFeature) };
+  normalizeFeatures(fc); state.waypoints = fc.features;
+  const src = state.map && state.map.getSource('waypoints'); if (src) src.setData(fc);
+  renderLegend(); applyWaypointFilter();
+  if (state.activeRoute) selectRoute(state.activeRoute);
+}
+async function refreshSpecies() {
+  if (!Cloud.cloudConfigured()) return;
+  state.species = await Cloud.listSpecies();
+  renderSpeciesFilters(); renderSpeciesGrid();
+}

@@ -1,5 +1,5 @@
 // Cantares service worker — offline app shell + data, runtime-cache map tiles + fotos.
-const VERSION = 'cantares-v4';
+const VERSION = 'cantares-v9';
 const SHELL = `${VERSION}-shell`;
 const TILES = `${VERSION}-tiles`;
 const IMAGES = `${VERSION}-img`;
@@ -10,11 +10,15 @@ const SHELL_ASSETS = [
   'css/style.css',
   'js/app.js',
   'js/game.js',
+  'js/cloud.js',
+  'js/auth-ui.js',
+  'js/admin.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'vendor/maplibre-gl.js',
   'vendor/maplibre-gl.css',
   'vendor/pmtiles.js',
+  'data/boundary.geojson',
   'data/zones.geojson',
   'data/trails.geojson',
   'data/waypoints.geojson',

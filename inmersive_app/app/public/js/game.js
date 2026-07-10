@@ -212,9 +212,9 @@ export function capturedBadge(speciesId) {
   return n ? `<span class="cap-badge" title="${T('g_captured')}">📸${n > 1 ? '×' + n : ''}</span>` : '';
 }
 
-// ---------- especie del día (determinista por fecha) ----------
+// ---------- especie del día (determinista por fecha) — sólo plantas ----------
 function speciesOfDay() {
-  const list = CTX.state.species;
+  const list = CTX.state.species.filter((s) => s.group === 'flora');
   if (!list.length) return null;
   const d = new Date().toISOString().slice(0, 10);
   let h = 0;
@@ -531,6 +531,15 @@ function renderWizardConfirm(body) {
     };
     await dbPut('obs', obs);
     allObs.push(obs);
+    // Empuje al inventario global (Supabase) — best-effort, no bloquea el juego.
+    if (CTX.cloud && CTX.cloud.enabled) (async () => {
+      try {
+        let photoUrl = null;
+        if (obs.photo && CTX.cloud.uploadImage) { try { photoUrl = await CTX.cloud.uploadImage(obs.photo, 'sightings'); } catch (e) { /* sin foto */ } }
+        await CTX.cloud.addSighting({ species_id: obs.speciesId, common: obs.common, sci: obs.sci, group: obs.group,
+          lat: obs.lat, lng: obs.lon, taken_at: new Date(obs.time).toISOString(), photo: photoUrl, points: obs.points });
+      } catch (e) { console.warn('[cloud] sighting', e && e.message); }
+    })();
     rebuildCapMap(); renderGamePanel(); CTX.rerenderSpecies(); refreshObsMapLayer();
     const after = earnedBadges(player.id).filter((a) => !before.has(a.id));
     body.innerHTML = `
@@ -781,6 +790,26 @@ export async function initGame(ctx) {
   } catch (e) {
     console.warn('game idb', e);
     allPlayers = []; allObs = [];
+  }
+  // Cuenta en la nube: liga el jugador a la cuenta y rehidrata los avistamientos
+  // del servidor, para que al volver (aunque sea en otro dispositivo) no empiece de cero.
+  if (ctx.cloud && ctx.cloud.enabled && ctx.cloud.user) {
+    try {
+      const u = ctx.cloud.user;
+      if (!allPlayers.find((p) => p.id === u.id)) { const pl = { id: u.id, name: u.username || 'Visitante', created: Date.now() }; await dbPut('players', pl); allPlayers.push(pl); }
+      localStorage.setItem('cantares_player', u.id);
+      const cloudObs = await ctx.cloud.mySightings();
+      const have = new Set(allObs.map((o) => o.id));
+      for (const cs of cloudObs) {
+        const oid = 'cloud_' + cs.id;
+        if (have.has(oid)) continue;
+        const o = { id: oid, playerId: u.id, kind: cs.species_id ? 'capture' : 'finding', speciesId: cs.species_id || null,
+          sci: cs.sci || '', common: cs.common || '', group: cs.group || 'otro',
+          time: cs.taken_at ? new Date(cs.taken_at).getTime() : Date.now(), lat: cs.lat, lon: cs.lng,
+          points: cs.points || 0, photo: null, breakdown: [] };
+        await dbPut('obs', o); allObs.push(o);
+      }
+    } catch (e) { console.warn('[cloud] rehidratar', e && e.message); }
   }
   rebuildCapMap();
   renderGamePanel();

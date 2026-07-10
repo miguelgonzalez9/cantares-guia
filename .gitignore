@@ -34,7 +34,15 @@ inmersive_app/inputs/photos/_originals/**
 !inmersive_app/inputs/photos/incoming/README.md
 !inmersive_app/inputs/photos/incoming/.gitkeep
 
+# --- Mosaicos satelitales (copia de tiles Esri; regenerables, ~13MB; Dropbox respalda) ---
+inmersive_app/inputs/maps/satellite/*.jpg
+inmersive_app/inputs/maps/satellite/*.jgw
+inmersive_app/inputs/maps/satellite/*.prj
+
 # --- Secrets ---
 .env
 .env.*
 !.env.example
+# --- SQLite WAL/SHM transitorios de los GeoPackage (no versionar) ---
+*.gpkg-wal
+*.gpkg-shm

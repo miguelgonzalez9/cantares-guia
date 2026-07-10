@@ -1,28 +1,35 @@
 {
   "_meta": {
-    "note": "Recorridos temáticos. Los ids deben coincidir con el campo `routes` de trails.geojson y waypoints.geojson (ver docs/QGIS_GUIA.md).",
+    "note": "Recorridos temáticos. Los ids deben coincidir con el campo `routes` de trails.geojson y waypoints.geojson (ver docs/QGIS_GUIA.md). start_id/end_id apuntan al id de un punto de waypoints.geojson para fijar inicio y fin del recorrido (null = se elige automáticamente).",
     "themes": ["agua", "aves", "arboles", "flora", "paisaje", "regeneracion", "nocturno"]
   },
   "routes": [
     { "id": "agua", "name": "Recorrido del Agua", "name_en": "Water Route", "emoji": "💧", "color": "#2b8cbe",
+      "start_id": "punto_1", "end_id": "punto_3",
       "summary": "Quebradas, nacimientos, cascadas y el bosque ribereño de la cuenca del Río Blanco.",
       "summary_en": "Creeks, springs, waterfalls and the riparian forest of the Río Blanco watershed." },
     { "id": "aves", "name": "Recorrido de Aves", "name_en": "Birding Route", "emoji": "🐦", "color": "#d94801",
+      "start_id": null, "end_id": "punto_16",
       "summary": "Barranquero, águila crestada, colibríes y tángaras. Trae audífonos y Merlin.",
       "summary_en": "Motmot, crested eagle, hummingbirds and tanagers. Bring headphones and Merlin." },
     { "id": "arboles", "name": "Recorrido de Árboles", "name_en": "Trees Route", "emoji": "🌳", "color": "#238b45",
+      "start_id": null, "end_id": null,
       "summary": "Robles, encenillos, helechos arbóreos y el bosque montano.",
       "summary_en": "Oaks, encenillos, tree ferns and the montane forest." },
     { "id": "flora", "name": "Recorrido de Flora", "name_en": "Flora Route", "emoji": "🌸", "color": "#c2255c",
+      "start_id": "punto_11", "end_id": "punto_1",
       "summary": "Orquídeas, sietecueros y la flora del bosque muy húmedo montano.",
       "summary_en": "Orchids, sietecueros and the flora of the very humid montane forest." },
     { "id": "paisaje", "name": "Recorrido del Paisaje", "name_en": "Scenic Route", "emoji": "🏞️", "color": "#1098ad",
+      "start_id": "punto_1", "end_id": "punto_4",
       "summary": "Miradores con vistas a la reserva, la cuenca y la ciudad de Manizales.",
       "summary_en": "Lookouts over the reserve, the watershed and the city of Manizales." },
     { "id": "regeneracion", "name": "Recorrido de Regeneración", "name_en": "Regeneration Route", "emoji": "🌱", "color": "#6a4c93",
+      "start_id": null, "end_id": null,
       "summary": "De potrero de kikuyo a bosque: el vivero y las áreas en restauración.",
       "summary_en": "From kikuyu pasture to forest: the nursery and the areas under restoration." },
     { "id": "nocturno", "name": "Recorrido Nocturno", "name_en": "Night Route", "emoji": "🦉", "color": "#3b5bdb",
+      "start_id": null, "end_id": null,
       "summary": "Fauna nocturna: tigrillo, pacas, búhos y las voces del bosque de noche.",
       "summary_en": "Nocturnal wildlife: oncilla, pacas, owls and the forest's voices at night." }
   ]
