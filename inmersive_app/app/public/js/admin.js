@@ -20,8 +20,9 @@ export function initAdmin(ctx) {
   const fab = document.createElement('button');
   fab.id = 'admin-fab'; fab.className = 'admin-fab'; fab.title = 'Administrar';
   fab.textContent = '🛠️';
-  fab.onclick = openPanel;
   (document.getElementById('view-recorridos') || document.body).appendChild(fab);
+  if (CTX.makeDraggable) CTX.makeDraggable(fab, fab, 'cantares_pos_admin', openPanel);
+  else fab.onclick = openPanel;
 }
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -106,6 +107,7 @@ function editPunto(id) {
           <button type="button" class="admin-pick" id="f-pick">📍 En el mapa</button>
         </div>
       </div>
+      <input id="f-coords" placeholder="o escribe coordenadas: lat, lng (ej: 5.08181, -75.45031)" value="${coords ? `${coords[1]}, ${coords[0]}` : ''}">
       <div class="admin-err" id="f-err"></div>
       <div class="admin-actions">
         <button class="admin-save" id="f-save">Guardar</button>
@@ -116,6 +118,11 @@ function editPunto(id) {
   let loc = coords ? coords.slice() : null;
   let photoUrl = p.photo || null;
   const setLoc = (lng, lat) => { loc = [lng, lat]; const s = body.querySelector('#f-loc'); if (s) s.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`; };
+  const coordsInput = body.querySelector('#f-coords');
+  if (coordsInput) coordsInput.oninput = (e) => {
+    const p = e.target.value.split(',').map((s) => parseFloat(s.trim()));
+    if (p.length === 2 && isFinite(p[0]) && isFinite(p[1])) setLoc(p[1], p[0]);   // lat, lng
+  };
 
   body.querySelector('#f-gps').onclick = () => {
     if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
@@ -353,8 +360,8 @@ function ensureHl() {
 }
 function setHl(features) { if (!ensureHl()) return; CTX.map.getSource('admin-hl').setData({ type: 'FeatureCollection', features }); }
 function clearHighlight() { const s = styleReady() && CTX.map.getSource('admin-hl'); if (s) s.setData({ type: 'FeatureCollection', features: [] }); }
-function highlightSegments(ids) {
-  setHl(ids.map((tid, i) => { const tr = trailFeat(tid); return tr ? { type: 'Feature', properties: { _c: orderColor(i, ids.length) }, geometry: tr.geometry } : null; }).filter(Boolean));
+function highlightSegments(ids, color) {
+  setHl(ids.map((tid, i) => { const tr = trailFeat(tid); return tr ? { type: 'Feature', properties: { _c: color || orderColor(i, ids.length) }, geometry: tr.geometry } : null; }).filter(Boolean));
 }
 
 // ---------------- elegir senderos en el mapa (crear recorrido interactivo) ----------------
@@ -366,7 +373,7 @@ function startRoutePick(id) {
   CTX.toast('Toca los senderos en orden. Toca uno de nuevo para quitarlo.');
   const seg = _routeDraft.segments;
   pick = { id, orig: seg.slice(), handler: null };
-  const update = () => { highlightSegments(seg); updatePickHud(seg.length); };
+  const update = () => { highlightSegments(seg, _routeDraft.color); updatePickHud(seg.length); };
   pick.handler = (e) => {
     const f = map.queryRenderedFeatures(e.point, { layers: ['trails-all'] });
     if (!f.length) return;
@@ -521,7 +528,7 @@ function editRecorrido(id) {
     el.querySelectorAll('[data-up]').forEach((b) => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [segWork[i - 1], segWork[i]] = [segWork[i], segWork[i - 1]]; renderSegs(); } });
     el.querySelectorAll('[data-down]').forEach((b) => b.onclick = () => { const i = +b.dataset.down; if (i < segWork.length - 1) { [segWork[i + 1], segWork[i]] = [segWork[i], segWork[i + 1]]; renderSegs(); } });
     el.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { segWork.splice(+b.dataset.rm, 1); renderSegs(); });
-    highlightSegments(segWork);   // iluminar en el mapa según el orden
+    highlightSegments(segWork, color);   // iluminar solo los elegidos, en el color del recorrido
   };
   renderSegs();
   const saveDraft = () => { _routeDraft = { id: r.id, _new: !id, sort: r.sort,

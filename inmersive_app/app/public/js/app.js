@@ -236,6 +236,14 @@ function pathLengthM(coords) {
   return d;
 }
 function fmtDist(m) { return m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 0 : 2) + ' km' : Math.round(m) + ' m'; }
+// Distancia acumulada hasta el vértice del path más cercano a `coord` (para
+// ordenar los puntos clave en el sentido en que se recorre el sendero).
+function pathPos(path, coord) {
+  let bi = 0, bd = Infinity;
+  for (let i = 0; i < path.length; i++) { const d = haversine(coord, path[i]); if (d < bd) { bd = d; bi = i; } }
+  let cum = 0; for (let i = 1; i <= bi; i++) cum += haversine(path[i - 1], path[i]);
+  return cum;
+}
 
 // Accept a field as a JSON array OR a QGIS "a,b" text field OR null/empty → array.
 function toArray(v) {
@@ -591,7 +599,9 @@ function selectRoute(id) {
   const built = (id && route) ? buildRoutePath(id) : null;
   if (map && map.getLayer && map.getLayer('trails-hl')) {
     if (id) {
-      map.setFilter('trails-hl', ['in', id, ['get', 'routes']]);
+      // Con orden explícito, ilumina SOLO esos senderos (no los etiquetados).
+      const segs = (route.segments && route.segments.length) ? route.segments : null;
+      map.setFilter('trails-hl', segs ? ['in', ['get', 'id'], ['literal', segs]] : ['in', id, ['get', 'routes']]);
       map.setPaintProperty('trails-hl', 'line-color', route.color);
       const pathFC = built ? { type: 'FeatureCollection', features: [
         { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: built.path } }] } : emptyFC();
@@ -620,10 +630,14 @@ function renderRouteInfo(route, built) {
   const id = route.id;
   const sLbl = built ? endLabel(built.path[0], built.startWp, id) : null;
   const eLbl = built ? endLabel(built.path[built.path.length - 1], built.endWp, id) : null;
-  const pts = state.waypoints.filter((w) => {
+  let pts = state.waypoints.filter((w) => {
     const rts = w.properties.routes || [];
     return rts.includes(id) && waypointVisible(w);
   });
+  // Ordénalos en el sentido del recorrido (a lo largo del trazado).
+  if (built && built.path) pts = pts
+    .map((w) => ({ w, pos: pathPos(built.path, w.geometry.coordinates) }))
+    .sort((a, b) => a.pos - b.pos).map((x) => x.w);
   const guiding = state.guiding === id;
   info.classList.remove('hidden');
   info.style.borderTopColor = route.color;
@@ -1166,6 +1180,7 @@ async function main() {
     loadJSON(CONFIG.data.media).catch(() => null),
   ]);
   state.routes = routesDoc.routes;
+  state.staticRoutes = routesDoc.routes;   // respaldo para el merge con la nube
   state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
   state.species = speciesDoc.species;
   state.reserveInfo = reserveInfo;
@@ -1187,7 +1202,7 @@ async function main() {
       await initMap();
       renderLegend(); applyWaypointFilter(); selectRoute(null);
       onStyleReady(state.map, () => { try { gameAddMapLayer(); } catch (e) { console.warn('gameAddMapLayer', e); } });
-      initAdmin({ state, map: state.map, t, L, LANG, toast,
+      initAdmin({ state, map: state.map, t, L, LANG, toast, makeDraggable,
         typeColor: (tp) => typeMeta(tp).color,
         refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails,
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
@@ -1213,8 +1228,14 @@ function cloudTrailToFeature(r) {
   return { type: 'Feature', properties: { id: r.id, name: r.name, routes: r.routes || [] },
     geometry: { type: 'LineString', coordinates: r.geometry || [] } };
 }
+// Combina los recorridos de la nube SOBRE los estáticos (por id). Así una tabla
+// `routes` incompleta nunca hace "desaparecer" recorridos: la nube manda donde
+// existe, el estático rellena el resto.
 function applyCloudRoutes(cr) {
-  state.routes = cr.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0));
+  const byId = {};
+  (state.staticRoutes || []).forEach((r, i) => { byId[r.id] = { sort: i, ...r }; });
+  (cr || []).forEach((r) => { byId[r.id] = { ...(byId[r.id] || {}), ...r }; });
+  state.routes = Object.values(byId).sort((a, b) => (a.sort || 0) - (b.sort || 0));
   state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
 }
 async function loadCloudData() {
