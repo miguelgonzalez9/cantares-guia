@@ -155,6 +155,12 @@ function baseSourceDef(stop) {
     attribution: stop.hd ? 'Imagery © Esri, Maxar' : 'Sentinel-2 cloudless by EOX' };
 }
 function baseLabel(stop) { return stop.hd ? t('base_hd') : stop.pmtiles ? t('base_ortho') : stop.key; }
+function renderBaseTicks() {
+  const el = document.querySelector('#base-ticks');
+  if (!el) return;
+  el.innerHTML = CONFIG.baseStops.map((s) =>
+    `<span>${s.hd ? 'HD' : s.pmtiles ? 'Orto' : s.key}</span>`).join('');
+}
 function buildStyle() {
   return { version: 8, sources: { base: baseSourceDef(CONFIG.baseStops[state.baseIndex]) },
     layers: [
@@ -164,14 +170,15 @@ function buildStyle() {
 }
 function setBaseLayer(i) {
   state.baseIndex = i;
-  const map = state.map;
   const stop = CONFIG.baseStops[i];
+  $('#base-year').textContent = baseLabel(stop);   // always reflect the year, even if map not ready
+  const map = state.map;
   if (!map || !map.getSource('base')) return;
   if (map.getLayer('base')) map.removeLayer('base');
   map.removeSource('base');
   map.addSource('base', baseSourceDef(stop));
-  map.addLayer({ id: 'base', type: 'raster', source: 'base' }, 'zones-fill');
-  $('#base-year').textContent = baseLabel(stop);
+  const before = map.getLayer('zones-fill') ? 'zones-fill' : undefined;
+  map.addLayer({ id: 'base', type: 'raster', source: 'base' }, before);
 }
 function makeArrowIcon(map) {
   if (map.hasImage('arrow')) return;
@@ -548,7 +555,14 @@ async function main() {
   const slider = $('#base-slider');
   slider.max = String(CONFIG.baseStops.length - 1);
   slider.value = String(state.baseIndex);
-  slider.oninput = (e) => setBaseLayer(+e.target.value);
+  renderBaseTicks();
+  let baseSwapTimer = null;
+  slider.oninput = (e) => {
+    const i = +e.target.value;
+    $('#base-year').textContent = baseLabel(CONFIG.baseStops[i]);   // live year while dragging
+    clearTimeout(baseSwapTimer);
+    baseSwapTimer = setTimeout(() => setBaseLayer(i), 130);          // debounce the heavy layer swap
+  };
 
   const [routesDoc, speciesDoc] = await Promise.all([loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species)]);
   state.routes = routesDoc.routes;

@@ -126,7 +126,9 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .base-slider-head { display: flex; justify-content: space-between; align-items: baseline;
   font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
 .base-slider-head strong { color: var(--forest); font-size: 13px; }
-.base-slider { width: 100%; accent-color: var(--moss); }
+.base-slider { width: 100%; accent-color: var(--moss); margin: 0; }
+.base-ticks { display: flex; justify-content: space-between; margin-top: 1px; padding: 0 2px; }
+.base-ticks span { font-size: 9px; color: var(--muted); }
 
 .route-info {
   position: absolute; left: 10px; right: 10px; bottom: 150px; z-index: 4;
