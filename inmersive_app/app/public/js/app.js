@@ -12,14 +12,14 @@ const CONFIG = {
     trails: 'data/trails.geojson', waypoints: 'data/waypoints.geojson',
     routes: 'data/routes.json', species: 'data/species.json',
   },
-  // Base imagery time-slider stops. Esri Wayback = free, keyless, historical
-  // versions of Esri World Imagery (sub-meter, HD) — the actual distinct captures
-  // over the reserve (detected by tile-change analysis). 'hd' = current Esri.
+  // Base imagery time-slider stops. Esri Wayback = free, keyless, sub-meter.
+  // Labeled by the REAL acquisition date over the reserve (from the Wayback
+  // metadata service), NOT the release date. Over Cantares only 3 high-res
+  // captures exist (Manizales is cloudy, rarely re-flown): 2015, 2020, 2024.
   baseStops: [
-    { key: '2016', tiles: wayback(3515) },  { key: '2017', tiles: wayback(14765) },
-    { key: '2019', tiles: wayback(18691) }, { key: '2021', tiles: wayback(9812) },
-    { key: '2022', tiles: wayback(45441) }, { key: '2023', tiles: wayback(64776) },
-    { key: '2025', tiles: wayback(51127) }, { key: 'hd', tiles: ESRI, hd: true },
+    { key: '2015', tiles: wayback(18691) },  // WorldView-2, 0.5 m — feb 2015
+    { key: '2020', tiles: wayback(64776) },  // WorldView-3, 0.31 m — feb 2020
+    { key: '2024', tiles: wayback(51127) },  // WorldView-3, 0.31 m — ene 2024 (la más actual)
   ],
 };
 // Esri Wayback WMTS: /{release}/{level}/{row}/{col} = /{release}/{z}/{y}/{x}.
@@ -28,7 +28,7 @@ function wayback(rel) { return `https://wayback.maptiles.arcgis.com/arcgis/rest/
 const state = {
   map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
   activeRoute: null, userPos: null, watchId: null, firstFix: false,
-  lastTriggered: {}, openWaypointId: null, baseIndex: 7,
+  lastTriggered: {}, openWaypointId: null, baseIndex: 2, zonesVisible: true,
 };
 
 // ---------- i18n ----------
@@ -41,7 +41,7 @@ const I18N = {
     gps_hint_denied: 'Activa el permiso de ubicación para este sitio en el navegador.',
     approx_note: 'Posición aproximada — se reemplaza con el punto GPS real.',
     legend: 'Leyenda', lg_trails: 'Senderos', lg_route: 'Recorrido activo', lg_start: 'Inicio', lg_end: 'Fin',
-    lg_point: 'Punto clave', lg_zones: 'Zonas de manejo',
+    lg_point: 'Punto clave', lg_zones: 'Zonas de manejo', lg_zones_toggle: 'Mostrar/ocultar zonas',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
     base_label: 'Imagen satelital', base_hd: 'Actual (HD)', base_ortho: 'Ortofoto',
     rest_title: 'Restauración',
@@ -76,7 +76,7 @@ const I18N = {
     gps_hint_denied: 'Enable location permission for this site in your browser.',
     approx_note: 'Approximate position — to be replaced by the real GPS point.',
     legend: 'Legend', lg_trails: 'Trails', lg_route: 'Active route', lg_start: 'Start', lg_end: 'End',
-    lg_point: 'Key point', lg_zones: 'Management zones',
+    lg_point: 'Key point', lg_zones: 'Management zones', lg_zones_toggle: 'Show/hide zones',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
     base_label: 'Satellite image', base_hd: 'Current (HD)', base_ortho: 'Orthophoto',
     rest_title: 'Restoration',
@@ -507,13 +507,29 @@ async function registerSW() {
 // ---------- legend ----------
 function renderLegend() {
   const zones = ['conservacion', 'uso_intensivo', 'agroecosistema', 'transicion'];
+  const off = !state.zonesVisible;
   $('#legend-body').innerHTML = `
     <div class="lg-row"><span class="lg-line" style="background:#f4f1de"></span>${t('lg_trails')}</div>
     <div class="lg-row"><span class="lg-line" style="background:#e07a1f;height:4px"></span>${t('lg_route')}</div>
     <div class="lg-row"><span class="lg-dot" style="background:#2f9e44"></span>${t('lg_start')} · <span class="lg-dot" style="background:#e03131;margin-left:4px"></span>${t('lg_end')}</div>
     <div class="lg-row"><span class="lg-dot" style="background:#ffd166;border-color:#7a4b12"></span>${t('lg_point')}</div>
-    <div class="lg-sep">${t('lg_zones')}</div>
-    ${zones.map((z) => `<div class="lg-row"><span class="lg-sw" style="background:${ZONE_COLORS[z]}"></span>${t('z_' + z)}</div>`).join('')}`;
+    <div class="lg-sep lg-zones-head">${t('lg_zones')}
+      <button id="zones-toggle" class="lg-eye" title="${t('lg_zones_toggle')}">${off ? '🚫' : '👁'}</button></div>
+    <div id="lg-zone-rows" class="${off ? 'lg-dim' : ''}">
+      ${zones.map((z) => `<div class="lg-row"><span class="lg-sw" style="background:${ZONE_COLORS[z]}"></span>${t('z_' + z)}</div>`).join('')}
+    </div>`;
+  const zt = $('#zones-toggle');
+  if (zt) zt.onclick = toggleZones;
+}
+function toggleZones() {
+  state.zonesVisible = !state.zonesVisible;
+  const vis = state.zonesVisible ? 'visible' : 'none';
+  const map = state.map;
+  if (map && map.getLayer('zones-fill')) {
+    map.setLayoutProperty('zones-fill', 'visibility', vis);
+    map.setLayoutProperty('zones-line', 'visibility', vis);
+  }
+  renderLegend();
 }
 
 // ---------- language ----------
