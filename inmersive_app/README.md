@@ -10,6 +10,9 @@ Botón de idioma en el encabezado. Tres pilares:
    carbono capturado por alometría (no "oxígeno" — métrica no defendible).
 3. **Especies** — catálogo + identificación (Pl@ntNet Andes / Merlin / BirdNET) que
    alimenta un inventario verificable (iNaturalist → GBIF/SiB Colombia).
+   Incluye **«Expedición Cantares»**, un juego de registro fotográfico de especies
+   (ver abajo) que mantiene el inventario vivo y motiva al visitante con puntos,
+   ranking y premios.
 
 ## Estructura
 
@@ -26,7 +29,7 @@ inmersive_app/
     07_pdf_to_content.py   ✅ ortofoto_caminos.pdf → senderos+POIs reales + mapa PNG (ES/EN)
     08_add_species_en.py   ✅ nombres comunes en inglés para species.json
   app/public/        # la PWA (sin build; HTML/CSS/JS + librerías vendorizadas)
-    index.html  css/  js/app.js  sw.js  manifest.webmanifest  icons/
+    index.html  css/  js/app.js  js/game.js  sw.js  manifest.webmanifest  icons/
     vendor/     # maplibre-gl + pmtiles (offline)
     data/       # zones.geojson, trails.geojson, waypoints.geojson,
                 # routes.json, species.json (62 spp), carbon.json
@@ -48,7 +51,7 @@ python -m http.server 5173 --directory public   # o: npm run serve
 |---|---|---|
 | 1 Recorridos | UI ES/EN, GPS robusto, cercanía, **6 senderos reales + 12 POIs reales**, mapa con **límite + 4 zonas + red de caminos** reales | trazados GPS por sendero (POIs en posición aproximada); fotos/audio por punto |
 | 2 Restauración | carbono en vivo (demo), paneles NDVI/ortofoto, **mapa ilustrado de senderos** | convertir ECW→GeoTIFF (abajo), NDVI, inventario de árboles |
-| 3 Especies | catálogo 62 spp ES/EN, filtros, enlaces Pl@ntNet/Merlin/iNat | proyecto iNaturalist "Cantares"; fotos por especie |
+| 3 Especies | catálogo 62 spp ES/EN, filtros, enlaces Pl@ntNet/Merlin/iNat, **juego «Expedición Cantares»** (foto+GPS+hora, puntos por rareza, ranking, logros, premios, export CSV/JSON, pines en el mapa) | proyecto iNaturalist "Cantares"; fotos por especie; clave Pl@ntNet para el auto-ID (opcional) |
 
 **Verificado** (Chrome, este build): toggle ES/EN completo (pestañas, filtros,
 especies, senderos); nombres de senderos completos en los chips; catálogo 62
@@ -56,6 +59,42 @@ especies con nombres en inglés; carga de las 4 capas geo reales; sin errores JS
 tarjeta de carbono 11,36 t CO₂e. El **render del mapa MapLibre no se puede ver**
 en el navegador de automatización (WebGL por software se congela) — código y
 datos correctos, **probar en un celular real** para ver mapa + GPS.
+
+## Juego: «Expedición Cantares»
+
+Juego de ciencia ciudadana dentro de la pestaña **Especies** (`js/game.js`).
+El visitante crea un explorador (nombre + avatar), fotografía especies en el
+sendero y gana puntos; el inventario de la reserva se mantiene vivo porque cada
+avistamiento guarda **hora exacta, especie, coordenadas GPS + precisión y foto**.
+
+- **Registro en 3 pasos:** (1) foto — la app captura hora y GPS en el momento;
+  (2) identificación — auto-ID de flora vía **Pl@ntNet** (si hay clave) o buscador
+  asistido por grupo (planta/ave/mamífero/otro) sobre el catálogo de 62 spp, con
+  opción **«registrar hallazgo nuevo»** para especies fuera del inventario;
+  (3) confirmar — desglose de puntos y guardado.
+- **Puntuación por rareza:** base por grupo (flora 10 · ave 25 · mamífero 40),
+  bono especie bandera ★, **×3 si la especie aún no está confirmada en campo**
+  (toda la fauna de Cantares lo está: la foto es evidencia real), bono primer
+  registro, penalización por recaptura, y **especie del día ×2** (rota a diario).
+  Un **hallazgo nuevo** para el inventario vale 50 pts y queda *pendiente de revisión*.
+- **Competencia:** ranking histórico de visitantes en el dispositivo; los tres
+  primeros puestos muestran su **premio** (editable en `GAME_CFG.prizes`).
+- **Logros:** 10 insignias (Botánico, Ornitólogo, Rastreador, Confirmador,
+  Madrugador, Nocturno, Coleccionista, Descubridor…).
+- **Inventario vivo:** exportación **CSV/JSON** (hora, especie, GPS, puntos) para
+  actualizar el inventario oficial o subir a iNaturalist; los avistamientos con
+  GPS aparecen como **pines en el mapa** de Recorridos.
+- **Sin backend / offline:** todo se guarda en el dispositivo con **IndexedDB**
+  (fotos comprimidas a JPEG ≤1280 px incluidas). Funciona sin señal en el sendero.
+
+**Configuración** (arriba de `js/game.js`, objeto `GAME_CFG`): `plantnetApiKey`
+(gratis en my.plantnet.org, 500/día — vacía = solo identificación manual),
+`basePoints`, multiplicadores y `prizes`. El auto-ID solo aparece con clave + conexión.
+
+**Verificado** (Chrome, este build): alta de explorador, captura foto→GPS→ID→guardado
+(Barranquero, +120 pts con bono ×3 de fauna sin confirmar), 3 logros desbloqueados,
+ranking con premio, «Mis registros» con miniatura y borrado, insignia 📸 en el grid
+de especies. Persiste en IndexedDB tras recargar.
 
 ## Insumos del propietario ya integrados
 

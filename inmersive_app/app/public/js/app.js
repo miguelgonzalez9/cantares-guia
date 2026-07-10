@@ -1,6 +1,8 @@
 // Cantares — Guía interactiva de la reserva / Interactive reserve guide
 // Minimal-vanilla PWA. Globals `maplibregl` and `pmtiles` come from vendored scripts.
 
+import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer } from './game.js';
+
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const CONFIG = {
   center: [-75.4503, 5.0818], zoom: 15.6,
@@ -52,7 +54,8 @@ const I18N = {
     carbon_h: '🌳 Carbono capturado',
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
     id_plant: 'Identificar planta', id_bird: 'Identificar ave', id_inat: 'Sumar al inventario',
-    f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos',
+    f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos', f_anf: '🐸 Anfibios',
+    grp_anfibio: 'Anfibios',
     count_suffix: 'especies · el inventario crece con cada avistamiento', possible: 'posible',
     info_h: 'La Reserva',
     info_lead: 'Reserva Natural de la Sociedad Civil <strong>Cantares</strong> (RNSC 112-20), 31,07 ha en la vereda Las Palomas, ~5 km de Manizales.',
@@ -87,7 +90,8 @@ const I18N = {
     carbon_h: '🌳 Carbon captured',
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
     id_plant: 'Identify plant', id_bird: 'Identify bird', id_inat: 'Add to inventory',
-    f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals',
+    f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals', f_anf: '🐸 Amphibians',
+    grp_anfibio: 'Amphibians',
     count_suffix: 'species · the inventory grows with every sighting', possible: 'possible',
     info_h: 'The Reserve',
     info_lead: 'Civil Society Nature Reserve <strong>Cantares</strong> (RNSC 112-20), 31.07 ha in vereda Las Palomas, ~5 km from Manizales.',
@@ -104,6 +108,9 @@ const I18N = {
     key_trees: 'key trees', agb: 'above-ground biomass',
   },
 };
+// Merge the game's strings into the app dictionary (game.js owns its own keys).
+Object.keys(GAME_I18N).forEach((lang) => Object.assign(I18N[lang] = I18N[lang] || {}, GAME_I18N[lang]));
+
 let LANG = localStorage.getItem('cantares_lang') || 'es';
 const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.es[k] || k;
 const L = (obj, field) => (LANG === 'en' && obj[field + '_en']) ? obj[field + '_en'] : obj[field];
@@ -385,8 +392,9 @@ function showWaypoint(wp) {
   const badges = (p.routes || []).map((rid) =>
     `<span class="badge" style="background:${ROUTE_COLORS[rid] || '#5b6b60'}">${routeLabel(rid)}</span>`).join('');
   const speciesChips = (p.species_ids || []).map((sid) => {
-    const s = state.species.find((x) => x.id === sid);
-    return s ? `<span class="chip" data-species="${sid}">${L(s, 'common_name')}</span>` : '';
+    const key = String(sid).trim().toLowerCase();   // waypoints may use id OR scientific name
+    const s = state.species.find((x) => x.id === key || x.scientific_name.toLowerCase() === key);
+    return s ? `<span class="chip" data-species="${s.id}">${L(s, 'common_name')}</span>` : '';
   }).join('');
   $('#wp-content').innerHTML = `
     <div class="wp-theme-badges">${badges}</div>
@@ -461,7 +469,7 @@ function toast(msg) {
 let speciesFilter = 'all';
 function renderSpeciesFilters() {
   const wrap = $('#species-filters');
-  const opts = [['all', t('f_all')], ['flagship', t('f_flagship')], ['flora', t('f_flora')], ['ave', t('f_aves')], ['mamifero', t('f_mam')]];
+  const opts = [['all', t('f_all')], ['flagship', t('f_flagship')], ['flora', t('f_flora')], ['ave', t('f_aves')], ['mamifero', t('f_mam')], ['anfibio', t('f_anf')]];
   wrap.innerHTML = '';
   opts.forEach(([key, label]) => {
     const b = document.createElement('button');
@@ -487,7 +495,8 @@ function renderSpeciesGrid(highlightId) {
       <p class="species-common">${L(s, 'common_name')}</p>
       <p class="species-sci">${s.scientific_name}</p>
       <p class="species-meta">${s.family}${s.status === 'possible' ? ' · ' + t('possible') : ''}</p>
-      <span class="species-group-tag g-${s.group}">${t('grp_' + s.group)}</span>`;
+      <span class="species-group-tag g-${s.group}">${t('grp_' + s.group)}</span>
+      ${capturedBadge(s.id)}`;
     grid.appendChild(card);
   });
   if (highlightId) {
@@ -568,7 +577,7 @@ function applyStaticI18n() {
 function setLang(lang) {
   LANG = lang; localStorage.setItem('cantares_lang', lang);
   applyStaticI18n(); renderRouteBar(); selectRoute(state.activeRoute);
-  renderSpeciesFilters(); renderSpeciesGrid(); renderCarbon(); renderOfflineStatus(); renderLegend();
+  renderSpeciesFilters(); renderSpeciesGrid(); renderCarbon(); renderOfflineStatus(); renderLegend(); refreshGameUI();
   $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
   if (state.openWaypointId) { const wp = state.waypoints.find((w) => w.properties.id === state.openWaypointId); if (wp) showWaypoint(wp); }
   if (state.watchId == null) setGps('off', t('gps'));
@@ -617,9 +626,13 @@ async function main() {
   renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend();
   $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
 
+  // Juego de especies (Expedición Cantares) — carga registros locales y pinta su panel.
+  await initGame({ state, t, L, toast, rerenderSpecies: () => renderSpeciesGrid() });
+
   if (!new URLSearchParams(location.search).has('nomap')) {
     await initMap();
     selectRoute(null);
+    gameAddMapLayer();   // pines de avistamientos del juego sobre el mapa
   }
   registerSW();
 }

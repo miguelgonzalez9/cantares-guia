@@ -234,6 +234,7 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .g-flora { background: var(--leaf); }
 .g-ave { background: var(--sun); }
 .g-mamifero { background: #8d6e63; }
+.g-anfibio { background: #0ca678; }
 .status-possible { opacity: 0.86; }
 
 .facts { list-style: none; padding: 0; margin: 0 0 18px; }
@@ -261,3 +262,156 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .illus-map { width: 100%; border-radius: 12px; border: 1px solid var(--line); margin-top: 8px; }
 
 .hidden { display: none !important; }
+
+/* ---------- Juego: Expedición Cantares ---------- */
+.gm-panel {
+  background: linear-gradient(135deg, var(--forest), var(--moss));
+  color: #fff; border-radius: 18px; padding: 16px; margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.gm-panel h2 { color: #fff; margin: 0 0 6px; font-size: 17px; }
+.gm-panel .gm-lead { font-size: 13px; line-height: 1.5; opacity: 0.94; margin: 0 0 10px; }
+.gm-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.gm-player { font-size: 15px; }
+.gm-stats { font-size: 12px; opacity: 0.92; }
+.gm-daily {
+  font-size: 12px; background: rgba(255,255,255,0.14); border-radius: 10px;
+  padding: 8px 10px; margin-bottom: 10px; line-height: 1.45;
+}
+.gm-daily i { opacity: 0.85; }
+.gm-primary {
+  display: block; width: 100%; border: none; border-radius: 12px; cursor: pointer;
+  background: var(--sun); color: #fff; font-size: 14.5px; font-weight: 800;
+  padding: 12px; margin-top: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.18);
+}
+.gm-primary:active { transform: scale(0.98); }
+.gm-primary:disabled { opacity: 0.45; }
+.gm-big { font-size: 16px; padding: 14px; }
+.gm-secondary {
+  border: none; border-radius: 10px; cursor: pointer; flex: 1;
+  background: rgba(255,255,255,0.16); color: inherit; font-size: 12.5px; font-weight: 700;
+  padding: 9px 6px; margin-top: 8px;
+}
+.gm-modal .gm-secondary { background: #eef2ee; color: var(--forest); }
+.gm-row { display: flex; gap: 8px; }
+.gm-linkbtn {
+  display: block; width: 100%; border: none; background: none; cursor: pointer;
+  color: var(--moss); font-size: 13px; font-weight: 700; padding: 10px 0 2px; text-align: center;
+}
+.gm-panel .gm-linkbtn { color: #fff; }
+
+/* modal */
+.gm-overlay {
+  position: fixed; inset: 0; z-index: 50; background: rgba(15, 30, 20, 0.55);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.gm-modal {
+  position: relative; background: var(--card); border-radius: 20px 20px 0 0;
+  width: 100%; max-width: 560px; max-height: 88%; overflow-y: auto;
+  padding: 20px 18px calc(16px + var(--safe-b)); animation: slideup .22s ease;
+}
+.gm-close {
+  position: absolute; top: 10px; right: 12px; width: 30px; height: 30px; z-index: 2;
+  border: none; background: #eef2ee; border-radius: 50%; font-size: 18px;
+  color: var(--muted); cursor: pointer;
+}
+.gm-body h2 { color: var(--forest); font-size: 17px; margin: 0 24px 8px 0; }
+.gm-body .gm-lead { font-size: 13.5px; line-height: 1.5; color: #33443a; }
+.gm-label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 5px; }
+.gm-input {
+  width: 100%; border: 1.5px solid var(--line); border-radius: 10px; font-size: 14px;
+  padding: 10px 12px; margin: 6px 0; background: #fff; color: var(--ink);
+}
+.gm-avatars { display: flex; gap: 8px; flex-wrap: wrap; }
+.gm-avatar {
+  font-size: 22px; width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
+  border: 2px solid var(--line); background: #fff;
+}
+.gm-avatar.sel { border-color: var(--sun); background: #fff4e8; }
+
+/* asistente de captura */
+.gm-photo-drop {
+  display: grid; place-items: center; min-height: 150px; cursor: pointer;
+  border: 2px dashed var(--sage); border-radius: 14px; background: #f0f8f2;
+  color: var(--moss); font-weight: 700; font-size: 14px; overflow: hidden; margin-bottom: 8px;
+}
+.gm-photo-drop.has { border-style: solid; padding: 0; }
+.gm-photo-drop img { width: 100%; max-height: 260px; object-fit: cover; display: block; }
+.gm-mini { border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+.gm-mini img { width: 100%; max-height: 140px; object-fit: cover; display: block; }
+.gm-groups { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 4px; }
+.gm-chip {
+  font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--card); cursor: pointer; color: var(--ink);
+}
+.gm-chip.sel { background: var(--forest); color: #fff; border-color: var(--forest); }
+.gm-candidates { max-height: 260px; overflow-y: auto; margin-top: 4px; }
+.gm-cand {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); background: #fff; border-radius: 10px;
+  padding: 9px 11px; margin-bottom: 6px; font-size: 13px; color: var(--ink);
+}
+.gm-cand b { color: var(--forest); }
+.gm-cand i { color: var(--muted); font-size: 12px; margin-left: 4px; }
+.gm-tripla {
+  float: right; font-size: 10.5px; font-weight: 800; color: #fff; background: var(--sun);
+  border-radius: 999px; padding: 2px 7px;
+}
+.gm-star { float: right; margin-left: 6px; }
+.gm-score { float: right; font-weight: 800; color: var(--moss); }
+.gm-sp-title { font-size: 15px; font-weight: 800; color: var(--forest); margin: 2px 0 6px; }
+.gm-breakdown { border: 1px solid var(--line); border-radius: 12px; padding: 6px 12px; margin: 10px 0 2px; }
+.gm-bd-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 5px 0; }
+.gm-bd-row b { color: var(--moss); }
+.gm-bd-total { border-top: 1.5px solid var(--line); font-weight: 800; }
+.gm-bd-total b { color: var(--sun); font-size: 15px; }
+
+/* éxito */
+.gm-success { text-align: center; padding: 8px 0; }
+.gm-burst { font-size: 44px; animation: pop .4s ease; }
+@keyframes pop { from { transform: scale(0.2); opacity: 0; } 70% { transform: scale(1.25); } }
+.gm-earned { font-size: 14.5px; }
+.gm-earned b { color: var(--sun); font-size: 18px; }
+.gm-badge-new { font-size: 13.5px; color: var(--moss); font-weight: 600; }
+
+/* ranking */
+.gm-lb { margin-top: 8px; }
+.gm-lb-row {
+  display: grid; grid-template-columns: 38px 1fr; gap: 2px 8px; align-items: center;
+  border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; margin-bottom: 7px; font-size: 13px;
+}
+.gm-lb-row.me { border-color: var(--sun); background: #fff8f0; }
+.gm-lb-rank { grid-row: span 3; font-size: 17px; font-weight: 800; color: var(--muted); text-align: center; }
+.gm-lb-name { font-weight: 700; color: var(--forest); }
+.gm-lb-pts { font-size: 12px; color: var(--muted); }
+.gm-prize { font-size: 11.5px; color: var(--sun); font-weight: 700; }
+
+/* logros */
+.gm-badges { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.gm-badge {
+  border: 1px solid var(--line); border-radius: 12px; padding: 10px;
+  display: flex; flex-direction: column; gap: 2px; font-size: 12.5px;
+  opacity: 0.45; filter: grayscale(0.9);
+}
+.gm-badge.got { opacity: 1; filter: none; border-color: var(--sage); background: #f4faf5; }
+.gm-badge-emoji { font-size: 20px; }
+.gm-badge small { color: var(--muted); font-size: 11px; line-height: 1.35; }
+
+/* registros */
+.gm-recs { margin-top: 8px; }
+.gm-rec {
+  display: grid; grid-template-columns: 62px 1fr 34px; gap: 10px; align-items: center;
+  border: 1px solid var(--line); border-radius: 12px; padding: 8px; margin-bottom: 7px;
+}
+.gm-rec-img { width: 62px; height: 62px; object-fit: cover; border-radius: 9px; background: #eef2ee; }
+.gm-rec-info { display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; min-width: 0; }
+.gm-rec-info b { color: var(--forest); }
+.gm-rec-info i { color: var(--muted); font-size: 11.5px; }
+.gm-rec-info small { color: var(--muted); font-size: 11px; }
+.gm-rec-del { border: none; background: none; cursor: pointer; font-size: 15px; color: #c0392b; }
+
+/* insignia «capturada» en el grid de especies */
+.cap-badge {
+  position: absolute; bottom: 10px; right: 10px; font-size: 10.5px; font-weight: 800;
+  background: var(--mist); color: var(--forest); border-radius: 999px; padding: 2px 7px;
+}
