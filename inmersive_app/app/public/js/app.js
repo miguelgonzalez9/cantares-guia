@@ -12,16 +12,18 @@ const CONFIG = {
     trails: 'data/trails.geojson', waypoints: 'data/waypoints.geojson',
     routes: 'data/routes.json', species: 'data/species.json',
   },
-  // Base imagery time-slider stops. EOX Sentinel-2 cloudless = free, keyless,
-  // yearly (10 m) — good for forest-change. 'hd' = current Esri World Imagery.
+  // Base imagery time-slider stops. Esri Wayback = free, keyless, historical
+  // versions of Esri World Imagery (sub-meter, HD) — the actual distinct captures
+  // over the reserve (detected by tile-change analysis). 'hd' = current Esri.
   baseStops: [
-    { key: '2019', tiles: eox(2019) }, { key: '2020', tiles: eox(2020) },
-    { key: '2021', tiles: eox(2021) }, { key: '2022', tiles: eox(2022) },
-    { key: '2023', tiles: eox(2023) }, { key: '2024', tiles: eox(2024) },
-    { key: '2025', tiles: eox(2025) }, { key: 'hd', tiles: ESRI, hd: true },
+    { key: '2016', tiles: wayback(3515) },  { key: '2017', tiles: wayback(14765) },
+    { key: '2019', tiles: wayback(18691) }, { key: '2021', tiles: wayback(9812) },
+    { key: '2022', tiles: wayback(45441) }, { key: '2023', tiles: wayback(64776) },
+    { key: '2025', tiles: wayback(51127) }, { key: 'hd', tiles: ESRI, hd: true },
   ],
 };
-function eox(y) { return `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${y}_3857/default/g/{z}/{y}/{x}.jpg`; }
+// Esri Wayback WMTS: /{release}/{level}/{row}/{col} = /{release}/{z}/{y}/{x}.
+function wayback(rel) { return `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${rel}/{z}/{y}/{x}`; }
 
 const state = {
   map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
@@ -150,9 +152,9 @@ function onStyleReady(map, cb) {
 function baseSourceDef(stop) {
   if (stop.pmtiles) return { type: 'raster', url: 'pmtiles://tiles/ortho.pmtiles',
     tileSize: 512, attribution: 'Ortofoto Cantares' };
-  return { type: 'raster', tiles: [stop.tiles], tileSize: 256,
-    maxzoom: stop.hd ? 19 : 16,
-    attribution: stop.hd ? 'Imagery © Esri, Maxar' : 'Sentinel-2 cloudless by EOX' };
+  // All stops are Esri (Wayback historical or current) — sub-meter, high zoom.
+  return { type: 'raster', tiles: [stop.tiles], tileSize: 256, maxzoom: 19,
+    attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' };
 }
 function baseLabel(stop) { return stop.hd ? t('base_hd') : stop.pmtiles ? t('base_ortho') : stop.key; }
 function renderBaseTicks() {
