@@ -52,6 +52,16 @@ tr.forEach((f, i) => {
     `${q(id)},${q(p.name)},${arr(p.routes)},'${geom}'::jsonb) on conflict (id) do nothing;`);
 });
 
+// ---- routes ----
+const routes = rd('routes.json').routes || [];
+out.push('-- routes (' + routes.length + ')');
+routes.forEach((r, i) => {
+  out.push(`insert into public.routes (id,name,name_en,emoji,color,summary,summary_en,start_id,end_id,segments,sort) values (` +
+    `${q(r.id)},${q(r.name)},${q(r.name_en)},${q(r.emoji)},${q(r.color)},${q(r.summary)},${q(r.summary_en)},${q(r.start_id)},${q(r.end_id)},'{}'::text[],${i}) ` +
+    `on conflict (id) do nothing;`);
+});
+out.push('');
+
 const dst = path.join(D, '13_seed_supabase.sql');
 fs.writeFileSync(dst, out.join('\n') + '\n', 'utf8');
-console.log('escrito', dst, '—', species.length, 'species,', wp.length, 'waypoints,', tr.length, 'trails');
+console.log('escrito', dst, '—', species.length, 'species,', wp.length, 'waypoints,', tr.length, 'trails,', routes.length, 'routes');

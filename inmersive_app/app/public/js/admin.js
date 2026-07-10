@@ -1,12 +1,15 @@
 // Cantares — editor de administrador (sin código). Permite a los dueños añadir y
 // cambiar puntos del mapa, textos, imágenes y especies del inventario, escribiendo
 // directo a Supabase. Sólo se activa para cuentas con rol 'admin'.
-import { isAdmin, upsertWaypoint, deleteWaypoint, upsertSpecies, deleteSpecies, uploadImage } from './cloud.js';
+import { isAdmin, upsertWaypoint, deleteWaypoint, upsertSpecies, deleteSpecies, uploadImage,
+  upsertTrail, deleteTrail, upsertRoute, deleteRoute } from './cloud.js';
 import { doLogout } from './auth-ui.js';
 
 let CTX = null;
 const TIPOS = ['mirador', 'avistamiento', 'agua', 'flora', 'servicio', 'punto'];
 const GROUPS = ['flora', 'ave', 'mamifero', 'anfibio', 'otro'];
+const PALETTE = ['#2b8cbe', '#d94801', '#238b45', '#c2255c', '#1098ad', '#6a4c93', '#3b5bdb', '#e07a1f', '#0f766e', '#b45309', '#7c3aed', '#0b7285'];
+const EMOJIS = ['💧', '🐦', '🌳', '🌸', '🏞️', '🌱', '🦉', '🐾', '🦋', '🌿', '⛰️', '🍃'];
 const rid = (pfx) => `${pfx}_${Date.now().toString(36)}${Math.floor(Math.random() * 1e3)}`;
 
 // ctx: { state, map, t, L, LANG, toast, refreshWaypoints, refreshSpecies }
@@ -44,13 +47,15 @@ function renderPanel() {
     </div>
     <div class="admin-tabs">
       <button class="admin-tab ${tab === 'puntos' ? 'sel' : ''}" data-t="puntos">Puntos</button>
+      <button class="admin-tab ${tab === 'senderos' ? 'sel' : ''}" data-t="senderos">Senderos</button>
+      <button class="admin-tab ${tab === 'recorridos' ? 'sel' : ''}" data-t="recorridos">Recorridos</button>
       <button class="admin-tab ${tab === 'especies' ? 'sel' : ''}" data-t="especies">Especies</button>
     </div>
     <div class="admin-body" id="admin-body"></div>`;
   el.querySelector('#admin-x').onclick = closePanel;
   el.querySelector('#admin-logout').onclick = doLogout;
   el.querySelectorAll('.admin-tab').forEach((b) => b.onclick = () => { tab = b.dataset.t; renderPanel(); });
-  (tab === 'puntos' ? renderPuntos : renderEspecies)();
+  ({ puntos: renderPuntos, senderos: renderSenderos, recorridos: renderRecorridos, especies: renderEspecies }[tab] || renderPuntos)();
 }
 
 // ---------------- PUNTOS ----------------
@@ -234,5 +239,215 @@ function editEspecie(id) {
     body.querySelector('#s-err').textContent = 'Guardando…';
     try { await upsertSpecies(row); await CTX.refreshSpecies(); renderEspecies(); CTX.toast('Especie guardada'); }
     catch (err) { body.querySelector('#s-err').textContent = err.message; }
+  };
+}
+
+// ---------------- helpers geométricos ----------------
+function hav(a, b) {
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (b[1] - a[1]) * r, dLon = (b[0] - a[0]) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function lenM(cs) { let d = 0; for (let i = 1; i < cs.length; i++) d += hav(cs[i - 1], cs[i]); return d; }
+function fmtLen(cs) { const m = lenM(cs); return m >= 1000 ? (m / 1000).toFixed(2) + ' km' : Math.round(m) + ' m'; }
+
+// ---------------- dibujo de senderos en el mapa ----------------
+let draw = null;
+function drawInit() {
+  const map = CTX.map;
+  if (!map.getSource('admin-draw')) {
+    const empty = { type: 'FeatureCollection', features: [] };
+    map.addSource('admin-draw', { type: 'geojson', data: empty });
+    map.addSource('admin-draw-v', { type: 'geojson', data: empty });
+    map.addLayer({ id: 'admin-draw-line', type: 'line', source: 'admin-draw',
+      layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#e07a1f', 'line-width': 5 } });
+    map.addLayer({ id: 'admin-draw-v', type: 'circle', source: 'admin-draw-v',
+      paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#e07a1f', 'circle-stroke-width': 2 } });
+  }
+}
+function drawUpdate() {
+  const map = CTX.map, cs = draw.coords;
+  map.getSource('admin-draw').setData({ type: 'FeatureCollection', features: cs.length > 1 ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: cs } }] : [] });
+  map.getSource('admin-draw-v').setData({ type: 'FeatureCollection', features: cs.map((c) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: c } })) });
+}
+function drawClear() {
+  const map = CTX.map;
+  if (draw && draw.clickHandler) map.off('click', draw.clickHandler);
+  if (draw && draw.watchId != null) navigator.geolocation.clearWatch(draw.watchId);
+  if (map.getSource('admin-draw')) { const e = { type: 'FeatureCollection', features: [] }; map.getSource('admin-draw').setData(e); map.getSource('admin-draw-v').setData(e); }
+  map.getCanvas().style.cursor = ''; draw = null;
+}
+function showDrawHud() {
+  let h = document.getElementById('admin-draw-hud');
+  if (!h) { h = document.createElement('div'); h.id = 'admin-draw-hud'; h.className = 'admin-draw-hud'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
+  updateDrawHud();
+}
+function updateDrawHud() {
+  const h = document.getElementById('admin-draw-hud'); if (!h || !draw) return;
+  h.innerHTML = `<span class="adh-n">${draw.coords.length} pts · ${fmtLen(draw.coords)}</span>
+    ${draw.mode === 'vertex' ? '<button id="adh-undo">↶</button>' : ''}
+    <button id="adh-done" class="adh-done">✓ Terminar</button>
+    <button id="adh-cancel">✕</button>`;
+  const u = h.querySelector('#adh-undo'); if (u) u.onclick = () => { draw.coords.pop(); drawUpdate(); updateDrawHud(); };
+  h.querySelector('#adh-done').onclick = () => endDraw(true);
+  h.querySelector('#adh-cancel').onclick = () => endDraw(false);
+}
+function endDraw(keep) {
+  const coords = draw.coords.slice(), onDone = draw.onDone;
+  drawClear();
+  const h = document.getElementById('admin-draw-hud'); if (h) h.remove();
+  openPanel();
+  onDone(keep && coords.length > 1 ? coords : null);
+}
+function startVertexDraw(onDone) {
+  drawInit(); draw = { coords: [], onDone, mode: 'vertex' };
+  closePanel();
+  CTX.map.getCanvas().style.cursor = 'crosshair';
+  CTX.toast('Toca el mapa para trazar el sendero');
+  draw.clickHandler = (e) => { draw.coords.push([e.lngLat.lng, e.lngLat.lat]); drawUpdate(); updateDrawHud(); };
+  CTX.map.on('click', draw.clickHandler);
+  showDrawHud();
+}
+function startGpsDraw(onDone) {
+  if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
+  drawInit(); draw = { coords: [], onDone, mode: 'gps' };
+  closePanel();
+  CTX.toast('Grabando… camina el sendero');
+  draw.watchId = navigator.geolocation.watchPosition((p) => {
+    const c = [p.coords.longitude, p.coords.latitude], last = draw.coords[draw.coords.length - 1];
+    if ((!last || hav(last, c) > 2) && (p.coords.accuracy == null || p.coords.accuracy < 40)) { draw.coords.push(c); drawUpdate(); updateDrawHud(); }
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
+  showDrawHud();
+}
+
+// ---------------- SENDEROS ----------------
+function renderSenderos() {
+  const body = document.getElementById('admin-body');
+  const trails = CTX.state.trails.slice().sort((a, b) => (a.properties.name || '').localeCompare(b.properties.name || ''));
+  body.innerHTML = `
+    <button class="admin-add" id="tr-add">＋ Nuevo sendero</button>
+    <div class="admin-list">${trails.map((tr) => `
+      <div class="admin-row">
+        <span class="admin-row-t">${esc(tr.properties.name || tr.properties.id)} <i>${esc((tr.properties.routes || []).join(', '))}</i></span>
+        <button class="admin-edit" data-id="${esc(tr.properties.id)}">Editar</button>
+      </div>`).join('')}</div>`;
+  body.querySelector('#tr-add').onclick = () => editSendero(null);
+  body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = () => editSendero(b.dataset.id));
+}
+function editSendero(id) {
+  const body = document.getElementById('admin-body');
+  const existing = id ? CTX.state.trails.find((t) => t.properties.id === id) : null;
+  const draft = CTX._draftTrail; CTX._draftTrail = null;
+  const p = existing ? { ...existing.properties } : { id: (draft && draft.id) || rid('sendero'), routes: [] };
+  if (draft) { p.name = draft.name; p.routes = draft.routes; }
+  let coords = CTX._draftLine ? CTX._draftLine : (existing ? existing.geometry.coordinates.slice() : null);
+  CTX._draftLine = null;
+  const routeChecks = CTX.state.routes.map((r) => `<label class="admin-chk"><input type="checkbox" value="${r.id}" ${(p.routes || []).includes(r.id) ? 'checked' : ''}> ${esc(CTX.L(r, 'name'))}</label>`).join('');
+  body.innerHTML = `
+    <div class="admin-form">
+      <label>Nombre</label><input id="tr-name" value="${esc(p.name)}">
+      <label>Recorridos a los que pertenece</label><div class="admin-checks">${routeChecks}</div>
+      <label>Trazado</label>
+      <div class="admin-loc">
+        <span id="tr-geo">${coords ? `${coords.length} puntos · ${fmtLen(coords)}` : 'sin trazar'}</span>
+        <div class="admin-loc-btns">
+          <button type="button" class="admin-pick" id="tr-draw">✏️ Dibujar</button>
+          <button type="button" class="admin-pick gps" id="tr-gps">📡 Grabar</button>
+        </div>
+      </div>
+      <div class="admin-err" id="tr-err"></div>
+      <div class="admin-actions">
+        <button class="admin-save" id="tr-save">Guardar</button>
+        ${id ? '<button class="admin-del" id="tr-del">Eliminar</button>' : ''}
+        <button class="admin-cancel" id="tr-cancel">Cancelar</button>
+      </div>
+    </div>`;
+  const saveDraft = () => { CTX._draftTrail = { id: p.id, name: body.querySelector('#tr-name').value, routes: [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value) }; };
+  body.querySelector('#tr-draw').onclick = () => { saveDraft(); startVertexDraw((c) => { if (c) CTX._draftLine = c; editSendero(id); }); };
+  body.querySelector('#tr-gps').onclick = () => { saveDraft(); startGpsDraw((c) => { if (c) CTX._draftLine = c; editSendero(id); }); };
+  body.querySelector('#tr-cancel').onclick = renderSenderos;
+  if (id) body.querySelector('#tr-del').onclick = async () => {
+    if (!confirm('¿Eliminar este sendero?')) return;
+    try { await deleteTrail(id); await CTX.refreshTrails(); renderSenderos(); CTX.toast('Sendero eliminado'); }
+    catch (e) { body.querySelector('#tr-err').textContent = e.message; }
+  };
+  body.querySelector('#tr-save').onclick = async () => {
+    if (!coords || coords.length < 2) { body.querySelector('#tr-err').textContent = 'Traza el sendero primero.'; return; }
+    const routes = [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value);
+    const row = { id: p.id, name: body.querySelector('#tr-name').value.trim() || null, routes, geometry: coords };
+    body.querySelector('#tr-err').textContent = 'Guardando…';
+    try { await upsertTrail(row); await CTX.refreshTrails(); renderSenderos(); CTX.toast('Sendero guardado'); }
+    catch (e) { body.querySelector('#tr-err').textContent = e.message; }
+  };
+}
+
+// ---------------- RECORRIDOS ----------------
+function renderRecorridos() {
+  const body = document.getElementById('admin-body');
+  const routes = CTX.state.routes.slice();
+  body.innerHTML = `
+    <button class="admin-add" id="rt-add">＋ Nuevo recorrido</button>
+    <div class="admin-list">${routes.map((r) => `
+      <div class="admin-row">
+        <span class="admin-dot" style="background:${r.color || '#888'}"></span>
+        <span class="admin-row-t">${r.emoji || ''} ${esc(CTX.L(r, 'name') || r.id)}</span>
+        <button class="admin-edit" data-id="${esc(r.id)}">Editar</button>
+      </div>`).join('')}</div>`;
+  body.querySelector('#rt-add').onclick = () => editRecorrido(null);
+  body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = () => editRecorrido(b.dataset.id));
+}
+function editRecorrido(id) {
+  const body = document.getElementById('admin-body');
+  const r = id ? CTX.state.routesById[id] : { id: rid('rec'), color: PALETTE[0], emoji: EMOJIS[0], segments: [], sort: CTX.state.routes.length };
+  let segWork = (r.segments || []).slice();
+  let color = r.color || PALETTE[0], emoji = r.emoji || EMOJIS[0];
+  const wpOpts = (sel) => '<option value="">—</option>' + CTX.state.waypoints.map((w) => `<option value="${w.properties.id}" ${sel === w.properties.id ? 'selected' : ''}>${esc(CTX.L(w.properties, 'title') || w.properties.id)}</option>`).join('');
+  body.innerHTML = `
+    <div class="admin-form">
+      <label>Nombre (ES)</label><input id="rt-name" value="${esc(r.name)}">
+      <label>Name (EN)</label><input id="rt-name-en" value="${esc(r.name_en)}">
+      <label>Emoji</label><div class="admin-emojis" id="rt-emojis">${EMOJIS.map((e) => `<button type="button" class="admin-emoji ${e === emoji ? 'sel' : ''}" data-e="${e}">${e}</button>`).join('')}</div>
+      <label>Color</label><div class="admin-palette" id="rt-palette">${PALETTE.map((c) => `<button type="button" class="admin-sw ${c === color ? 'sel' : ''}" data-c="${c}" style="background:${c}"></button>`).join('')}</div>
+      <label>Resumen (ES)</label><textarea id="rt-sum" rows="2">${esc(r.summary)}</textarea>
+      <label>Summary (EN)</label><textarea id="rt-sum-en" rows="2">${esc(r.summary_en)}</textarea>
+      <label>Senderos en orden (define la dirección)</label>
+      <div id="rt-segs"></div>
+      <label>Punto de inicio</label><select id="rt-start">${wpOpts(r.start_id)}</select>
+      <label>Punto de fin</label><select id="rt-end">${wpOpts(r.end_id)}</select>
+      <div class="admin-err" id="rt-err"></div>
+      <div class="admin-actions">
+        <button class="admin-save" id="rt-save">Guardar</button>
+        ${id ? '<button class="admin-del" id="rt-del">Eliminar</button>' : ''}
+        <button class="admin-cancel" id="rt-cancel">Cancelar</button>
+      </div>
+    </div>`;
+  body.querySelectorAll('#rt-emojis .admin-emoji').forEach((b) => b.onclick = () => { emoji = b.dataset.e; body.querySelectorAll('#rt-emojis .admin-emoji').forEach((x) => x.classList.toggle('sel', x.dataset.e === emoji)); });
+  body.querySelectorAll('#rt-palette .admin-sw').forEach((b) => b.onclick = () => { color = b.dataset.c; body.querySelectorAll('#rt-palette .admin-sw').forEach((x) => x.classList.toggle('sel', x.dataset.c === color)); });
+  const renderSegs = () => {
+    const el = document.getElementById('rt-segs');
+    el.innerHTML = `
+      <ol class="admin-seglist">${segWork.map((tid, i) => { const tr = CTX.state.trails.find((t) => t.properties.id === tid); return `<li><span>${esc(tr ? tr.properties.name || tid : tid)}</span><span class="admin-seg-btns"><button type="button" data-up="${i}">↑</button><button type="button" data-down="${i}">↓</button><button type="button" data-rm="${i}">✕</button></span></li>`; }).join('')}</ol>
+      <select id="rt-segsel"><option value="">＋ añadir sendero…</option>${CTX.state.trails.map((t) => `<option value="${t.properties.id}">${esc(t.properties.name || t.properties.id)}</option>`).join('')}</select>`;
+    el.querySelector('#rt-segsel').onchange = (e) => { if (e.target.value) { segWork.push(e.target.value); renderSegs(); } };
+    el.querySelectorAll('[data-up]').forEach((b) => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [segWork[i - 1], segWork[i]] = [segWork[i], segWork[i - 1]]; renderSegs(); } });
+    el.querySelectorAll('[data-down]').forEach((b) => b.onclick = () => { const i = +b.dataset.down; if (i < segWork.length - 1) { [segWork[i + 1], segWork[i]] = [segWork[i], segWork[i + 1]]; renderSegs(); } });
+    el.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { segWork.splice(+b.dataset.rm, 1); renderSegs(); });
+  };
+  renderSegs();
+  body.querySelector('#rt-cancel').onclick = renderRecorridos;
+  if (id) body.querySelector('#rt-del').onclick = async () => {
+    if (!confirm('¿Eliminar este recorrido?')) return;
+    try { await deleteRoute(id); await CTX.refreshRoutes(); renderRecorridos(); CTX.toast('Recorrido eliminado'); }
+    catch (e) { body.querySelector('#rt-err').textContent = e.message; }
+  };
+  body.querySelector('#rt-save').onclick = async () => {
+    const row = { id: r.id, name: body.querySelector('#rt-name').value.trim() || null, name_en: body.querySelector('#rt-name-en').value.trim() || null,
+      emoji, color, summary: body.querySelector('#rt-sum').value.trim() || null, summary_en: body.querySelector('#rt-sum-en').value.trim() || null,
+      start_id: body.querySelector('#rt-start').value || null, end_id: body.querySelector('#rt-end').value || null,
+      segments: segWork, sort: r.sort || 0 };
+    body.querySelector('#rt-err').textContent = 'Guardando…';
+    try { await upsertRoute(row); await CTX.refreshRoutes(); renderRecorridos(); CTX.toast('Recorrido guardado'); }
+    catch (e) { body.querySelector('#rt-err').textContent = e.message; }
   };
 }

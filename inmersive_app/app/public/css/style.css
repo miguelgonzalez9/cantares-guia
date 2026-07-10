@@ -626,6 +626,26 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-err { color: #b02a2a; font-size: 12.5px; min-height: 16px; margin-top: 8px; }
 .admin-loc-btns { display: flex; gap: 6px; }
 .admin-pick.gps { background: var(--moss); }
+/* editor de recorridos: emoji + paleta + senderos ordenados */
+.admin-emojis, .admin-palette { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.admin-emoji { width: 34px; height: 34px; border: 1.5px solid var(--line); background: var(--card);
+  border-radius: 9px; font-size: 17px; cursor: pointer; }
+.admin-emoji.sel { border-color: var(--forest); background: var(--mist); }
+.admin-sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+.admin-sw.sel { box-shadow: 0 0 0 2px var(--forest); }
+.admin-seglist { list-style: decimal; margin: 4px 0 8px; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+.admin-seglist li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+.admin-seg-btns { display: flex; gap: 3px; flex: 0 0 auto; }
+.admin-seg-btns button { border: none; background: var(--mist); color: var(--forest); width: 26px; height: 26px;
+  border-radius: 7px; cursor: pointer; font-size: 13px; }
+#rt-segs select, #rt-start, #rt-end { width: 100%; box-sizing: border-box; }
+/* HUD de dibujo de senderos (sobre el mapa) */
+.admin-draw-hud { position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 9;
+  display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 999px;
+  box-shadow: var(--shadow); padding: 8px 8px 8px 14px; }
+.admin-draw-hud .adh-n { font-size: 13px; font-weight: 700; color: var(--forest); font-variant-numeric: tabular-nums; }
+.admin-draw-hud button { border: none; border-radius: 999px; padding: 8px 12px; font-weight: 800; font-size: 13px; cursor: pointer; background: var(--mist); color: var(--forest); }
+.admin-draw-hud .adh-done { background: var(--moss); color: #fff; }
 
 /* ============ Distancia en el panel de recorrido ============ */
 .ri-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 9px; }

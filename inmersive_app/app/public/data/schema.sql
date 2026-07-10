@@ -48,6 +48,24 @@ create table if not exists public.trails (
   updated_at timestamptz not null default now()
 );
 
+-- Recorridos temáticos (editables por el admin). `segments` es la lista ORDENADA
+-- de ids de senderos que componen el recorrido: ese orden fija la dirección
+-- (y por tanto la distancia y la pendiente estimada).
+create table if not exists public.routes (
+  id          text primary key,
+  name        text,
+  name_en     text,
+  emoji       text,
+  color       text,
+  summary     text,
+  summary_en  text,
+  start_id    text,
+  end_id      text,
+  segments    text[] default '{}',
+  sort        int default 0,
+  updated_at  timestamptz not null default now()
+);
+
 -- Inventario global: cada avistamiento del juego. Se llena entre todos.
 create table if not exists public.sightings (
   id         bigint generated always as identity primary key,
@@ -92,6 +110,7 @@ alter table public.profiles  enable row level security;
 alter table public.waypoints enable row level security;
 alter table public.species   enable row level security;
 alter table public.trails    enable row level security;
+alter table public.routes    enable row level security;
 alter table public.sightings enable row level security;
 
 -- profiles: cada quien ve/edita el suyo; admin ve todos.
@@ -104,7 +123,7 @@ create policy profiles_update_own on public.profiles for update
 
 -- Contenido (waypoints/species/trails): lectura pública, escritura sólo admin.
 do $$ declare t text; begin
-  foreach t in array array['waypoints','species','trails'] loop
+  foreach t in array array['waypoints','species','trails','routes'] loop
     execute format('drop policy if exists %I_read on public.%I;', t, t);
     execute format('create policy %I_read on public.%I for select using (true);', t, t);
     execute format('drop policy if exists %I_write on public.%I;', t, t);
@@ -128,9 +147,9 @@ create policy sightings_delete on public.sightings for delete using (auth.uid() 
 -- tables" DESACTIVADO (recomendado). Estos GRANT hacen visibles las tablas al API;
 -- la seguridad real la siguen dando las políticas RLS de arriba (filtran las filas).
 grant usage on schema public to anon, authenticated;
-grant select on public.waypoints, public.species, public.trails, public.sightings to anon, authenticated;
+grant select on public.waypoints, public.species, public.trails, public.routes, public.sightings to anon, authenticated;
 grant select on public.profiles to authenticated;
-grant insert, update, delete on public.waypoints, public.species, public.trails, public.sightings to authenticated;
+grant insert, update, delete on public.waypoints, public.species, public.trails, public.routes, public.sightings to authenticated;
 grant update on public.profiles to authenticated;
 
 -- ===================== STORAGE (imágenes) =====================

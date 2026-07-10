@@ -96,6 +96,7 @@ async function sel(table) { const c = await getClient(); const { data, error } =
 export const listWaypoints = () => sel('waypoints');
 export const listSpecies   = () => sel('species');
 export const listTrails    = () => sel('trails');
+export const listRoutes    = () => sel('routes');
 
 export async function upsertWaypoint(w) { const c = await getClient(); const { error } = await c.from('waypoints').upsert(w); if (error) throw error; }
 export async function deleteWaypoint(id) { const c = await getClient(); const { error } = await c.from('waypoints').delete().eq('id', id); if (error) throw error; }
@@ -103,6 +104,8 @@ export async function upsertSpecies(s) { const c = await getClient(); const { er
 export async function deleteSpecies(id) { const c = await getClient(); const { error } = await c.from('species').delete().eq('id', id); if (error) throw error; }
 export async function upsertTrail(tr) { const c = await getClient(); const { error } = await c.from('trails').upsert(tr); if (error) throw error; }
 export async function deleteTrail(id) { const c = await getClient(); const { error } = await c.from('trails').delete().eq('id', id); if (error) throw error; }
+export async function upsertRoute(r) { const c = await getClient(); const { error } = await c.from('routes').upsert(r); if (error) throw error; }
+export async function deleteRoute(id) { const c = await getClient(); const { error } = await c.from('routes').delete().eq('id', id); if (error) throw error; }
 
 // ---------- inventario global (sightings) + progreso del visitante ----------
 export async function listSightings() { return sel('sightings'); }

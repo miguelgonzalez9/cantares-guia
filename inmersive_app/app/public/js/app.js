@@ -40,6 +40,7 @@ const state = {
   hiddenTypes: new Set(),   // tipos de punto ocultados por el usuario
   guiding: null,            // id del recorrido en modo "seguir" (GPS)
   flowTimer: null,          // animación de flechas/flujo sobre el recorrido
+  eleCache: {},             // desnivel por recorrido (cache de la API de elevación)
 };
 
 // ---------- tipos de punto (legend filter) ----------
@@ -464,9 +465,40 @@ function routeStartEnd(id) {
   return { segs, startCoord, endCoord, startWp, endWp };
 }
 
+// Encadena senderos en el ORDEN dado (route.segments), orientando cada uno para
+// conectar con el anterior. Ese orden fija la dirección del recorrido.
+const trailById = (tid) => state.trails.find((t) => t.properties.id === tid);
+function orderedPathFromSegments(ids) {
+  const segs = ids.map(trailById).filter(Boolean).map((t) => t.geometry.coordinates.slice());
+  if (!segs.length) return null;
+  let path = segs[0].slice();
+  if (segs.length > 1) {   // orientar el primero según por dónde sigue el segundo
+    const n = segs[1];
+    const endToNext = Math.min(haversine(path[path.length - 1], n[0]), haversine(path[path.length - 1], n[n.length - 1]));
+    const startToNext = Math.min(haversine(path[0], n[0]), haversine(path[0], n[n.length - 1]));
+    if (startToNext < endToNext) path.reverse();
+  }
+  for (let i = 1; i < segs.length; i++) {
+    let seg = segs[i]; const tail = path[path.length - 1];
+    if (haversine(tail, seg[seg.length - 1]) < haversine(tail, seg[0])) seg = seg.slice().reverse();
+    path = haversine(tail, seg[0]) < 5 ? path.concat(seg.slice(1)) : path.concat(seg);
+  }
+  return path;
+}
+
 // Greedily chain a route's segments into ONE ordered polyline start→end, so the
 // direction arrows and the marching-dash flow all run the same, correct way.
 function buildRoutePath(id) {
+  const route = state.routesById[id];
+  // Si el recorrido define un orden explícito de senderos, úsalo (dirección exacta).
+  if (route && Array.isArray(route.segments) && route.segments.length) {
+    const path = orderedPathFromSegments(route.segments);
+    if (path && path.length >= 2) {
+      return { segs: [], path, startCoord: path[0], endCoord: path[path.length - 1],
+        startWp: route.start_id ? wpById(route.start_id) : null,
+        endWp: route.end_id ? wpById(route.end_id) : null };
+    }
+  }
   const info = routeStartEnd(id);
   if (!info) return null;
   const { segs, startCoord, endCoord } = info;
@@ -600,7 +632,7 @@ function renderRouteInfo(route, built) {
     <div class="ri-scroll">
       <h3>${route.emoji} ${L(route, 'name')}</h3>
       <p>${L(route, 'summary')}</p>
-      ${built ? `<div class="ri-stats"><span class="ri-stat">📏 ${fmtDist(pathLengthM(built.path))}</span></div>` : ''}
+      ${built ? `<div class="ri-stats"><span class="ri-stat">📏 ${fmtDist(pathLengthM(built.path))}</span><span class="ri-stat" id="ri-ele">⛰️ …</span></div>` : ''}
       ${(sLbl || eLbl) ? `<div class="ri-ends">
         ${sLbl ? `<span class="ri-end-item"><span class="ri-dot start"></span>${t('lg_start')}: ${escapeHtml(sLbl)}</span>` : ''}
         ${eLbl ? `<span class="ri-end-item"><span class="ri-dot end"></span>${t('lg_end')}: ${escapeHtml(eLbl)}</span>` : ''}
@@ -621,6 +653,30 @@ function renderRouteInfo(route, built) {
     state.map.easeTo({ center: w.geometry.coordinates, zoom: Math.max(state.map.getZoom(), 17), duration: 600 });
     miniPopup(w);
   });
+  if (built) applyElevation(route.id, built.path);
+}
+
+// ---------- elevación / desnivel (API gratis Open-Meteo) ----------
+function eleText(r) { return `⛰️ +${Math.round(r.gainM)} m`; }
+async function fetchElevation(coords) {
+  const N = Math.min(coords.length, 90);
+  const step = coords.length / N, samp = [];
+  for (let i = 0; i < N; i++) samp.push(coords[Math.floor(i * step)]);
+  samp.push(coords[coords.length - 1]);
+  const lats = samp.map((c) => c[1].toFixed(6)).join(',');
+  const lons = samp.map((c) => c[0].toFixed(6)).join(',');
+  const res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`);
+  if (!res.ok) throw new Error('elev ' + res.status);
+  const e = (await res.json()).elevation || [];
+  let gain = 0, min = Infinity, max = -Infinity;
+  for (let i = 0; i < e.length; i++) { min = Math.min(min, e[i]); max = Math.max(max, e[i]); if (i > 0 && e[i] > e[i - 1]) gain += e[i] - e[i - 1]; }
+  return { gainM: gain, minEle: min, maxEle: max };
+}
+async function applyElevation(id, path) {
+  const set = (txt) => { const el = $('#ri-ele'); if (el && state.activeRoute === id) el.textContent = txt; };
+  if (state.eleCache[id]) { set(eleText(state.eleCache[id])); return; }
+  try { const r = await fetchElevation(path); state.eleCache[id] = r; set(eleText(r)); }
+  catch (e) { set('⛰️ —'); }
 }
 
 // ---------- waypoint card ----------
@@ -1132,7 +1188,9 @@ async function main() {
       renderLegend(); applyWaypointFilter(); selectRoute(null);
       onStyleReady(state.map, () => { try { gameAddMapLayer(); } catch (e) { console.warn('gameAddMapLayer', e); } });
       initAdmin({ state, map: state.map, t, L, LANG, toast,
-        typeColor: (tp) => typeMeta(tp).color, refreshWaypoints, refreshSpecies });
+        typeColor: (tp) => typeMeta(tp).color,
+        refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails,
+        redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
       initRecorder({ state, t, L, toast });   // grabar recorrido + historial (todos)
     }
     registerSW();
@@ -1151,13 +1209,42 @@ function cloudWaypointToFeature(r) {
     tipo: r.tipo || 'punto', routes: r.routes || [], species_ids: r.species_ids || [], photo: r.photo || null,
   }, geometry: { type: 'Point', coordinates: [r.lng, r.lat] } };
 }
+function cloudTrailToFeature(r) {
+  return { type: 'Feature', properties: { id: r.id, name: r.name, routes: r.routes || [] },
+    geometry: { type: 'LineString', coordinates: r.geometry || [] } };
+}
+function applyCloudRoutes(cr) {
+  state.routes = cr.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0));
+  state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
+}
 async function loadCloudData() {
   if (!Cloud.cloudConfigured()) return;
   try {
-    const [cw, cs] = await Promise.all([Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null)]);
+    const [cw, cs, cr, ct] = await Promise.all([
+      Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null),
+      Cloud.listRoutes().catch(() => null), Cloud.listTrails().catch(() => null),
+    ]);
     if (cw && cw.length) { const fc = { type: 'FeatureCollection', features: cw.map(cloudWaypointToFeature) }; normalizeFeatures(fc); state.waypoints = fc.features; }
     if (cs && cs.length) state.species = cs;
+    if (cr && cr.length) applyCloudRoutes(cr);
+    if (ct && ct.length) { const fc = { type: 'FeatureCollection', features: ct.map(cloudTrailToFeature) }; normalizeFeatures(fc); state.trails = fc.features; }
   } catch (e) { console.warn('[cloud] datos', e && e.message); }
+}
+async function refreshRoutes() {
+  if (!Cloud.cloudConfigured()) return;
+  const cr = await Cloud.listRoutes();
+  applyCloudRoutes(cr);
+  renderRouteBar();
+  if (state.activeRoute && !state.routesById[state.activeRoute]) selectRoute(null);
+  else if (state.activeRoute) selectRoute(state.activeRoute);
+}
+async function refreshTrails() {
+  if (!Cloud.cloudConfigured()) return;
+  const ct = await Cloud.listTrails();
+  const fc = { type: 'FeatureCollection', features: ct.map(cloudTrailToFeature) };
+  normalizeFeatures(fc); state.trails = fc.features;
+  const src = state.map && state.map.getSource('trails'); if (src) src.setData(fc);
+  if (state.activeRoute) selectRoute(state.activeRoute);
 }
 async function refreshWaypoints() {
   if (!Cloud.cloudConfigured()) return;
