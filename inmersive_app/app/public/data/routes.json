@@ -1,36 +1,93 @@
 {
   "_meta": {
     "note": "Recorridos temáticos. Los ids deben coincidir con el campo `routes` de trails.geojson y waypoints.geojson (ver docs/QGIS_GUIA.md). start_id/end_id apuntan al id de un punto de waypoints.geojson para fijar inicio y fin del recorrido (null = se elige automáticamente).",
-    "themes": ["agua", "aves", "arboles", "flora", "paisaje", "regeneracion", "nocturno"]
+    "themes": [
+      "agua",
+      "aves",
+      "arboles",
+      "flora",
+      "paisaje",
+      "regeneracion",
+      "nocturno"
+    ]
   },
   "routes": [
-    { "id": "agua", "name": "Recorrido del Agua", "name_en": "Water Route", "emoji": "💧", "color": "#2b8cbe",
-      "start_id": "punto_1", "end_id": "punto_3",
-      "summary": "Quebradas, nacimientos, cascadas y el bosque ribereño de la cuenca del Río Blanco.",
-      "summary_en": "Creeks, springs, waterfalls and the riparian forest of the Río Blanco watershed." },
-    { "id": "aves", "name": "Recorrido de Aves", "name_en": "Birding Route", "emoji": "🐦", "color": "#d94801",
-      "start_id": null, "end_id": "punto_16",
-      "summary": "Barranquero, águila crestada, colibríes y tángaras. Trae audífonos y Merlin.",
-      "summary_en": "Motmot, crested eagle, hummingbirds and tanagers. Bring headphones and Merlin." },
-    { "id": "arboles", "name": "Recorrido de Árboles", "name_en": "Trees Route", "emoji": "🌳", "color": "#238b45",
-      "start_id": null, "end_id": null,
-      "summary": "Robles, encenillos, helechos arbóreos y el bosque montano.",
-      "summary_en": "Oaks, encenillos, tree ferns and the montane forest." },
-    { "id": "flora", "name": "Recorrido de Flora", "name_en": "Flora Route", "emoji": "🌸", "color": "#c2255c",
-      "start_id": "punto_11", "end_id": "punto_1",
-      "summary": "Orquídeas, sietecueros y la flora del bosque muy húmedo montano.",
-      "summary_en": "Orchids, sietecueros and the flora of the very humid montane forest." },
-    { "id": "paisaje", "name": "Recorrido del Paisaje", "name_en": "Scenic Route", "emoji": "🏞️", "color": "#1098ad",
-      "start_id": "punto_1", "end_id": "punto_4",
-      "summary": "Miradores con vistas a la reserva, la cuenca y la ciudad de Manizales.",
-      "summary_en": "Lookouts over the reserve, the watershed and the city of Manizales." },
-    { "id": "regeneracion", "name": "Recorrido de Regeneración", "name_en": "Regeneration Route", "emoji": "🌱", "color": "#6a4c93",
-      "start_id": null, "end_id": null,
-      "summary": "De potrero de kikuyo a bosque: el vivero y las áreas en restauración.",
-      "summary_en": "From kikuyu pasture to forest: the nursery and the areas under restoration." },
-    { "id": "nocturno", "name": "Recorrido Nocturno", "name_en": "Night Route", "emoji": "🦉", "color": "#3b5bdb",
-      "start_id": null, "end_id": null,
-      "summary": "Fauna nocturna: tigrillo, pacas, búhos y las voces del bosque de noche.",
-      "summary_en": "Nocturnal wildlife: oncilla, pacas, owls and the forest's voices at night." }
+    {
+      "id": "agua",
+      "name": "Recorrido del Agua",
+      "name_en": "Water Route",
+      "emoji": "💧",
+      "color": "#2b8cbe",
+      "start_id": "punto_1",
+      "end_id": "punto_3",
+      "summary": "Cerca de cuatro cascadas alimentan la quebrada Olivares que, con el río Blanco, abastece de agua al 35% de Manizales. En sus peñas húmedas se refugian varias especies de ranas.",
+      "summary_en": "About four waterfalls feed the Olivares creek which, with the Río Blanco, supplies water to 35% of Manizales. Several frog species shelter on their humid rock faces."
+    },
+    {
+      "id": "aves",
+      "name": "Recorrido de Aves",
+      "name_en": "Birding Route",
+      "emoji": "🐦",
+      "color": "#d94801",
+      "start_id": null,
+      "end_id": "punto_16",
+      "summary": "Cerca de 160 especies de aves (un 12% de las de Colombia): el águila crestada surcando sus «autopistas de aire», loras dragueras y 15 colibríes, entre ellos el rumbito pechiblanco, el más pequeño del país. Trae audífonos y Merlin.",
+      "summary_en": "Around 160 bird species (12% of Colombia’s): the crested eagle riding its “air highways”, dragon-tree parrots and 15 hummingbirds, including the white-bellied woodstar, the smallest in the country. Bring headphones and Merlin."
+    },
+    {
+      "id": "arboles",
+      "name": "Recorrido de Árboles",
+      "name_en": "Trees Route",
+      "emoji": "🌳",
+      "color": "#238b45",
+      "start_id": null,
+      "end_id": null,
+      "summary": "Robles andinos, encenillos, dragos y helechos arbóreos del bosque montano, junto a nativos sembrados en la restauración: pino colombiano, sietecueros y palma de cera quindiana.",
+      "summary_en": "Andean oaks, encenillos, dragon trees and tree ferns of the montane forest, alongside natives planted during restoration: Colombian pine, princess flower and Quindío wax palm."
+    },
+    {
+      "id": "flora",
+      "name": "Recorrido de Flora",
+      "name_en": "Flora Route",
+      "emoji": "🌸",
+      "color": "#c2255c",
+      "start_id": "punto_11",
+      "end_id": "punto_1",
+      "summary": "Orquídeas de los géneros Cyrtochilum, Epidendrum y Masdevallia, bromelias epífitas que sirven de sala cuna a los renacuajos, y el anturio negro, flor emblema de Manizales.",
+      "summary_en": "Orchids of the genera Cyrtochilum, Epidendrum and Masdevallia, epiphytic bromeliads that cradle tadpoles, and the black anthurium, the emblem flower of Manizales."
+    },
+    {
+      "id": "paisaje",
+      "name": "Recorrido del Paisaje",
+      "name_en": "Scenic Route",
+      "emoji": "🏞️",
+      "color": "#1098ad",
+      "start_id": "punto_1",
+      "end_id": "punto_4",
+      "summary": "Miradores con vistas a la reserva, la cuenca y la ciudad de Manizales. Al atardecer cruzan bandadas de más de 100 palomas collarejas atraídas por los olivos.",
+      "summary_en": "Lookouts over the reserve, the watershed and the city of Manizales. At dusk, flocks of over 100 band-tailed pigeons cross, drawn by the olive trees."
+    },
+    {
+      "id": "regeneracion",
+      "name": "Recorrido de Regeneración",
+      "name_en": "Regeneration Route",
+      "emoji": "🌱",
+      "color": "#6a4c93",
+      "start_id": null,
+      "end_id": null,
+      "summary": "De potrero de kikuyo a bosque: el vivero-«laboratorio» de flora nativa y las áreas en restauración donde el ganado salió hace unos cinco años.",
+      "summary_en": "From kikuyu pasture to forest: the native-plant nursery “laboratory” and the restoration areas where cattle left about five years ago."
+    },
+    {
+      "id": "nocturno",
+      "name": "Recorrido Nocturno",
+      "name_en": "Night Route",
+      "emoji": "🦉",
+      "color": "#3b5bdb",
+      "start_id": null,
+      "end_id": null,
+      "summary": "Fauna nocturna: tres búhos (autillo gorgiblanco, búho andino y negruzco), guardacaminos y la ranita de chocolate junto a la casa. Puma y tigrillo han sido registrados por cámaras trampa.",
+      "summary_en": "Nocturnal wildlife: three owls (white-throated screech, rufous-banded and stygian), nightjars and the chocolate frog beside the house. Puma and oncilla have been recorded by camera traps."
+    }
   ]
 }
