@@ -3,10 +3,15 @@
 // en el DOM. Si la nube está desactivada, no aparece (la app sigue como antes).
 import { cloudConfigured, cloudInit, currentUser, isAdmin, signIn, signUpVisitor, signOut } from './cloud.js';
 
-// ── PARÁMETRO: exigir estar DENTRO de la reserva para crear/entrar a una cuenta
-// de visitante. Ponlo en false para desactivar el geocerco (los admins nunca se
-// bloquean por ubicación; el modo invitado tampoco lo requiere).
+// ── PARÁMETRO: exigir estar en la reserva para CREAR una cuenta de visitante
+// (crear la cuenta ahí ya prueba que es un visitante real; después puede entrar
+// desde cualquier lugar). Ponlo en false para desactivar el geocerco. Los admins
+// y el modo invitado nunca lo requieren.
 const REQUIRE_IN_RESERVE = true;
+// Margen alrededor del polígono: el GPS bajo dosel trae ±20–40 m de error y la
+// portería/parqueadero quedan a metros del límite — sin buffer, el geocerco
+// rechazaría visitantes reales parados en la entrada.
+const GEOFENCE_BUFFER_M = 75;
 const BOUNDARY_URL = 'data/boundary.geojson';
 
 const S = {
@@ -18,10 +23,10 @@ const S = {
     admin_hint: '¿Administras la reserva? Entra con tu usuario de admin.',
     working: 'Un momento…', logout: 'Salir', hi: 'Hola',
     err_fields: 'Escribe usuario y contraseña.',
-    geo_note: '📍 Para crear o entrar a una cuenta de visitante debes estar dentro de la reserva.',
+    geo_note: '📍 Para crear tu cuenta debes estar en la reserva (solo la primera vez; después entras desde donde quieras).',
     geo_checking: 'Verificando que estés en la reserva…',
-    geo_outside: 'Debes estar dentro de la Reserva Cantares para usar una cuenta de visitante.',
-    geo_denied: 'Activa el permiso de ubicación para entrar como visitante.',
+    geo_outside: 'Para crear la cuenta debes estar en la Reserva Cantares. Si ya tienes cuenta, entra normal.',
+    geo_denied: 'Activa el permiso de ubicación para crear tu cuenta.',
     geo_unavailable: 'No pudimos verificar tu ubicación. Inténtalo al aire libre, dentro de la reserva.',
   },
   en: {
@@ -32,10 +37,10 @@ const S = {
     admin_hint: 'Managing the reserve? Log in with your admin account.',
     working: 'One moment…', logout: 'Log out', hi: 'Hi',
     err_fields: 'Enter a username and password.',
-    geo_note: '📍 You must be inside the reserve to create or enter a visitor account.',
+    geo_note: '📍 To create your account you must be at the reserve (first time only; afterwards you can log in from anywhere).',
     geo_checking: 'Checking you are at the reserve…',
-    geo_outside: 'You must be inside Cantares Reserve to use a visitor account.',
-    geo_denied: 'Enable the location permission to enter as a visitor.',
+    geo_outside: 'You must be at Cantares Reserve to create the account. If you already have one, just log in.',
+    geo_denied: 'Enable the location permission to create your account.',
     geo_unavailable: "We couldn't verify your location. Try outdoors, inside the reserve.",
   },
 };
@@ -74,22 +79,51 @@ function inGeoJSON(pt, gj) {
   }
   return false;
 }
+// Distancia (m) de un punto al borde de un anillo del polígono, en proyección
+// local equirectangular — para el buffer del geocerco.
+function distToRingM(pt, ring) {
+  const lat0 = pt[1] * Math.PI / 180, kx = 111320 * Math.cos(lat0), ky = 110540;
+  const px = 0, py = 0;   // pt como origen
+  let min = Infinity;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const ax = (ring[i][0] - pt[0]) * kx, ay = (ring[i][1] - pt[1]) * ky;
+    const bx = (ring[i + 1][0] - pt[0]) * kx, by = (ring[i + 1][1] - pt[1]) * ky;
+    const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2)) : 0;
+    min = Math.min(min, Math.hypot(ax + t * dx - px, ay + t * dy - py));
+  }
+  return min;
+}
+function distToBoundaryM(pt, gj) {
+  const feats = gj.type === 'FeatureCollection' ? gj.features : [gj];
+  let min = Infinity;
+  for (const f of feats) {
+    const g = f.geometry || f; if (!g) continue;
+    const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+    for (const poly of polys) min = Math.min(min, distToRingM(pt, poly[0]));
+  }
+  return min;
+}
 function getPosition() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve({ reason: 'unavailable' });
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ coords: [p.coords.longitude, p.coords.latitude] }),
+      (p) => resolve({ coords: [p.coords.longitude, p.coords.latitude], accuracy: p.coords.accuracy }),
       (e) => resolve({ reason: e.code === 1 ? 'denied' : 'unavailable' }),
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
   });
 }
 // { ok, reason: 'ok' | 'denied' | 'unavailable' | 'outside' }
+// Dentro del polígono O a menos de GEOFENCE_BUFFER_M del borde (+ tolerancia
+// por la imprecisión que reporte el GPS, acotada a 50 m).
 async function checkInReserve() {
   if (!REQUIRE_IN_RESERVE) return { ok: true, reason: 'ok' };
   const pos = await getPosition();
   if (pos.reason) return { ok: false, reason: pos.reason };
   try {
-    const inside = inGeoJSON(pos.coords, await loadBoundary());
+    const gj = await loadBoundary();
+    const inside = inGeoJSON(pos.coords, gj)
+      || distToBoundaryM(pos.coords, gj) <= GEOFENCE_BUFFER_M + Math.min(pos.accuracy || 0, 50);
     return { ok: inside, reason: inside ? 'ok' : 'outside' };
   } catch (e) { return { ok: false, reason: 'unavailable' }; }
 }
@@ -159,16 +193,10 @@ function renderGate({ onEnter, onAuthChange }) {
     try { await fn(u, p); done(); }
     catch (e) { err(e.message || String(e)); busy(false); }
   };
-  // Login: los admins entran desde cualquier lugar; los visitantes deben estar
-  // dentro de la reserva (geocerco).
-  const doLogin = async (u, p) => {
-    await signIn(u, p);
-    if (isAdmin()) return;
-    err(t('geo_checking'));
-    const geo = await checkInReserve();
-    if (!geo.ok) { await signOut(); throw new Error(geoMsg(geo.reason)); }
-  };
-  // Crear cuenta (siempre visitante): exige estar dentro de la reserva.
+  // Login: sin geocerco — crear la cuenta EN la reserva ya probó que es un
+  // visitante real; después entra desde cualquier lugar (casa, otro teléfono).
+  const doLogin = async (u, p) => { await signIn(u, p); };
+  // Crear cuenta (siempre visitante): exige estar en la reserva (con buffer).
   const doSignup = async (u, p) => {
     err(t('geo_checking'));
     const geo = await checkInReserve();

@@ -3,10 +3,15 @@
 // (al volver el internet, al volver a la app, o cada minuto). Así se puede crear
 // senderos y puntos en plena montaña sin cobertura.
 import { cloudConfigured, uploadImage, upsertWaypoint, deleteWaypoint, upsertSpecies, deleteSpecies,
-  upsertTrail, deleteTrail, upsertRoute, deleteRoute } from './cloud.js';
+  upsertTrail, deleteTrail, upsertRoute, deleteRoute, upsertSighting, upsertWalk, deleteWalkCloud } from './cloud.js';
 
-const UPSERT = { waypoints: upsertWaypoint, trails: upsertTrail, routes: upsertRoute, species: upsertSpecies };
-const REMOVE = { waypoints: deleteWaypoint, trails: deleteTrail, routes: deleteRoute, species: deleteSpecies };
+const UPSERT = { waypoints: upsertWaypoint, trails: upsertTrail, routes: upsertRoute, species: upsertSpecies,
+  sightings: upsertSighting, walks: upsertWalk };
+const REMOVE = { waypoints: deleteWaypoint, trails: deleteTrail, routes: deleteRoute, species: deleteSpecies,
+  walks: deleteWalkCloud };
+// La clave de cada fila: id normal, o client_id (avistamientos: el id del
+// servidor lo genera la base; el cliente identifica por client_id).
+const rowKey = (row) => row.id != null ? row.id : row.client_id;
 const WRITE_TIMEOUT = 15000, UPLOAD_TIMEOUT = 60000;
 
 // ---------- IndexedDB (persiste blobs de fotos, sobrevive recargas) ----------
@@ -71,12 +76,12 @@ export async function saveRow(table, row, photoBlob = null) {
   if (cloudConfigured() && navigator.onLine) {
     try {
       const r = { ...row };
-      if (photoBlob) r.photo = await withTimeout(uploadImage(blobFile(photoBlob, row.id), table), UPLOAD_TIMEOUT);
+      if (photoBlob) r.photo = await withTimeout(uploadImage(blobFile(photoBlob, rowKey(row)), table), UPLOAD_TIMEOUT);
       await withTimeout(UPSERT[table](r), WRITE_TIMEOUT);
       return { queued: false, row: r };
     } catch (e) { if (!isNetErr(e)) throw e; }
   }
-  await idbPut({ key: `${table}:${row.id}`, table, op: 'upsert', id: row.id, row, photoBlob, ts: Date.now(), tries: 0 });
+  await idbPut({ key: `${table}:${rowKey(row)}`, table, op: 'upsert', id: rowKey(row), row, photoBlob, ts: Date.now(), tries: 0 });
   notifyPending(); scheduleFlush(20000);
   // Para mostrar la foto localmente mientras espera subirse:
   return { queued: true, row: photoBlob ? { ...row, photo: URL.createObjectURL(photoBlob) } : row };

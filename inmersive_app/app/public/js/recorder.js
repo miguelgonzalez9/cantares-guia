@@ -4,10 +4,43 @@
 // imagen descargable (PNG) del recorrido dibujada sobre el contorno de la reserva.
 
 import { keepAwake, releaseAwake } from './wakelock.js';
+import { isLoggedIn, listMyWalks } from './cloud.js';
+import { saveRow, deleteRow } from './sync.js';
 
 let CTX = null;
 let rec = null;     // grabación en curso
 let dbP = null;
+
+// ---------- caminatas ↔ nube (siguen al usuario entre dispositivos) ----------
+// Muestrear la traza a ≤400 puntos para subirla liviana (la forma se conserva).
+function samplePoints(pts, max = 400) {
+  if (pts.length <= max) return pts;
+  const step = pts.length / max, out = [];
+  for (let i = 0; i < pts.length; i += step) out.push(pts[Math.floor(i)]);
+  if (out[out.length - 1] !== pts[pts.length - 1]) out.push(pts[pts.length - 1]);
+  return out;
+}
+function walkToCloudRow(w) {
+  return { id: w.id, route_id: w.routeId || null, route_name: w.routeName || null,
+    started_at: new Date(w.startedAt).toISOString(), ended_at: new Date(w.endedAt).toISOString(),
+    duration_ms: w.durationMs, distance_m: w.distanceM,
+    points: samplePoints(w.points), photos: w.photos || [] };
+}
+function cloudRowToWalk(r) {
+  return { id: r.id, startedAt: Date.parse(r.started_at), endedAt: Date.parse(r.ended_at),
+    durationMs: Number(r.duration_ms) || 0, distanceM: r.distance_m || 0,
+    points: r.points || [], photos: r.photos || [], routeId: r.route_id, routeName: r.route_name };
+}
+// Con sesión: bajar las caminatas de la nube que este teléfono no tenga.
+async function rehydrateWalks() {
+  if (!isLoggedIn()) return;
+  try {
+    const local = new Set((await walksAll()).map((w) => w.id));
+    for (const r of await listMyWalks()) {
+      if (!local.has(r.id)) await walkPut(cloudRowToWalk(r));
+    }
+  } catch (e) { console.warn('[cloud] walks', e && e.message); }
+}
 
 // ---------- strings ----------
 const RS = {
@@ -59,6 +92,7 @@ async function walkDel(id) { const db = await idb(); return new Promise((res, re
 export function initRecorder(ctx) {
   CTX = ctx;
   buildBar();
+  rehydrateWalks();   // caminatas hechas en otro dispositivo (con sesión)
   // Cuando el juego registra una foto durante la grabación, marca su ubicación.
   window.addEventListener('cantares:capture', (e) => {
     if (!rec || !e.detail) return;
@@ -130,7 +164,14 @@ async function stop() {
     points: rec.points, photos: rec.photos, routeId: rec.routeId, routeName: rec.routeName };
   rec = null;
   renderIdle();
-  if (walk.points.length >= 2) { await walkPut(walk); CTX.toast(RT('saved')); showSummary(walk); }
+  if (walk.points.length >= 2) {
+    await walkPut(walk); CTX.toast(RT('saved')); showSummary(walk);
+    // Con cuenta: subirla (o encolarla sin señal) para que siga al usuario.
+    if (isLoggedIn()) {
+      try { await saveRow('walks', walkToCloudRow(walk)); }
+      catch (e) { console.warn('[cloud] walk', e && e.message); }   // queda local igual
+    }
+  }
   else CTX.toast(RT('none'));
 }
 
@@ -241,5 +282,10 @@ async function openHistory() {
   el.querySelector('#rec-x').onclick = closeOverlay;
   const byId = (id) => walks.find((w) => w.id === id);
   el.querySelectorAll('.rec-dl').forEach((b) => b.onclick = () => downloadWalk(byId(b.dataset.id)));
-  el.querySelectorAll('.rec-del').forEach((b) => b.onclick = async () => { if (confirm(RT('del_q'))) { await walkDel(b.dataset.id); openHistory(); } });
+  el.querySelectorAll('.rec-del').forEach((b) => b.onclick = async () => {
+    if (!confirm(RT('del_q'))) return;
+    await walkDel(b.dataset.id);
+    if (isLoggedIn()) { try { await deleteRow('walks', b.dataset.id); } catch (e) { console.warn('[cloud] walk del', e && e.message); } }
+    openHistory();
+  });
 }

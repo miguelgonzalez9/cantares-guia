@@ -138,6 +138,44 @@ export async function mySightings() {
   return data || [];
 }
 
+// Avistamiento idempotente para la cola offline: upsert por client_id (el id
+// local del teléfono), así un reintento tras señal intermitente no duplica.
+export async function upsertSighting(s) {
+  const c = await getClient();
+  const u = currentUser();
+  if (!u) throw new Error('Sesión requerida para subir avistamientos');
+  const row = { ...s, user_id: u.id };
+  delete row.id;   // el id lo genera la base
+  let { error } = await c.from('sightings').upsert(row, { onConflict: 'client_id' });
+  if (error && /client_id/i.test(error.message || '')) {
+    // Migración 14 aún no corrida: caer a insert simple (no idempotente).
+    ({ error } = await c.from('sightings').insert(row));
+  }
+  if (error) throw error;
+}
+
+// ---------- caminatas del visitante (privadas; siguen al usuario) ----------
+export async function upsertWalk(w) {
+  const c = await getClient();
+  const u = currentUser();
+  if (!u) throw new Error('Sesión requerida para subir caminatas');
+  const { error } = await c.from('walks').upsert({ ...w, user_id: u.id });
+  if (error) throw error;
+}
+export async function listMyWalks() {
+  const c = await getClient();
+  const u = currentUser();
+  if (!u) return [];
+  const { data, error } = await c.from('walks').select('*').eq('user_id', u.id);
+  if (error) throw error;
+  return data || [];
+}
+export async function deleteWalkCloud(id) {
+  const c = await getClient();
+  const { error } = await c.from('walks').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ---------- imágenes (Supabase Storage, bucket público "media") ----------
 export async function uploadImage(file, folder = 'uploads') {
   const c = await getClient();

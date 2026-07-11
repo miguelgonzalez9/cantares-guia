@@ -8,6 +8,8 @@
 // Cada registro guarda: hora exacta, especie, coordenadas GPS + precisión,
 // foto (comprimida), jugador y desglose de puntos.
 
+import { saveRow } from './sync.js';
+
 // ---------- configuración del juego ----------
 const GAME_CFG = {
   // Clave de Pl@ntNet (gratis en https://my.plantnet.org, 500 peticiones/día).
@@ -551,13 +553,13 @@ function renderWizardConfirm(body) {
     // Avisar al grabador de recorridos (si hay uno activo) dónde se tomó la foto.
     if (obs.lat != null && obs.lon != null)
       window.dispatchEvent(new CustomEvent('cantares:capture', { detail: { lng: obs.lon, lat: obs.lat, name: obs.common || obs.sci || '' } }));
-    // Empuje al inventario global (Supabase) — best-effort, no bloquea el juego.
+    // Empuje al inventario global (Supabase) por la COLA OFFLINE: en el bosque
+    // sin señal el avistamiento (y su foto) esperan en el teléfono y se suben
+    // solos al recuperar señal. client_id = id local → reintentar no duplica.
     if (CTX.cloud && CTX.cloud.enabled) (async () => {
       try {
-        let photoUrl = null;
-        if (obs.photo && CTX.cloud.uploadImage) { try { photoUrl = await CTX.cloud.uploadImage(obs.photo, 'sightings'); } catch (e) { /* sin foto */ } }
-        await CTX.cloud.addSighting({ species_id: obs.speciesId, common: obs.common, sci: obs.sci, group: obs.group,
-          lat: obs.lat, lng: obs.lon, taken_at: new Date(obs.time).toISOString(), photo: photoUrl, points: obs.points });
+        await saveRow('sightings', { client_id: obs.id, species_id: obs.speciesId, common: obs.common, sci: obs.sci, group: obs.group,
+          lat: obs.lat, lng: obs.lon, taken_at: new Date(obs.time).toISOString(), photo: null, points: obs.points }, obs.photo || null);
       } catch (e) { console.warn('[cloud] sighting', e && e.message); }
     })();
     rebuildCapMap(); renderGamePanel(); CTX.rerenderSpecies(); refreshObsMapLayer();
@@ -822,7 +824,9 @@ export async function initGame(ctx) {
       const have = new Set(allObs.map((o) => o.id));
       for (const cs of cloudObs) {
         const oid = 'cloud_' + cs.id;
-        if (have.has(oid)) continue;
+        // client_id = id local original: si esta captura nació en ESTE teléfono
+        // (o ya se bajó antes), no duplicarla.
+        if (have.has(oid) || (cs.client_id && have.has(cs.client_id))) continue;
         const o = { id: oid, playerId: u.id, kind: cs.species_id ? 'capture' : 'finding', speciesId: cs.species_id || null,
           sci: cs.sci || '', common: cs.common || '', group: cs.group || 'otro',
           // time SIEMPRE como string ISO (el resto del código ordena con
