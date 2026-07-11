@@ -654,6 +654,20 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-draw-hud .adh-n { font-size: 13px; font-weight: 700; color: var(--forest); font-variant-numeric: tabular-nums; }
 .admin-draw-hud button { border: none; border-radius: 999px; padding: 8px 12px; font-weight: 800; font-size: 13px; cursor: pointer; background: var(--mist); color: var(--forest); }
 .admin-draw-hud .adh-done { background: var(--moss); color: #fff; }
+/* Precisión GPS en vivo mientras se graba un sendero */
+.admin-draw-hud .adh-acc { font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.adh-acc.good { color: #2f9e44; }
+.adh-acc.mid { color: #e8890c; }
+.adh-acc.bad { color: #e03131; }
+
+/* Cambios hechos sin señal, esperando subirse: contador sobre el botón admin */
+.admin-fab[data-pending]:not([data-pending="0"])::after {
+  content: attr(data-pending);
+  position: absolute; top: -5px; right: -5px;
+  background: #e03131; color: #fff; font-size: 11px; font-weight: 800;
+  min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px;
+  text-align: center; padding: 0 3px; box-shadow: 0 1px 4px rgba(0,0,0,.35);
+}
 
 /* ============ Distancia en el panel de recorrido ============ */
 .ri-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 9px; }

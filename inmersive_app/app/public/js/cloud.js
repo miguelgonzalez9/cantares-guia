@@ -48,8 +48,19 @@ const emailFor = (u) => `${String(u).trim().toLowerCase().replace(/[^a-z0-9._-]/
 async function loadProfile() {
   const c = await getClient();
   if (!_session) { _profile = null; return null; }
-  const { data } = await c.from('profiles').select('username, role').eq('id', _session.user.id).maybeSingle();
-  _profile = data || { username: _session.user.email.split('@')[0], role: 'visitor' };
+  const cacheKey = 'cantares_profile_' + _session.user.id;
+  // Con señal: leer el perfil real y cachearlo. Sin señal: usar el cacheado, para
+  // que el modo admin siga funcionando offline (los cambios esperan en la cola).
+  try {
+    const { data } = await c.from('profiles').select('username, role').eq('id', _session.user.id).maybeSingle();
+    if (data) {
+      _profile = data;
+      try { localStorage.setItem(cacheKey, JSON.stringify(data)); localStorage.setItem('cantares_role', data.role || 'visitor'); } catch (e) { /* storage lleno */ }
+      return _profile;
+    }
+  } catch (e) { /* offline / red caída → cache */ }
+  try { const cached = localStorage.getItem(cacheKey); if (cached) { _profile = JSON.parse(cached); return _profile; } } catch (e) { /* json corrupto */ }
+  _profile = { username: _session.user.email.split('@')[0], role: localStorage.getItem('cantares_role') || 'visitor' };
   return _profile;
 }
 
@@ -82,6 +93,7 @@ export async function signOut() {
   const c = await getClient();
   await c.auth.signOut();
   _session = null; _profile = null;
+  try { localStorage.removeItem('cantares_role'); } catch (e) { /* ignore */ }
 }
 function prettyAuthError(e) {
   const m = (e && e.message) || '';

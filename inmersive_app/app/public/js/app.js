@@ -6,6 +6,7 @@ import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout } from './auth-ui.js';
 import { initAdmin } from './admin.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk } from './recorder.js';
+import { initSync, pendingOps } from './sync.js';
 
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const CONFIG = {
@@ -1205,9 +1206,20 @@ async function main() {
       initAdmin({ state, map: state.map, t, L, LANG, toast, makeDraggable,
         typeColor: (tp) => typeMeta(tp).color,
         refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails,
+        applyLocalRow, removeLocalRow,
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
       initRecorder({ state, t, L, toast });   // grabar recorrido + historial (todos)
     }
+    // Cola offline: reflejar cambios pendientes de sesiones sin señal y
+    // subirlos automáticamente cuando vuelva el internet.
+    await applyPendingLocally();
+    initSync({
+      onSynced: async (n) => {
+        toast(`☁️ ${n} cambio(s) sincronizado(s)`);
+        await refreshRoutes(); await refreshTrails(); await refreshWaypoints(); await refreshSpecies();
+      },
+      onPending: (n) => { const fab = document.getElementById('admin-fab'); if (fab) fab.dataset.pending = String(n || 0); },
+    });
     registerSW();
   };
 
@@ -1252,32 +1264,112 @@ async function loadCloudData() {
   } catch (e) { console.warn('[cloud] datos', e && e.message); }
 }
 async function refreshRoutes() {
-  if (!Cloud.cloudConfigured()) return;
-  const cr = await Cloud.listRoutes();
-  applyCloudRoutes(cr);
-  renderRouteBar();
-  if (state.activeRoute && !state.routesById[state.activeRoute]) selectRoute(null);
-  else if (state.activeRoute) selectRoute(state.activeRoute);
+  if (!Cloud.cloudConfigured() || !navigator.onLine) return;
+  try {
+    const cr = await Cloud.listRoutes();
+    applyCloudRoutes(cr);
+    renderRouteBar();
+    if (state.activeRoute && !state.routesById[state.activeRoute]) selectRoute(null);
+    else if (state.activeRoute) selectRoute(state.activeRoute);
+  } catch (e) { console.warn('[cloud] refreshRoutes', e && e.message); }
 }
 async function refreshTrails() {
-  if (!Cloud.cloudConfigured()) return;
-  const ct = await Cloud.listTrails();
-  const fc = { type: 'FeatureCollection', features: ct.map(cloudTrailToFeature) };
-  normalizeFeatures(fc); state.trails = fc.features;
-  const src = state.map && state.map.getSource('trails'); if (src) src.setData(fc);
-  if (state.activeRoute) selectRoute(state.activeRoute);
+  if (!Cloud.cloudConfigured() || !navigator.onLine) return;
+  try {
+    const ct = await Cloud.listTrails();
+    const fc = { type: 'FeatureCollection', features: ct.map(cloudTrailToFeature) };
+    normalizeFeatures(fc); state.trails = fc.features;
+    const src = state.map && state.map.getSource('trails'); if (src) src.setData(fc);
+    if (state.activeRoute) selectRoute(state.activeRoute);
+  } catch (e) { console.warn('[cloud] refreshTrails', e && e.message); }
 }
 async function refreshWaypoints() {
-  if (!Cloud.cloudConfigured()) return;
-  const cw = await Cloud.listWaypoints();
-  const fc = { type: 'FeatureCollection', features: cw.map(cloudWaypointToFeature) };
-  normalizeFeatures(fc); state.waypoints = fc.features;
-  const src = state.map && state.map.getSource('waypoints'); if (src) src.setData(fc);
-  renderLegend(); applyWaypointFilter();
-  if (state.activeRoute) selectRoute(state.activeRoute);
+  if (!Cloud.cloudConfigured() || !navigator.onLine) return;
+  try {
+    const cw = await Cloud.listWaypoints();
+    const fc = { type: 'FeatureCollection', features: cw.map(cloudWaypointToFeature) };
+    normalizeFeatures(fc); state.waypoints = fc.features;
+    const src = state.map && state.map.getSource('waypoints'); if (src) src.setData(fc);
+    renderLegend(); applyWaypointFilter();
+    if (state.activeRoute) selectRoute(state.activeRoute);
+  } catch (e) { console.warn('[cloud] refreshWaypoints', e && e.message); }
 }
 async function refreshSpecies() {
-  if (!Cloud.cloudConfigured()) return;
-  state.species = await Cloud.listSpecies();
-  renderSpeciesFilters(); renderSpeciesGrid();
+  if (!Cloud.cloudConfigured() || !navigator.onLine) return;
+  try {
+    state.species = await Cloud.listSpecies();
+    renderSpeciesFilters(); renderSpeciesGrid();
+  } catch (e) { console.warn('[cloud] refreshSpecies', e && e.message); }
+}
+
+// ---------- modo offline: aplicar cambios al estado local sin red ----------
+// Espejo local de lo que la nube devolvería tras un upsert/delete. Lo usa el
+// editor admin (para reflejar el cambio al instante, con o sin señal) y la cola
+// offline al arrancar (cambios pendientes de subir hechos en sesiones previas).
+function applyLocalRow(table, row) {
+  try {
+    if (table === 'waypoints') {
+      const fc = { type: 'FeatureCollection', features: [cloudWaypointToFeature(row)] };
+      normalizeFeatures(fc);
+      const i = state.waypoints.findIndex((w) => w.properties.id === row.id);
+      if (i >= 0) state.waypoints[i] = fc.features[0]; else state.waypoints.push(fc.features[0]);
+      const src = state.map && state.map.getSource('waypoints');
+      if (src) src.setData({ type: 'FeatureCollection', features: state.waypoints });
+      renderLegend(); applyWaypointFilter();
+    } else if (table === 'trails') {
+      const fc = { type: 'FeatureCollection', features: [cloudTrailToFeature(row)] };
+      normalizeFeatures(fc);
+      const i = state.trails.findIndex((t) => t.properties.id === row.id);
+      if (i >= 0) state.trails[i] = fc.features[0]; else state.trails.push(fc.features[0]);
+      const src = state.map && state.map.getSource('trails');
+      if (src) src.setData({ type: 'FeatureCollection', features: state.trails });
+    } else if (table === 'routes') {
+      const i = state.routes.findIndex((r) => r.id === row.id);
+      if (i >= 0) state.routes[i] = { ...state.routes[i], ...row }; else state.routes.push(row);
+      state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
+      renderRouteBar();
+    } else if (table === 'species') {
+      const i = state.species.findIndex((s) => s.id === row.id);
+      if (i >= 0) state.species[i] = { ...state.species[i], ...row }; else state.species.push(row);
+      renderSpeciesFilters(); renderSpeciesGrid();
+    }
+    if (state.activeRoute) selectRoute(state.activeRoute);
+  } catch (e) { console.warn('applyLocalRow', table, e); }
+}
+function removeLocalRow(table, id) {
+  try {
+    if (table === 'waypoints') {
+      state.waypoints = state.waypoints.filter((w) => w.properties.id !== id);
+      const src = state.map && state.map.getSource('waypoints');
+      if (src) src.setData({ type: 'FeatureCollection', features: state.waypoints });
+      renderLegend(); applyWaypointFilter();
+    } else if (table === 'trails') {
+      state.trails = state.trails.filter((t) => t.properties.id !== id);
+      const src = state.map && state.map.getSource('trails');
+      if (src) src.setData({ type: 'FeatureCollection', features: state.trails });
+    } else if (table === 'routes') {
+      state.routes = state.routes.filter((r) => r.id !== id);
+      state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
+      renderRouteBar();
+      if (state.activeRoute === id) { selectRoute(null); return; }
+    } else if (table === 'species') {
+      state.species = state.species.filter((s) => s.id !== id);
+      renderSpeciesFilters(); renderSpeciesGrid();
+    }
+    if (state.activeRoute) selectRoute(state.activeRoute);
+  } catch (e) { console.warn('removeLocalRow', table, e); }
+}
+// Al arrancar: superponer los cambios que quedaron en la cola (hechos sin señal
+// en una sesión anterior) sobre los datos cargados, para que no "desaparezcan".
+async function applyPendingLocally() {
+  try {
+    for (const op of await pendingOps()) {
+      if (op.op === 'delete') removeLocalRow(op.table, op.id);
+      else {
+        const row = { ...op.row };
+        if (op.photoBlob) row.photo = URL.createObjectURL(op.photoBlob);
+        applyLocalRow(op.table, row);
+      }
+    }
+  } catch (e) { console.warn('[sync] pendientes', e && e.message); }
 }

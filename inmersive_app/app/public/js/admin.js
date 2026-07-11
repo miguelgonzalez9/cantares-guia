@@ -1,8 +1,8 @@
 // Cantares — editor de administrador (sin código). Permite a los dueños añadir y
 // cambiar puntos del mapa, textos, imágenes y especies del inventario, escribiendo
 // directo a Supabase. Sólo se activa para cuentas con rol 'admin'.
-import { isAdmin, upsertWaypoint, deleteWaypoint, upsertSpecies, deleteSpecies, uploadImage,
-  upsertTrail, deleteTrail, upsertRoute, deleteRoute } from './cloud.js';
+import { isAdmin } from './cloud.js';
+import { saveRow, deleteRow, compressImage } from './sync.js';
 import { doLogout } from './auth-ui.js';
 
 let CTX = null;
@@ -16,7 +16,9 @@ const rid = (pfx) => `${pfx}_${Date.now().toString(36)}${Math.floor(Math.random(
 // ctx: { state, map, t, L, LANG, toast, refreshWaypoints, refreshSpecies }
 export function initAdmin(ctx) {
   CTX = ctx;
-  if (!isAdmin()) return;
+  // Sin señal la nube no puede confirmar el rol; el rol cacheado del último
+  // login mantiene las herramientas (los cambios esperan en la cola offline).
+  if (!isAdmin() && localStorage.getItem('cantares_role') !== 'admin') return;
   document.body.classList.add('is-admin');
   const fab = document.createElement('button');
   fab.id = 'admin-fab'; fab.className = 'admin-fab'; fab.title = 'Administrar';
@@ -83,6 +85,7 @@ function editPunto(id) {
   const restore = _pointDraft && ((id && _pointDraft.id === id) || (!id && _pointDraft._new));
   const p = restore ? _pointDraft.props : (existing ? { ...existing.properties } : { id: rid('punto'), routes: [], species_ids: [], tipo: 'punto' });
   const coords = restore ? _pointDraft.loc : (existing ? existing.geometry.coordinates : null);
+  const draftBlob = restore ? _pointDraft.photoBlob : null;
   _pointDraft = null;
   const routeChecks = CTX.state.routes.map((r) => `
     <label class="admin-chk"><input type="checkbox" value="${r.id}" ${(p.routes || []).includes(r.id) ? 'checked' : ''}> ${esc(CTX.L(r, 'name'))}</label>`).join('');
@@ -121,6 +124,8 @@ function editPunto(id) {
     </div>`;
   let loc = coords ? coords.slice() : null;
   let photoUrl = p.photo || null;
+  let photoBlob = draftBlob || null;   // foto nueva comprimida; se sube al Guardar
+  if (photoBlob) { const pv = body.querySelector('#f-photo-prev'); if (pv) pv.style.backgroundImage = `url('${URL.createObjectURL(photoBlob)}')`; }
   const setLoc = (lng, lat) => { loc = [lng, lat]; const s = body.querySelector('#f-loc'); if (s) s.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`; };
   const coordsInput = body.querySelector('#f-coords');
   if (coordsInput) coordsInput.oninput = (e) => {
@@ -130,14 +135,29 @@ function editPunto(id) {
 
   body.querySelector('#f-gps').onclick = () => {
     if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
-    const btn = body.querySelector('#f-gps'); const orig = btn.textContent; btn.textContent = 'Buscando…'; btn.disabled = true;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => { setLoc(pos.coords.longitude, pos.coords.latitude); btn.textContent = orig; btn.disabled = false; CTX.toast(`📡 Ubicación fijada (±${Math.round(pos.coords.accuracy)} m)`); },
-      (e) => { btn.textContent = orig; btn.disabled = false; CTX.toast(e.code === 1 ? 'Permiso de ubicación denegado' : 'No se pudo obtener ubicación'); },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    const btn = body.querySelector('#f-gps'); const orig = btn.textContent; btn.disabled = true;
+    // El primer fijo del GPS suele ser malo: observar hasta 10 s y quedarse con
+    // el más preciso (o cortar antes si ya baja de ±8 m).
+    let best = null, done = false;
+    const finish = () => {
+      if (done) return; done = true;
+      clearTimeout(timer); navigator.geolocation.clearWatch(wid);
+      btn.textContent = orig; btn.disabled = false;
+      if (best) { setLoc(best.coords.longitude, best.coords.latitude); CTX.toast(`📡 Ubicación fijada (±${Math.round(best.coords.accuracy)} m)`); }
+      else CTX.toast('No se pudo obtener ubicación');
+    };
+    const wid = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (!best || pos.coords.accuracy < best.coords.accuracy) best = pos;
+        btn.textContent = `📡 ±${Math.round(pos.coords.accuracy)} m…`;
+        if (pos.coords.accuracy <= 8) finish();
+      },
+      (e) => { if (!best) { done = true; clearTimeout(timer); navigator.geolocation.clearWatch(wid); btn.textContent = orig; btn.disabled = false; CTX.toast(e.code === 1 ? 'Permiso de ubicación denegado' : 'No se pudo obtener ubicación'); } },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    const timer = setTimeout(finish, 10000);
   };
   const v = (sel) => body.querySelector(sel).value;
-  const saveDraftPoint = () => { _pointDraft = { id: p.id, _new: !id, loc,
+  const saveDraftPoint = () => { _pointDraft = { id: p.id, _new: !id, loc, photoBlob,
     props: { ...p, title: v('#f-title'), title_en: v('#f-title-en'), description: v('#f-desc'), description_en: v('#f-desc-en'),
       tipo: v('#f-tipo'), routes: [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value),
       species_ids: v('#f-species').split(',').map((s) => s.trim()).filter(Boolean), photo: photoUrl } }; };
@@ -155,15 +175,22 @@ function editPunto(id) {
   body.querySelector('#f-move').onclick = () => { saveDraftPoint(); startMovePoint(id, loc); };
   body.querySelector('#f-photo').onchange = async (e) => {
     const file = e.target.files[0]; if (!file) return;
-    body.querySelector('#f-err').textContent = 'Subiendo imagen…';
-    try { photoUrl = await uploadImage(file, 'waypoints'); body.querySelector('#f-photo-prev').style.backgroundImage = `url('${photoUrl}')`; body.querySelector('#f-err').textContent = ''; }
-    catch (err) { body.querySelector('#f-err').textContent = 'Error subiendo imagen: ' + err.message; }
+    const errEl = body.querySelector('#f-err');
+    errEl.textContent = 'Preparando foto…';
+    // Comprimir aquí (rápido, sin red); la subida ocurre al Guardar — y si no
+    // hay señal, la foto espera en la cola offline junto con el punto.
+    photoBlob = await compressImage(file);
+    body.querySelector('#f-photo-prev').style.backgroundImage = `url('${URL.createObjectURL(photoBlob)}')`;
+    errEl.textContent = '';
   };
   body.querySelector('#f-cancel').onclick = renderPuntos;
   if (id) body.querySelector('#f-del').onclick = async () => {
     if (!confirm('¿Eliminar este punto?')) return;
-    try { await deleteWaypoint(id); await CTX.refreshWaypoints(); renderPuntos(); CTX.toast('Punto eliminado'); }
-    catch (err) { body.querySelector('#f-err').textContent = err.message; }
+    try {
+      const res = await deleteRow('waypoints', id);
+      CTX.removeLocalRow('waypoints', id); renderPuntos();
+      CTX.toast(res.queued ? '💾 Eliminado — se sincronizará con señal' : 'Punto eliminado');
+    } catch (err) { body.querySelector('#f-err').textContent = err.message; }
   };
   body.querySelector('#f-save').onclick = async () => {
     if (!loc) { body.querySelector('#f-err').textContent = 'Fija la ubicación en el mapa.'; return; }
@@ -179,8 +206,11 @@ function editPunto(id) {
       routes, species_ids, lng: loc[0], lat: loc[1], photo: photoUrl,
     };
     body.querySelector('#f-err').textContent = 'Guardando…';
-    try { await upsertWaypoint(row); await CTX.refreshWaypoints(); renderPuntos(); CTX.toast('Punto guardado'); }
-    catch (err) { body.querySelector('#f-err').textContent = err.message; }
+    try {
+      const res = await saveRow('waypoints', row, photoBlob);
+      CTX.applyLocalRow('waypoints', res.row); renderPuntos();
+      CTX.toast(res.queued ? '💾 Guardado en el teléfono — se subirá con señal' : 'Punto guardado');
+    } catch (err) { body.querySelector('#f-err').textContent = err.message; }
   };
 }
 
@@ -230,17 +260,22 @@ function editEspecie(id) {
         <button class="admin-cancel" id="s-cancel">Cancelar</button>
       </div>
     </div>`;
+  let photoBlob = null;
   body.querySelector('#s-photo').onchange = async (e) => {
     const file = e.target.files[0]; if (!file) return;
-    body.querySelector('#s-err').textContent = 'Subiendo imagen…';
-    try { photoUrl = await uploadImage(file, 'species'); body.querySelector('#s-photo-prev').style.backgroundImage = `url('${photoUrl}')`; body.querySelector('#s-err').textContent = ''; }
-    catch (err) { body.querySelector('#s-err').textContent = 'Error subiendo imagen: ' + err.message; }
+    body.querySelector('#s-err').textContent = 'Preparando foto…';
+    photoBlob = await compressImage(file);
+    body.querySelector('#s-photo-prev').style.backgroundImage = `url('${URL.createObjectURL(photoBlob)}')`;
+    body.querySelector('#s-err').textContent = '';
   };
   body.querySelector('#s-cancel').onclick = renderEspecies;
   if (id) body.querySelector('#s-del').onclick = async () => {
     if (!confirm('¿Eliminar esta especie?')) return;
-    try { await deleteSpecies(id); await CTX.refreshSpecies(); renderEspecies(); CTX.toast('Especie eliminada'); }
-    catch (err) { body.querySelector('#s-err').textContent = err.message; }
+    try {
+      const res = await deleteRow('species', id);
+      CTX.removeLocalRow('species', id); renderEspecies();
+      CTX.toast(res.queued ? '💾 Eliminada — se sincronizará con señal' : 'Especie eliminada');
+    } catch (err) { body.querySelector('#s-err').textContent = err.message; }
   };
   body.querySelector('#s-save').onclick = async () => {
     const row = {
@@ -255,8 +290,11 @@ function editEspecie(id) {
       photo: photoUrl,
     };
     body.querySelector('#s-err').textContent = 'Guardando…';
-    try { await upsertSpecies(row); await CTX.refreshSpecies(); renderEspecies(); CTX.toast('Especie guardada'); }
-    catch (err) { body.querySelector('#s-err').textContent = err.message; }
+    try {
+      const res = await saveRow('species', row, photoBlob);
+      CTX.applyLocalRow('species', res.row); renderEspecies();
+      CTX.toast(res.queued ? '💾 Guardada en el teléfono — se subirá con señal' : 'Especie guardada');
+    } catch (err) { body.querySelector('#s-err').textContent = err.message; }
   };
 }
 
@@ -308,20 +346,58 @@ function showDrawHud() {
 }
 function updateDrawHud() {
   const h = document.getElementById('admin-draw-hud'); if (!h || !draw) return;
-  h.innerHTML = `<span class="adh-n">${draw.coords.length} pts · ${fmtLen(draw.coords)}</span>
-    ${draw.mode === 'vertex' ? '<button id="adh-undo">↶</button>' : ''}
-    <button id="adh-done" class="adh-done">✓ Terminar</button>
-    <button id="adh-cancel">✕</button>`;
-  const u = h.querySelector('#adh-undo'); if (u) u.onclick = () => { draw.coords.pop(); drawUpdate(); updateDrawHud(); };
-  h.querySelector('#adh-done').onclick = () => endDraw(true);
-  h.querySelector('#adh-cancel').onclick = () => endDraw(false);
+  // Reconstruir el HUD sólo cuando cambia su estructura (modo/pausa): si se
+  // re-renderiza en cada fijo del GPS, los botones se "escapan" bajo el dedo.
+  const key = draw.mode + (draw.paused ? ':p' : '');
+  if (h.dataset.k !== key) {
+    h.dataset.k = key;
+    h.innerHTML = `<span class="adh-n"></span><span class="adh-acc"></span>
+      ${draw.mode === 'vertex' ? '<button id="adh-undo">↶</button>' : ''}
+      ${draw.mode === 'gps' ? `<button id="adh-pause">${draw.paused ? '▶ Seguir' : '⏸'}</button>` : ''}
+      <button id="adh-done" class="adh-done">✓ Terminar</button>
+      <button id="adh-cancel">✕</button>`;
+    const u = h.querySelector('#adh-undo'); if (u) u.onclick = () => { draw.coords.pop(); drawUpdate(); updateDrawHud(); };
+    const pz = h.querySelector('#adh-pause'); if (pz) pz.onclick = () => { draw.paused = !draw.paused; updateDrawHud(); CTX.toast(draw.paused ? '⏸ Grabación en pausa' : '▶ Grabando de nuevo'); };
+    h.querySelector('#adh-done').onclick = () => endDraw(true);
+    h.querySelector('#adh-cancel').onclick = () => endDraw(false);
+  }
+  h.querySelector('.adh-n').textContent = `${draw.coords.length} pts · ${fmtLen(draw.coords)}`;
+  const accEl = h.querySelector('.adh-acc');
+  if (draw.mode === 'gps' && draw.acc != null) {
+    accEl.textContent = `±${Math.round(draw.acc)} m`;
+    accEl.className = 'adh-acc ' + (draw.acc <= 10 ? 'good' : draw.acc <= 20 ? 'mid' : 'bad');
+  } else accEl.textContent = '';
 }
 function endDraw(keep) {
-  const coords = draw.coords.slice(), onDone = draw.onDone;
+  const mode = draw.mode, onDone = draw.onDone;
+  let coords = draw.coords.slice();
   drawClear();
   const h = document.getElementById('admin-draw-hud'); if (h) h.remove();
+  // El trazo GPS conserva algo de zigzag aun filtrado: simplificar (2 m de
+  // tolerancia) deja la forma del sendero y quita el ruido.
+  if (keep && mode === 'gps' && coords.length > 2) coords = simplifyDP(coords, 2);
   openPanel();
   onDone(keep && coords.length > 1 ? coords : null);
+}
+// Douglas–Peucker en metros (proyección local): quita el zigzag conservando la forma.
+function simplifyDP(cs, tolM) {
+  const lat0 = cs[0][1] * Math.PI / 180, kx = 111320 * Math.cos(lat0), ky = 110540;
+  const pts = cs.map((c) => [(c[0] - cs[0][0]) * kx, (c[1] - cs[0][1]) * ky]);
+  const keep = new Array(cs.length).fill(false); keep[0] = keep[cs.length - 1] = true;
+  const stack = [[0, cs.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const [ax, ay] = pts[a], [bx, by] = pts[b];
+    const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+    let maxD = 0, idx = -1;
+    for (let i = a + 1; i < b; i++) {
+      const t = len2 ? Math.max(0, Math.min(1, ((pts[i][0] - ax) * dx + (pts[i][1] - ay) * dy) / len2)) : 0;
+      const d = Math.hypot(ax + t * dx - pts[i][0], ay + t * dy - pts[i][1]);
+      if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (maxD > tolM && idx > 0) { keep[idx] = true; stack.push([a, idx], [idx, b]); }
+  }
+  return cs.filter((_, i) => keep[i]);
 }
 function startVertexDraw(onDone) {
   if (!drawInit()) { CTX.toast('Espera a que cargue el mapa'); onDone(null); return; }
@@ -336,13 +412,26 @@ function startVertexDraw(onDone) {
 function startGpsDraw(onDone) {
   if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
   if (!drawInit()) { CTX.toast('Espera a que cargue el mapa'); onDone(null); return; }
-  draw = { coords: [], onDone, mode: 'gps' };
+  draw = { coords: [], onDone, mode: 'gps', ema: null, acc: null, warm: 0, paused: false };
   closePanel();
-  CTX.toast('Grabando… camina el sendero');
+  CTX.toast('Grabando… camina el sendero (los primeros segundos calibran el GPS)');
   draw.watchId = navigator.geolocation.watchPosition((p) => {
-    const c = [p.coords.longitude, p.coords.latitude], last = draw.coords[draw.coords.length - 1];
-    if ((!last || hav(last, c) > 2) && (p.coords.accuracy == null || p.coords.accuracy < 40)) { draw.coords.push(c); drawUpdate(); updateDrawHud(); }
-  }, () => {}, { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
+    if (!draw) return;
+    draw.acc = p.coords.accuracy;
+    const c = [p.coords.longitude, p.coords.latitude];
+    // 1) Sólo fijos precisos (≤25 m) y descartando el arranque en frío del GPS.
+    const okAcc = p.coords.accuracy == null || p.coords.accuracy <= 25;
+    if (!draw.paused && okAcc && draw.warm++ >= 2) {
+      // 2) Suavizado exponencial: amortigua el zigzag entre fijos.
+      draw.ema = draw.ema ? [draw.ema[0] + (c[0] - draw.ema[0]) * 0.45, draw.ema[1] + (c[1] - draw.ema[1]) * 0.45] : c;
+      // 3) Añadir punto sólo si avanzó más que el ruido esperado del GPS
+      //    (parado en un sitio NO se acumulan puntos falsos).
+      const last = draw.coords[draw.coords.length - 1];
+      const gate = Math.max(4, (p.coords.accuracy || 10) * 0.5);
+      if (!last || hav(last, draw.ema) > gate) { draw.coords.push(draw.ema.slice()); drawUpdate(); }
+    }
+    updateDrawHud();
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
   showDrawHud();
 }
 
@@ -515,16 +604,22 @@ function editSendero(id) {
   body.querySelector('#tr-cancel').onclick = renderSenderos;
   if (id) body.querySelector('#tr-del').onclick = async () => {
     if (!confirm('¿Eliminar este sendero?')) return;
-    try { await deleteTrail(id); await CTX.refreshTrails(); renderSenderos(); CTX.toast('Sendero eliminado'); }
-    catch (e) { body.querySelector('#tr-err').textContent = e.message; }
+    try {
+      const res = await deleteRow('trails', id);
+      CTX.removeLocalRow('trails', id); renderSenderos();
+      CTX.toast(res.queued ? '💾 Eliminado — se sincronizará con señal' : 'Sendero eliminado');
+    } catch (e) { body.querySelector('#tr-err').textContent = e.message; }
   };
   body.querySelector('#tr-save').onclick = async () => {
     if (!coords || coords.length < 2) { body.querySelector('#tr-err').textContent = 'Traza el sendero primero.'; return; }
     const routes = [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value);
     const row = { id: p.id, name: body.querySelector('#tr-name').value.trim() || null, routes, geometry: coords };
     body.querySelector('#tr-err').textContent = 'Guardando…';
-    try { await upsertTrail(row); await CTX.refreshTrails(); renderSenderos(); CTX.toast('Sendero guardado'); }
-    catch (e) { body.querySelector('#tr-err').textContent = e.message; }
+    try {
+      const res = await saveRow('trails', row);
+      CTX.applyLocalRow('trails', row); clearHighlight(); renderSenderos();
+      CTX.toast(res.queued ? '💾 Sendero guardado en el teléfono — se subirá con señal' : 'Sendero guardado');
+    } catch (e) { body.querySelector('#tr-err').textContent = e.message; }
   };
   // Ilumina en el mapa el sendero que se está editando.
   if (coords && coords.length > 1) setHl([{ type: 'Feature', properties: { _c: '#ffd000' }, geometry: { type: 'LineString', coordinates: coords } }]);
@@ -603,8 +698,11 @@ function editRecorrido(id) {
   body.querySelector('#rt-cancel').onclick = () => { clearHighlight(); renderRecorridos(); };
   if (id) body.querySelector('#rt-del').onclick = async () => {
     if (!confirm('¿Eliminar este recorrido?')) return;
-    try { await deleteRoute(id); await CTX.refreshRoutes(); renderRecorridos(); CTX.toast('Recorrido eliminado'); }
-    catch (e) { body.querySelector('#rt-err').textContent = e.message; }
+    try {
+      const res = await deleteRow('routes', id);
+      CTX.removeLocalRow('routes', id); renderRecorridos();
+      CTX.toast(res.queued ? '💾 Eliminado — se sincronizará con señal' : 'Recorrido eliminado');
+    } catch (e) { body.querySelector('#rt-err').textContent = e.message; }
   };
   body.querySelector('#rt-save').onclick = async () => {
     const row = { id: r.id, name: body.querySelector('#rt-name').value.trim() || null, name_en: body.querySelector('#rt-name-en').value.trim() || null,
@@ -612,7 +710,10 @@ function editRecorrido(id) {
       start_id: body.querySelector('#rt-start').value || null, end_id: body.querySelector('#rt-end').value || null,
       segments: segWork, sort: r.sort || 0 };
     body.querySelector('#rt-err').textContent = 'Guardando…';
-    try { await upsertRoute(row); await CTX.refreshRoutes(); renderRecorridos(); CTX.toast('Recorrido guardado'); }
-    catch (e) { body.querySelector('#rt-err').textContent = e.message; }
+    try {
+      const res = await saveRow('routes', row);
+      CTX.applyLocalRow('routes', row); clearHighlight(); renderRecorridos();
+      CTX.toast(res.queued ? '💾 Recorrido guardado en el teléfono — se subirá con señal' : 'Recorrido guardado');
+    } catch (e) { body.querySelector('#rt-err').textContent = e.message; }
   };
 }

@@ -1,5 +1,5 @@
 // Cantares service worker — offline app shell + data, runtime-cache map tiles + fotos.
-const VERSION = 'cantares-v15';
+const VERSION = 'cantares-v16';
 const SHELL = `${VERSION}-shell`;
 const TILES = `${VERSION}-tiles`;
 const IMAGES = `${VERSION}-img`;
@@ -14,6 +14,7 @@ const SHELL_ASSETS = [
   'js/auth-ui.js',
   'js/admin.js',
   'js/recorder.js',
+  'js/sync.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'vendor/maplibre-gl.js',
@@ -67,6 +68,22 @@ self.addEventListener('fetch', (e) => {
         } catch (err) {
           return hit || Response.error();
         }
+      })
+    );
+    return;
+  }
+
+  // SDK de Supabase (esm.sh): cache-first, para que la sesión y la cola offline
+  // funcionen sin señal (la sesión vive en localStorage; los cambios esperan en
+  // IndexedDB y se suben al volver el internet).
+  if (url.hostname === 'esm.sh') {
+    e.respondWith(
+      caches.open(SHELL).then(async (cache) => {
+        const hit = await cache.match(e.request);
+        if (hit) return hit;
+        const res = await fetch(e.request);
+        if (res.ok) cache.put(e.request, res.clone());
+        return res;
       })
     );
     return;
