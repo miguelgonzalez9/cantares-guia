@@ -231,8 +231,12 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .wp-theme-badges { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
 .badge { font-size: 11px; font-weight: 700; color: #fff; padding: 3px 9px; border-radius: 999px; }
-.wp-title { font-size: 22px; margin: 4px 0 10px; color: var(--forest); line-height: 1.2; }
+.wp-title { font-size: 22px; margin: 4px 0 4px; color: var(--forest); line-height: 1.2; }
+.wp-sci { font-size: 13.5px; color: var(--muted); margin: 0 0 10px; }
+.wp-sci em { color: #2a3b30; }
 .wp-desc { font-size: 15px; line-height: 1.6; margin: 0 0 14px; color: #2a3b30; }
+.mp-sci { display: block; font-size: 12px; color: var(--muted); margin: -1px 0 3px; }
+.lg-count { font-size: 10.5px; font-weight: 700; color: var(--muted); background: var(--mist); border-radius: 999px; padding: 1px 6px; margin-left: 3px; }
 .wp-photo { width: 100%; border-radius: 12px; margin-bottom: 10px; }
 .wp-species { display: flex; flex-wrap: wrap; gap: 7px; }
 .wp-species .chip {

@@ -18,6 +18,7 @@ const CONFIG = {
   data: {
     boundary: 'data/boundary.geojson', zones: 'data/zones.geojson',
     trails: 'data/trails.geojson', waypoints: 'data/waypoints.geojson',
+    trees: 'data/trees.geojson',
     routes: 'data/routes.json', species: 'data/species.json',
     reserveInfo: 'data/reserve_info.json', media: 'data/media.json',
   },
@@ -36,6 +37,7 @@ function wayback(rel) { return `https://wayback.maptiles.arcgis.com/arcgis/rest/
 
 const state = {
   map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
+  treesInv: [], treesVisible: false,   // inventario de árboles (capa de referencia, off por defecto)
   activeRoute: null, userPos: null, watchId: null, firstFix: false,
   lastTriggered: {}, openWaypointId: null, baseIndex: 2, zonesVisible: false,
   reserveInfo: null, media: { bySubject: {} }, boundary: null,
@@ -55,6 +57,7 @@ const TYPE_META = {
   agua:         { emoji: '💧', color: '#2b8cbe', es: 'Agua',          en: 'Water' },
   flora:        { emoji: '🌿', color: '#2f9e44', es: 'Flora',         en: 'Plants' },
   servicio:     { emoji: '🏠', color: '#6a4c93', es: 'Servicios',     en: 'Facilities' },
+  arbol:        { emoji: '🌳', color: '#1b7a3a', es: 'Árboles',       en: 'Trees' },
   punto:        { emoji: '📍', color: '#5b6b60', es: 'Otros puntos',  en: 'Other points' },
 };
 const typeMeta = (tp) => TYPE_META[tp] || TYPE_META.punto;
@@ -105,6 +108,9 @@ const I18N = {
     more_info: 'Más información', sample_photo: 'foto de muestra',
     legend: 'Leyenda', lg_trails: 'Senderos', lg_route: 'Recorrido activo', lg_start: 'Inicio', lg_end: 'Fin',
     lg_point: 'Punto clave', lg_zones: 'Zonas de manejo', lg_zones_toggle: 'Mostrar/ocultar zonas',
+    lg_trees_layer: 'Árboles del inventario', lg_trees_toggle: 'Mostrar/ocultar árboles',
+    lg_trees_hint: 'Censo georreferenciado 2021. Acércate para verlos y tócalos.',
+    tree_note: 'Árbol del inventario de Cantares (censo 2021)', tree_tag: 'N.º',
     lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
     base_label: 'Imagen satelital', base_hd: 'Actual (HD)', base_ortho: 'Ortofoto',
@@ -168,6 +174,9 @@ const I18N = {
     more_info: 'More info', sample_photo: 'sample photo',
     legend: 'Legend', lg_trails: 'Trails', lg_route: 'Active route', lg_start: 'Start', lg_end: 'End',
     lg_point: 'Key point', lg_zones: 'Management zones', lg_zones_toggle: 'Show/hide zones',
+    lg_trees_layer: 'Tree inventory', lg_trees_toggle: 'Show/hide trees',
+    lg_trees_hint: 'Georeferenced 2021 census. Zoom in to see and tap them.',
+    tree_note: 'Tree from the Cantares inventory (2021 census)', tree_tag: 'No.',
     lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
     base_label: 'Satellite image', base_hd: 'Current (HD)', base_ortho: 'Orthophoto',
@@ -339,6 +348,12 @@ async function initMap() {
   const [boundary, zones] = await Promise.all([
     loadJSON(CONFIG.data.boundary), loadJSON(CONFIG.data.zones),
   ]);
+  // Inventario de árboles georreferenciado (capa de referencia; no editable por
+  // el CMS, así que se carga siempre del archivo estático).
+  if (!state.treesInv.length) {
+    try { const tf = await loadJSON(CONFIG.data.trees); normalizeFeatures(tf); state.treesInv = tf.features; }
+    catch (e) { state.treesInv = []; }
+  }
   // Trails/waypoints pueden venir ya cargados desde la nube (ediciones del admin);
   // si no, se cargan de los archivos estáticos (offline / sin nube).
   let trails, waypointsFC;
@@ -400,6 +415,14 @@ async function initMap() {
         paint: { 'circle-radius': 7,
           'circle-color': ['match', ['get', 'kind'], 'start', '#2f9e44', 'end', '#e03131', '#888'],
           'circle-stroke-color': '#fff', 'circle-stroke-width': 2.5 } });
+      // Inventario de árboles: capa propia, dots verdes pequeños, sólo desde
+      // zoom 16 (evita amontonar 207 puntos) y oculta hasta que se active en la
+      // leyenda. Va DEBAJO de los waypoints curados para no taparlos.
+      map.addSource('trees', { type: 'geojson', data: { type: 'FeatureCollection', features: state.treesInv } });
+      map.addLayer({ id: 'trees-pt', type: 'circle', source: 'trees', minzoom: 16,
+        layout: { visibility: state.treesVisible ? 'visible' : 'none' },
+        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 2.6, 18, 4.5, 20, 6],
+          'circle-color': TYPE_META.arbol.color, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
       // waypoints — colored by tipo so they match the legend's type toggles (small dots)
       map.addSource('waypoints', { type: 'geojson', data: waypointsFC });
       map.addLayer({ id: 'waypoints-pt', type: 'circle', source: 'waypoints',
@@ -413,10 +436,15 @@ async function initMap() {
         paint: { 'circle-radius': 7, 'circle-color': '#2b8cbe', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
 
       const wpAt = (e) => state.waypoints.find((w) => w.properties.id === e.features[0].properties.id);
+      const treeAt = (e) => state.treesInv.find((w) => w.properties.id === e.features[0].properties.id);
       // Hover (desktop) and tap (mobile) both open the anchored mini-popup.
       map.on('mouseenter', 'waypoints-pt', (e) => { map.getCanvas().style.cursor = 'pointer'; cancelClosePopup(); miniPopup(wpAt(e)); });
       map.on('mouseleave', 'waypoints-pt', () => { map.getCanvas().style.cursor = ''; scheduleClosePopup(); });
       map.on('click', 'waypoints-pt', (e) => { state._wpClick = true; miniPopup(wpAt(e)); });
+      // Árboles del inventario: misma interacción (popup → ficha).
+      map.on('mouseenter', 'trees-pt', (e) => { map.getCanvas().style.cursor = 'pointer'; cancelClosePopup(); miniPopup(treeAt(e)); });
+      map.on('mouseleave', 'trees-pt', () => { map.getCanvas().style.cursor = ''; scheduleClosePopup(); });
+      map.on('click', 'trees-pt', (e) => { state._wpClick = true; miniPopup(treeAt(e)); });
       // Click on empty map closes the mini-popup.
       map.on('click', () => { if (state._wpClick) { state._wpClick = false; return; } removePopup(); });
       finish();
@@ -751,6 +779,7 @@ function miniPopup(wp) {
     ${photo ? `<div class="mp-photo" style="background-image:url('${photo}')"></div>` : ''}
     <div class="mp-body">${badge}
       <strong>${escapeHtml(L(p, 'title') || p.title)}</strong>
+      ${p.sci ? `<em class="mp-sci">${escapeHtml(p.sci)}</em>` : ''}
       ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
       ${hasMore ? `<button class="mp-more" type="button">${t('more_info')} ›</button>` : ''}
     </div></div>`;
@@ -792,8 +821,10 @@ function showWaypoint(wp) {
     <div class="wp-inner">
       <div class="wp-theme-badges">${badges}</div>
       <h2 class="wp-title">${escapeHtml(L(p, 'title') || p.title)}</h2>
+      ${p.sci ? `<p class="wp-sci"><em>${escapeHtml(p.sci)}</em>${p.family ? ` · ${escapeHtml(p.family)}` : ''}</p>` : ''}
       ${desc ? `<p class="wp-desc">${escapeHtml(desc)}</p>` : ''}
       ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
+      ${p.tipo === 'arbol' ? `<p class="tiny muted" style="margin-top:10px">${t('tree_note')}${p.tag ? ` · ${t('tree_tag')} ${escapeHtml(p.tag)}` : ''}${p.altitude ? ` · ${escapeHtml(p.altitude)}` : ''}</p>` : ''}
       ${p.approx ? `<p class="tiny muted" style="margin-top:10px">${t('approx_note')}</p>` : ''}
     </div>`;
   $('#waypoint-card').classList.remove('hidden');
@@ -1122,6 +1153,9 @@ function renderLegend() {
           <span class="lg-dot" style="background:${m.color}"></span>${m.emoji} ${typeLabel(tp)}</button>`;
       }).join('')}
     </div>
+    ${state.treesInv.length ? `<div class="lg-sep lg-zones-head">${TYPE_META.arbol.emoji} ${t('lg_trees_layer')} <span class="lg-count">${state.treesInv.length}</span>
+      <button id="trees-toggle" class="lg-eye" title="${t('lg_trees_toggle')}">${state.treesVisible ? '👁' : '🚫'}</button></div>
+    <div class="lg-row lg-dim" style="font-size:11px">${t('lg_trees_hint')}</div>` : ''}
     <div class="lg-sep lg-zones-head">${t('lg_zones')}
       <button id="zones-toggle" class="lg-eye" title="${t('lg_zones_toggle')}">${off ? '🚫' : '👁'}</button></div>
     <div id="lg-zone-rows" class="${off ? 'lg-dim' : ''}">
@@ -1129,6 +1163,8 @@ function renderLegend() {
     </div>`;
   const zt = $('#zones-toggle');
   if (zt) zt.onclick = toggleZones;
+  const tt = $('#trees-toggle');
+  if (tt) tt.onclick = toggleTrees;
   $$('#legend-body .lg-type').forEach((b) => b.onclick = () => toggleType(b.dataset.type));
 }
 function toggleType(tp) {
@@ -1145,6 +1181,13 @@ function toggleZones() {
     map.setLayoutProperty('zones-fill', 'visibility', vis);
     map.setLayoutProperty('zones-line', 'visibility', vis);
   }
+  renderLegend();
+}
+function toggleTrees() {
+  state.treesVisible = !state.treesVisible;
+  const map = state.map;
+  if (map && map.getLayer('trees-pt')) map.setLayoutProperty('trees-pt', 'visibility', state.treesVisible ? 'visible' : 'none');
+  if (state.treesVisible && map && map.getZoom() < 16) map.easeTo({ zoom: 16.5, duration: 700 });   // los árboles salen desde z16
   renderLegend();
 }
 
