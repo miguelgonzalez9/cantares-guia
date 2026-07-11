@@ -152,6 +152,17 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .base-ticks span { font-size: 11px; color: var(--muted); line-height: 1; }
 
 /* Route info — tall rectangular panel docked on the right; chips stay visible */
+/* Chip flotante mientras se sigue un recorrido (la caja grande queda cerrada) */
+.guide-chip {
+  position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 7;
+  display: flex; align-items: stretch; max-width: 88vw;
+  background: var(--card); border: 2px solid var(--moss); border-radius: 999px;
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.guide-chip button { border: none; background: none; cursor: pointer; font-size: 13px; padding: 8px 12px; white-space: nowrap; }
+.guide-chip .gc-open { overflow: hidden; text-overflow: ellipsis; color: var(--forest); }
+.guide-chip .gc-stop { color: #e03131; font-weight: 800; border-left: 1px solid var(--line); padding: 8px 14px; }
+
 .route-info {
   position: absolute; right: 10px; top: 150px; z-index: 7;
   width: min(258px, 74vw); max-height: calc(100% - 246px);

@@ -650,7 +650,12 @@ function renderRouteInfo(route, built) {
     .map((w) => ({ w, pos: pathPos(built.path, w.geometry.coordinates) }))
     .sort((a, b) => a.pos - b.pos).map((x) => x.w);
   const guiding = state.guiding === id;
-  info.classList.remove('hidden');
+  // Una sola caja a la vez: abrir la del recorrido cierra la del punto.
+  closeWaypoint(); removePopup();
+  // Durante la guía la caja vive cerrada (queda el chip); si el usuario la
+  // reabrió desde el chip, respetar eso. Fuera de guía, siempre abierta.
+  const wasHidden = info.classList.contains('hidden');
+  if (!guiding || !wasHidden) info.classList.remove('hidden');
   info.style.borderTopColor = route.color;
   info.innerHTML = `
     <button class="ri-close" id="ri-close" aria-label="Cerrar">×</button>
@@ -670,12 +675,9 @@ function renderRouteInfo(route, built) {
         return `<li data-wp="${w.properties.id}"><span class="ri-pdot" style="background:${m.color}"></span>${escapeHtml(L(w.properties, 'title') || w.properties.title)}</li>`;
       }).join('')}</ul>` : `<p class="ri-empty">${t('no_points')}</p>`}
     </div>`;
-  $('#ri-close').onclick = () => {
-    // Durante la guía, la × podría ser un mistap: confirmar antes de terminar.
-    if (state.guiding && !confirm(t('guiding_confirm_end'))) return;
-    info.classList.add('hidden');
-    if (state.guiding) stopGuiding();
-  };
+  // La × solo cierra la caja. Durante la guía queda el chip flotante para
+  // reabrirla o terminar — cerrar la caja ya no termina el recorrido.
+  $('#ri-close').onclick = () => info.classList.add('hidden');
   $('#ri-start').onclick = () => (state.guiding === id ? stopGuiding() : startGuiding(id));
   $$('#route-info .ri-points li').forEach((li) => li.onclick = () => {
     const w = wpById(li.dataset.wp);
@@ -768,6 +770,11 @@ function showWaypoint(wp) {
   if (!wp) return;
   const p = wp.properties;
   state.openWaypointId = p.id;
+  // Una sola caja a la vez: la tarjeta del punto oculta la caja del recorrido
+  // (y al cerrarla, la caja vuelve si estaba abierta).
+  const ri = $('#route-info');
+  state._riWasOpen = !ri.classList.contains('hidden');
+  ri.classList.add('hidden');
   const badges = (p.routes || []).map((rid) =>
     `<span class="badge" style="background:${ROUTE_COLORS[rid] || '#5b6b60'}">${routeLabel(rid)}</span>`).join('');
   const speciesChips = (p.species_ids || []).map((sid) => {
@@ -793,7 +800,11 @@ function showWaypoint(wp) {
   $$('#wp-content .chip').forEach((chip) =>
     chip.onclick = () => { switchView('especies'); highlightSpecies(chip.dataset.species); });
 }
-function closeWaypoint() { $('#waypoint-card').classList.add('hidden'); state.openWaypointId = null; }
+function closeWaypoint() {
+  $('#waypoint-card').classList.add('hidden'); state.openWaypointId = null;
+  if (state._riWasOpen && state.activeRoute) $('#route-info').classList.remove('hidden');
+  state._riWasOpen = false;
+}
 
 // ---------- geolocation ----------
 function setGps(status, label) {
@@ -859,14 +870,39 @@ function startGuiding(id) {
   // y los avisos de llegada a los puntos mueren en silencio.
   keepAwake().then((ok) => toast(ok ? t('guiding_screen') : t('guiding_screen_warn')));
   toast(t('guiding_on'));
-  renderRouteInfo(state.routesById[id], built);
+  // Mapa despejado durante la guía: la caja se cierra y queda solo el chip.
+  closeWaypoint(); removePopup();
+  $('#route-info').classList.add('hidden');
+  guideChip(true);
 }
 function stopGuiding() {
   const wasId = state.guiding;
   state.guiding = null;
   releaseAwake();
+  guideChip(false);
   if (wasId) toast(t('guiding_off'));
   if (state.activeRoute) renderRouteInfo(state.routesById[state.activeRoute], buildRoutePath(state.activeRoute));
+}
+// Chip flotante mientras se sigue un recorrido: tocar el nombre reabre la caja
+// de información; ■ termina (con confirmación — es un botón pequeño).
+function guideChip(show) {
+  let el = document.getElementById('guide-chip');
+  if (!show) { if (el) el.remove(); return; }
+  const r = state.routesById[state.guiding];
+  if (!r) return;
+  if (!el) {
+    el = document.createElement('div'); el.id = 'guide-chip'; el.className = 'guide-chip';
+    (document.getElementById('view-recorridos') || document.body).appendChild(el);
+  }
+  el.style.borderColor = r.color || 'var(--moss)';
+  el.innerHTML = `
+    <button class="gc-open">${r.emoji || '🥾'} <b>${escapeHtml(L(r, 'name'))}</b></button>
+    <button class="gc-stop" aria-label="${t('ri_stop_walk')}">■</button>`;
+  el.querySelector('.gc-open').onclick = () => {
+    renderRouteInfo(r, buildRoutePath(state.guiding));
+    $('#route-info').classList.remove('hidden');
+  };
+  el.querySelector('.gc-stop').onclick = () => { if (confirm(t('guiding_confirm_end'))) stopGuiding(); };
 }
 
 function checkProximity() {
