@@ -7,6 +7,7 @@ import { initAuthGate, doLogout } from './auth-ui.js';
 import { initAdmin } from './admin.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk } from './recorder.js';
 import { initSync, pendingOps } from './sync.js';
+import { keepAwake, releaseAwake } from './wakelock.js';
 
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const CONFIG = {
@@ -115,7 +116,10 @@ const I18N = {
     rest_title: 'Restauración',
     rest_lead: 'De potrero de kikuyo a bosque. La reserva tiene <strong>16,4 ha en restauración</strong>, donde el ganado salió hacia ~2019 y hoy crecen especies nativas.',
     ndvi_h: '🌿 Reverdecimiento (NDVI)', ndvi_p: 'Serie temporal Sentinel-2 2019 → hoy en la zona de restauración vs. la de conservación (control).',
-    ndvi_pending: 'Pendiente: correr <code>data_prep/03_ndvi_timeseries.R</code> (requiere Earth Engine).',
+    ndvi_pending: 'Próximamente: el gráfico del reverdecimiento de la reserva medido por satélite (2019 → hoy).',
+    guiding_confirm_end: '¿Terminar el recorrido guiado?',
+    guiding_screen: '🔆 La pantalla quedará encendida durante el recorrido',
+    guiding_screen_warn: '⚠️ Mantén la pantalla encendida: si se apaga, se pierden los avisos de los puntos',
     ortho_h: '🛰️ Antes / después (ortofoto)', ortho_p: 'Ortofoto fotogramétrica de la reserva (~4,4 cm/píxel).',
     carbon_h: '🌳 Carbono capturado',
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
@@ -145,7 +149,7 @@ const I18N = {
     v_rules_h: '📋 Normas de la reserva', v_safety_h: '🛟 Seguridad',
     v_lost: 'Si te pierdes', v_emergency: 'Emergencias', v_call: 'Llamar',
     v_pending: 'Por completar', v_whatsapp: 'WhatsApp',
-    demo_note: 'Cifras de DEMOSTRACIÓN. Reemplaza <code>inputs/inventory/key_trees.csv</code> y corre <code>data_prep/05_carbon_allometry.R</code>.',
+    demo_note: 'Cifras preliminares de demostración — pronto con el inventario real de árboles de la reserva.',
     key_trees: 'árboles clave', agb: 'biomasa aérea',
   },
   en: {
@@ -175,7 +179,10 @@ const I18N = {
     rest_title: 'Restoration',
     rest_lead: 'From kikuyu pasture to forest. The reserve has <strong>16.4 ha under restoration</strong>, where cattle left around 2019 and native species now grow.',
     ndvi_h: '🌿 Greening (NDVI)', ndvi_p: 'Sentinel-2 time series 2019 → today in the restoration zone vs. the conservation zone (control).',
-    ndvi_pending: 'Pending: run <code>data_prep/03_ndvi_timeseries.R</code> (needs Earth Engine).',
+    ndvi_pending: 'Coming soon: a satellite-measured greening chart of the reserve (2019 → today).',
+    guiding_confirm_end: 'End the guided route?',
+    guiding_screen: '🔆 The screen will stay on during the route',
+    guiding_screen_warn: '⚠️ Keep the screen on: if it turns off, point alerts stop',
     ortho_h: '🛰️ Before / after (orthophoto)', ortho_p: 'Photogrammetric orthophoto of the reserve (~4.4 cm/pixel).',
     carbon_h: '🌳 Carbon captured',
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
@@ -205,7 +212,7 @@ const I18N = {
     v_rules_h: '📋 Reserve rules', v_safety_h: '🛟 Safety',
     v_lost: 'If you get lost', v_emergency: 'Emergencies', v_call: 'Call',
     v_pending: 'To be filled in', v_whatsapp: 'WhatsApp',
-    demo_note: 'DEMO figures. Replace <code>inputs/inventory/key_trees.csv</code> and run <code>data_prep/05_carbon_allometry.R</code>.',
+    demo_note: 'Preliminary demo figures — the real tree inventory of the reserve is coming soon.',
     key_trees: 'key trees', agb: 'above-ground biomass',
   },
 };
@@ -345,6 +352,9 @@ async function initMap() {
     container: 'map', style: buildStyle(), center: CONFIG.center, zoom: CONFIG.zoom,
     maxBounds: CONFIG.maxBounds, attributionControl: { compact: true },
   });
+  // Panear con el dedo suspende el seguimiento GPS (el mapa deja de "pelear"
+  // por recentrarse); un tap en ◎ lo reactiva.
+  map.on('dragstart', () => { state.following = false; });
   state.map = map;
   map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
 
@@ -660,7 +670,12 @@ function renderRouteInfo(route, built) {
         return `<li data-wp="${w.properties.id}"><span class="ri-pdot" style="background:${m.color}"></span>${escapeHtml(L(w.properties, 'title') || w.properties.title)}</li>`;
       }).join('')}</ul>` : `<p class="ri-empty">${t('no_points')}</p>`}
     </div>`;
-  $('#ri-close').onclick = () => { info.classList.add('hidden'); if (state.guiding) stopGuiding(); };
+  $('#ri-close').onclick = () => {
+    // Durante la guía, la × podría ser un mistap: confirmar antes de terminar.
+    if (state.guiding && !confirm(t('guiding_confirm_end'))) return;
+    info.classList.add('hidden');
+    if (state.guiding) stopGuiding();
+  };
   $('#ri-start').onclick = () => (state.guiding === id ? stopGuiding() : startGuiding(id));
   $$('#route-info .ri-points li').forEach((li) => li.onclick = () => {
     const w = wpById(li.dataset.wp);
@@ -786,11 +801,21 @@ function setGps(status, label) {
   chip.className = `gps-chip gps-${status}`; $('#gps-label').textContent = label || t('gps');
 }
 function locate() {
-  if (state.watchId != null) { stopTracking(); return; }
+  if (state.watchId != null) {
+    // Ya hay GPS activo: si el usuario paneó el mapa (dejó de seguir), un tap
+    // vuelve a centrar y seguir (patrón Google Maps); si ya seguía, apaga.
+    if (!state.following) {
+      state.following = true;
+      if (state.userPos && state.map) state.map.easeTo({ center: state.userPos, zoom: Math.max(state.map.getZoom(), 16.5), duration: 600 });
+      return;
+    }
+    stopTracking(); return;
+  }
   if (!('geolocation' in navigator)) { setGps('error', t('gps_unsupported')); toast(t('gps_unsupported')); return; }
   const localhost = ['localhost', '127.0.0.1'].includes(location.hostname);
   if (!window.isSecureContext && !localhost) toast(t('gps_insecure'));
   state.firstFix = false;
+  state.following = true;
   setGps('searching', t('gps_searching'));
   $('#locate-btn').classList.add('tracking');
   navigator.geolocation.getCurrentPosition(onPosition, onGeoError, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
@@ -798,7 +823,11 @@ function locate() {
 }
 function stopTracking() {
   if (state.watchId != null) navigator.geolocation.clearWatch(state.watchId);
-  state.watchId = null; $('#locate-btn').classList.remove('tracking'); setGps('off', t('gps'));
+  state.watchId = null; state.following = false;
+  $('#locate-btn').classList.remove('tracking'); setGps('off', t('gps'));
+  // Sin GPS no hay avisos de proximidad: cerrar también el modo guiado para
+  // que el estado visible coincida con lo que de verdad está pasando.
+  if (state.guiding) stopGuiding();
 }
 function onPosition(pos) {
   const { longitude, latitude, accuracy } = pos.coords;
@@ -808,7 +837,9 @@ function onPosition(pos) {
   if (src) src.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: state.userPos }, properties: {} }] });
   if (state.map) {
     if (!state.firstFix) { state.map.flyTo({ center: state.userPos, zoom: 17, duration: 900 }); state.firstFix = true; }
-    else state.map.easeTo({ center: state.userPos, duration: 600 });
+    // Recentrar sólo en modo seguimiento: si el usuario paneó para mirar más
+    // adelante, no pelearle el mapa en cada fijo del GPS.
+    else if (state.following) state.map.easeTo({ center: state.userPos, duration: 600 });
   }
   checkProximity();
 }
@@ -823,12 +854,17 @@ function startGuiding(id) {
   const built = buildRoutePath(id);
   if (built && state.map) state.map.easeTo({ center: built.path[0], zoom: 17.5, duration: 800 });
   if (state.watchId == null) locate();   // begin GPS follow (google-maps style)
+  state.following = true;
+  // Pantalla encendida durante la guía: si se apaga, el navegador corta el GPS
+  // y los avisos de llegada a los puntos mueren en silencio.
+  keepAwake().then((ok) => toast(ok ? t('guiding_screen') : t('guiding_screen_warn')));
   toast(t('guiding_on'));
   renderRouteInfo(state.routesById[id], built);
 }
 function stopGuiding() {
   const wasId = state.guiding;
   state.guiding = null;
+  releaseAwake();
   if (wasId) toast(t('guiding_off'));
   if (state.activeRoute) renderRouteInfo(state.routesById[state.activeRoute], buildRoutePath(state.activeRoute));
 }
@@ -841,7 +877,8 @@ function checkProximity() {
     const d = haversine(state.userPos, wp.geometry.coordinates);
     if (d <= CONFIG.proximityMeters && !state.lastTriggered[id]) {
       state.lastTriggered[id] = true;
-      toast('📍 ' + (L(wp.properties, 'title') || wp.properties.name));
+      const arriveName = L(wp.properties, 'title') || wp.properties.title || '';
+      if (arriveName) toast('📍 ' + arriveName);
       miniPopup(wp);   // arriving shows the small popup; visitor taps "Más info" to expand
     } else if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) state.lastTriggered[id] = false;
   });
@@ -849,7 +886,10 @@ function checkProximity() {
 let toastTimer = null;
 function toast(msg) {
   const el = $('#proximity-toast'); el.textContent = msg; el.classList.remove('hidden');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hidden'), 3400);
+  clearTimeout(toastTimer);
+  // Mensajes largos (errores, avisos offline) necesitan más tiempo de lectura.
+  const ms = Math.max(3400, Math.min(8000, String(msg).length * 70));
+  toastTimer = setTimeout(() => el.classList.add('hidden'), ms);
 }
 
 // ---------- species ----------
@@ -1094,7 +1134,7 @@ function makeDraggable(el, handle, key, onTap) {
   const move = (e) => {
     if (!dragging) return;
     const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (!moved && Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+    if (!moved && Math.abs(dx) + Math.abs(dy) > 9) moved = true;   // >9px: un tap tembloroso caminando no debe mover el widget
     if (!moved) return;
     if (e.cancelable) e.preventDefault();
     clampAndSet(startLeft + dx, startTop + dy);
@@ -1193,6 +1233,9 @@ async function main() {
 
   // El resto del arranque ocurre DESPUÉS de la puerta de entrada (login/invitado).
   const enterApp = async () => {
+    // La puerta de entrada pudo cambiar el idioma (botón English): sincronizar.
+    const gateLang = localStorage.getItem('cantares_lang');
+    if (gateLang && gateLang !== LANG) setLang(gateLang);
     await loadCloudData();                       // preferir datos de la nube (ediciones del admin)
     renderSpeciesFilters(); renderSpeciesGrid(); renderLegend();
     if (!localStorage.getItem('cantares_onboarded')) showOnboarding();
@@ -1219,6 +1262,7 @@ async function main() {
         await refreshRoutes(); await refreshTrails(); await refreshWaypoints(); await refreshSpecies();
       },
       onPending: (n) => { const fab = document.getElementById('admin-fab'); if (fab) fab.dataset.pending = String(n || 0); },
+      onStuck: (op) => toast(`⚠️ Un cambio (${op.table}) no se ha podido subir. Revisa tu sesión de admin; se seguirá reintentando.`),
     });
     registerSW();
   };

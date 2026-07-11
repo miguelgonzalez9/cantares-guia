@@ -222,14 +222,18 @@ export function capturedPhotos(limit = 24) {
   const p = currentPlayer();
   if (!p) return [];
   return playerObs(p.id).filter((o) => o.photo).slice(-limit).reverse()
-    .map((o) => ({ url: URL.createObjectURL(o.photo), common: o.common || o.sci || '', group: o.group || '', time: o.time, lat: o.lat, lon: o.lon }));
+    // photo puede ser un Blob (captura local) o una URL pública (rehidratada de la nube)
+    .map((o) => ({ url: typeof o.photo === 'string' ? o.photo : URL.createObjectURL(o.photo), common: o.common || o.sci || '', group: o.group || '', time: o.time, lat: o.lat, lon: o.lon }));
 }
 
 // ---------- especie del día (determinista por fecha) — sólo plantas ----------
 function speciesOfDay() {
   const list = CTX.state.species.filter((s) => s.group === 'flora');
   if (!list.length) return null;
-  const d = new Date().toISOString().slice(0, 10);
+  // Fecha LOCAL (no UTC): en Colombia (UTC-5) la especie del día cambiaba a
+  // las 7 pm; con la fecha local cambia a medianoche, como se espera.
+  const now = new Date();
+  const d = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   let h = 0;
   for (const c of d) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return list[h % list.length];
@@ -821,8 +825,11 @@ export async function initGame(ctx) {
         if (have.has(oid)) continue;
         const o = { id: oid, playerId: u.id, kind: cs.species_id ? 'capture' : 'finding', speciesId: cs.species_id || null,
           sci: cs.sci || '', common: cs.common || '', group: cs.group || 'otro',
-          time: cs.taken_at ? new Date(cs.taken_at).getTime() : Date.now(), lat: cs.lat, lon: cs.lng,
-          points: cs.points || 0, photo: null, breakdown: [] };
+          // time SIEMPRE como string ISO (el resto del código ordena con
+          // localeCompare y recorta con slice(0,10) — un número rompe ambos);
+          // photo: conservar la URL pública de la nube para la galería.
+          time: cs.taken_at ? new Date(cs.taken_at).toISOString() : new Date().toISOString(), lat: cs.lat, lon: cs.lng,
+          points: cs.points || 0, photo: cs.photo || null, breakdown: [] };
         await dbPut('obs', o); allObs.push(o);
       }
     } catch (e) { console.warn('[cloud] rehidratar', e && e.message); }

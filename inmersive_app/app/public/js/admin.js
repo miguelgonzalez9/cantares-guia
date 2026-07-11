@@ -9,7 +9,20 @@ import { doLogout } from './auth-ui.js';
 let CTX = null;
 let _pointDraft = null, moveMarker = null;
 const TIPOS = ['mirador', 'avistamiento', 'agua', 'flora', 'servicio', 'punto'];
+// Etiquetas humanas para los selects (los valores internos no cambian).
+const TIPO_LABEL = { mirador: '🔭 Mirador', avistamiento: '🐾 Avistamiento', agua: '💧 Agua', flora: '🌿 Flora', servicio: '🏠 Servicio (casa, cabaña…)', punto: '📍 Otro punto' };
 const GROUPS = ['flora', 'ave', 'mamifero', 'anfibio', 'otro'];
+const GROUP_LABEL = { flora: '🌿 Planta', ave: '🐦 Ave', mamifero: '🐾 Mamífero', anfibio: '🐸 Anfibio', otro: '❓ Otro' };
+// Errores técnicos → mensajes accionables en español (lo técnico va a console).
+function friendlyErr(e) {
+  const m = (e && e.message) || String(e || '');
+  console.warn('[admin]', m);
+  if (/row-level security|permission|policy|403/i.test(m)) return 'No tienes permiso para este cambio. ¿Venció tu sesión? Sal y vuelve a entrar con tu usuario de admin.';
+  if (/JWT|token|expired|401/i.test(m)) return 'Tu sesión venció — cierra sesión y vuelve a entrar.';
+  if (/fetch|network|timeout|conex/i.test(m)) return 'Sin conexión. El cambio quedó guardado en el teléfono y se subirá solo cuando haya señal.';
+  if (/duplicate|unique/i.test(m)) return 'Ya existe un elemento con ese identificador.';
+  return 'No se pudo guardar: ' + m;
+}
 const PALETTE = ['#2b8cbe', '#d94801', '#238b45', '#c2255c', '#1098ad', '#6a4c93', '#3b5bdb', '#e07a1f', '#0f766e', '#b45309', '#7c3aed', '#0b7285'];
 const EMOJIS = ['💧', '🐦', '🌳', '🌸', '🏞️', '🌱', '🦉', '🐾', '🦋', '🌿', '⛰️', '🍃'];
 const rid = (pfx) => `${pfx}_${Date.now().toString(36)}${Math.floor(Math.random() * 1e3)}`;
@@ -30,6 +43,20 @@ export function initAdmin(ctx) {
 }
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// Lista de checkboxes de especies (con nombre común) para el editor de puntos.
+// Sin escribir ids ni nombres científicos a mano: cero errores de tipeo.
+function speciesChecks(selected) {
+  const sel = new Set((selected || []).map((s) => String(s).trim().toLowerCase()));
+  return CTX.state.species.slice()
+    .sort((a, b) => (a.common_name || a.scientific_name || '').localeCompare(b.common_name || b.scientific_name || ''))
+    .map((s) => {
+      const on = sel.has(String(s.id).toLowerCase()) || sel.has((s.scientific_name || '').toLowerCase());
+      const label = s.common_name ? `${s.common_name}` : (s.scientific_name || s.id);
+      const search = `${s.common_name || ''} ${s.scientific_name || ''}`.toLowerCase();
+      return `<label class="admin-chk" data-n="${esc(search)}"><input type="checkbox" value="${esc(s.id)}" ${on ? 'checked' : ''}> ${esc(label)}</label>`;
+    }).join('');
+}
 
 function panelEl() {
   let el = document.getElementById('admin-panel');
@@ -95,12 +122,14 @@ function editPunto(id) {
       <label>Título (ES)</label><input id="f-title" value="${esc(p.title)}">
       <label>Title (EN)</label><input id="f-title-en" value="${esc(p.title_en)}">
       <label>Descripción (ES)</label><textarea id="f-desc" rows="3">${esc(p.description)}</textarea>
+      <div class="admin-note">Con descripción, foto o especies, el punto muestra el botón «Más información». Sin nada de eso, solo el título.</div>
       <label>Description (EN)</label><textarea id="f-desc-en" rows="3">${esc(p.description_en)}</textarea>
-      <label>Tipo</label>
-      <select id="f-tipo">${TIPOS.map((tp) => `<option value="${tp}" ${p.tipo === tp ? 'selected' : ''}>${tp}</option>`).join('')}</select>
-      <label>Recorridos</label><div class="admin-checks">${routeChecks}</div>
-      <label>Especies (ids o nombre científico, separadas por coma)</label>
-      <input id="f-species" value="${esc((p.species_ids || []).join(', '))}">
+      <label>Tipo (define el color e ícono del pin)</label>
+      <select id="f-tipo">${TIPOS.map((tp) => `<option value="${tp}" ${p.tipo === tp ? 'selected' : ''}>${TIPO_LABEL[tp] || tp}</option>`).join('')}</select>
+      <label>Recorridos</label><div class="admin-checks" id="f-routes">${routeChecks}</div>
+      <label>Especies en este punto (opcional)</label>
+      <input id="f-sp-search" placeholder="🔎 Buscar especie…">
+      <div class="admin-checks admin-sp-list" id="f-sp-list">${speciesChecks(p.species_ids)}</div>
       <label>Foto</label>
       <div class="admin-photo">
         <div class="admin-photo-prev" id="f-photo-prev" style="${p.photo ? `background-image:url('${esc(p.photo)}')` : ''}"></div>
@@ -158,20 +187,32 @@ function editPunto(id) {
     const timer = setTimeout(finish, 10000);
   };
   const v = (sel) => body.querySelector(sel).value;
+  // Buscador de especies: filtra la lista por nombre común o científico.
+  const spSearch = body.querySelector('#f-sp-search');
+  if (spSearch) spSearch.oninput = (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    body.querySelectorAll('#f-sp-list .admin-chk').forEach((lb) => {
+      lb.style.display = !q || (lb.dataset.n || '').includes(q) || lb.querySelector('input').checked ? '' : 'none';
+    });
+  };
+  const pickedRoutes = () => [...body.querySelectorAll('#f-routes input:checked')].map((c) => c.value);
+  const pickedSpecies = () => [...body.querySelectorAll('#f-sp-list input:checked')].map((c) => c.value);
   const saveDraftPoint = () => { _pointDraft = { id: p.id, _new: !id, loc, photoBlob,
     props: { ...p, title: v('#f-title'), title_en: v('#f-title-en'), description: v('#f-desc'), description_en: v('#f-desc-en'),
-      tipo: v('#f-tipo'), routes: [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value),
-      species_ids: v('#f-species').split(',').map((s) => s.trim()).filter(Boolean), photo: photoUrl } }; };
+      tipo: v('#f-tipo'), routes: pickedRoutes(), species_ids: pickedSpecies(), photo: photoUrl } }; };
   body.querySelector('#f-pick').onclick = () => {
     saveDraftPoint();
-    CTX.toast('Toca el mapa para fijar el punto');
     closePanel();
-    CTX.map.getCanvas().style.cursor = 'crosshair';
-    CTX.map.once('click', (e) => {
-      CTX.map.getCanvas().style.cursor = '';
-      _pointDraft.loc = [e.lngLat.lng, e.lngLat.lat];
-      openPanel(); editPunto(id);   // reabrir con la ubicación fijada (formulario preservado)
-    });
+    const map = CTX.map;
+    map.getCanvas().style.cursor = 'crosshair';
+    // HUD con salida visible: antes era un modo "trampa" sin botón de cancelar.
+    let h = document.getElementById('admin-pickpt-hud');
+    if (!h) { h = document.createElement('div'); h.id = 'admin-pickpt-hud'; h.className = 'admin-draw-hud'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
+    h.innerHTML = '<span class="adh-n">📍 Toca el mapa donde va el punto</span><button id="apt-cancel">✕ Cancelar</button>';
+    const cleanup = () => { map.off('click', clickH); map.getCanvas().style.cursor = ''; h.remove(); };
+    const clickH = (e) => { cleanup(); _pointDraft.loc = [e.lngLat.lng, e.lngLat.lat]; openPanel(); editPunto(id); };
+    h.querySelector('#apt-cancel').onclick = () => { cleanup(); openPanel(); editPunto(id); };   // formulario preservado, sin cambiar la ubicación
+    map.on('click', clickH);
   };
   body.querySelector('#f-move').onclick = () => { saveDraftPoint(); startMovePoint(id, loc); };
   body.querySelector('#f-photo').onchange = async (e) => {
@@ -191,12 +232,12 @@ function editPunto(id) {
       const res = await deleteRow('waypoints', id);
       CTX.removeLocalRow('waypoints', id); renderPuntos();
       CTX.toast(res.queued ? '💾 Eliminado — se sincronizará con señal' : 'Punto eliminado');
-    } catch (err) { body.querySelector('#f-err').textContent = err.message; }
+    } catch (err) { body.querySelector('#f-err').textContent = friendlyErr(err); }
   };
   body.querySelector('#f-save').onclick = async () => {
     if (!loc) { body.querySelector('#f-err').textContent = 'Fija la ubicación en el mapa.'; return; }
-    const routes = [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value);
-    const species_ids = body.querySelector('#f-species').value.split(',').map((s) => s.trim()).filter(Boolean);
+    const routes = pickedRoutes();
+    const species_ids = pickedSpecies();
     const row = {
       id: p.id,
       title: body.querySelector('#f-title').value.trim() || null,
@@ -211,7 +252,7 @@ function editPunto(id) {
       const res = await saveRow('waypoints', row, photoBlob);
       CTX.applyLocalRow('waypoints', res.row); renderPuntos();
       CTX.toast(res.queued ? '💾 Guardado en el teléfono — se subirá con señal' : 'Punto guardado');
-    } catch (err) { body.querySelector('#f-err').textContent = err.message; }
+    } catch (err) { body.querySelector('#f-err').textContent = friendlyErr(err); }
   };
 }
 
@@ -242,7 +283,7 @@ function editEspecie(id) {
       <label>Nombre científico</label><input id="s-sci" value="${esc(s.scientific_name)}">
       <label>Familia</label><input id="s-family" value="${esc(s.family)}">
       <label>Grupo</label>
-      <select id="s-group">${GROUPS.map((g) => `<option value="${g}" ${s.group === g ? 'selected' : ''}>${g}</option>`).join('')}</select>
+      <select id="s-group">${GROUPS.map((g) => `<option value="${g}" ${s.group === g ? 'selected' : ''}>${GROUP_LABEL[g] || g}</option>`).join('')}</select>
       <label>Estado</label>
       <select id="s-status">
         <option value="documented" ${s.status !== 'possible' ? 'selected' : ''}>documentada</option>
@@ -276,7 +317,7 @@ function editEspecie(id) {
       const res = await deleteRow('species', id);
       CTX.removeLocalRow('species', id); renderEspecies();
       CTX.toast(res.queued ? '💾 Eliminada — se sincronizará con señal' : 'Especie eliminada');
-    } catch (err) { body.querySelector('#s-err').textContent = err.message; }
+    } catch (err) { body.querySelector('#s-err').textContent = friendlyErr(err); }
   };
   body.querySelector('#s-save').onclick = async () => {
     const row = {
@@ -295,7 +336,7 @@ function editEspecie(id) {
       const res = await saveRow('species', row, photoBlob);
       CTX.applyLocalRow('species', res.row); renderEspecies();
       CTX.toast(res.queued ? '💾 Guardada en el teléfono — se subirá con señal' : 'Especie guardada');
-    } catch (err) { body.querySelector('#s-err').textContent = err.message; }
+    } catch (err) { body.querySelector('#s-err').textContent = friendlyErr(err); }
   };
 }
 
@@ -609,12 +650,17 @@ function editSendero(id) {
   body.querySelector('#tr-gps').onclick = () => { saveDraft(); startGpsDraw((c) => { if (c) CTX._draftLine = c; editSendero(id); }); };
   body.querySelector('#tr-cancel').onclick = renderSenderos;
   if (id) body.querySelector('#tr-del').onclick = async () => {
-    if (!confirm('¿Eliminar este sendero?')) return;
+    // Avisar si el sendero es parte de recorridos: quedarían con un hueco.
+    const usedIn = CTX.state.routes.filter((r) => (r.segments || []).includes(id)).map((r) => CTX.L(r, 'name') || r.id);
+    const q = usedIn.length
+      ? `Este sendero es parte de: ${usedIn.join(', ')}. Si lo eliminas, esos recorridos quedarán incompletos. ¿Eliminarlo igualmente?`
+      : '¿Eliminar este sendero?';
+    if (!confirm(q)) return;
     try {
       const res = await deleteRow('trails', id);
       CTX.removeLocalRow('trails', id); renderSenderos();
       CTX.toast(res.queued ? '💾 Eliminado — se sincronizará con señal' : 'Sendero eliminado');
-    } catch (e) { body.querySelector('#tr-err').textContent = e.message; }
+    } catch (e) { body.querySelector('#tr-err').textContent = friendlyErr(e); }
   };
   body.querySelector('#tr-save').onclick = async () => {
     if (!coords || coords.length < 2) { body.querySelector('#tr-err').textContent = 'Traza el sendero primero.'; return; }
@@ -625,7 +671,7 @@ function editSendero(id) {
       const res = await saveRow('trails', row);
       CTX.applyLocalRow('trails', row); clearHighlight(); renderSenderos();
       CTX.toast(res.queued ? '💾 Sendero guardado en el teléfono — se subirá con señal' : 'Sendero guardado');
-    } catch (e) { body.querySelector('#tr-err').textContent = e.message; }
+    } catch (e) { body.querySelector('#tr-err').textContent = friendlyErr(e); }
   };
   // Ilumina en el mapa el sendero que se está editando.
   if (coords && coords.length > 1) setHl([{ type: 'Feature', properties: { _c: '#ffd000' }, geometry: { type: 'LineString', coordinates: coords } }]);
@@ -708,7 +754,7 @@ function editRecorrido(id) {
       const res = await deleteRow('routes', id);
       CTX.removeLocalRow('routes', id); renderRecorridos();
       CTX.toast(res.queued ? '💾 Eliminado — se sincronizará con señal' : 'Recorrido eliminado');
-    } catch (e) { body.querySelector('#rt-err').textContent = e.message; }
+    } catch (e) { body.querySelector('#rt-err').textContent = friendlyErr(e); }
   };
   body.querySelector('#rt-save').onclick = async () => {
     const row = { id: r.id, name: body.querySelector('#rt-name').value.trim() || null, name_en: body.querySelector('#rt-name-en').value.trim() || null,
@@ -720,6 +766,6 @@ function editRecorrido(id) {
       const res = await saveRow('routes', row);
       CTX.applyLocalRow('routes', row); clearHighlight(); renderRecorridos();
       CTX.toast(res.queued ? '💾 Recorrido guardado en el teléfono — se subirá con señal' : 'Recorrido guardado');
-    } catch (e) { body.querySelector('#rt-err').textContent = e.message; }
+    } catch (e) { body.querySelector('#rt-err').textContent = friendlyErr(e); }
   };
 }

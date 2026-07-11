@@ -142,7 +142,11 @@ function renderGate({ onEnter, onAuthChange }) {
       <p class="auth-admin">${t('admin_hint')}</p>
     </div>`;
 
-  el.querySelectorAll('.auth-lang').forEach((b) => b.onclick = () => { LANG = b.dataset.l; renderGate({ onEnter, onAuthChange }); });
+  el.querySelectorAll('.auth-lang').forEach((b) => b.onclick = () => {
+    LANG = b.dataset.l;
+    try { localStorage.setItem('cantares_lang', LANG); } catch (e) { /* ignore */ }   // que el idioma elegido siga a toda la app
+    renderGate({ onEnter, onAuthChange });
+  });
   const err = (m) => { const e = document.getElementById('auth-err'); e.textContent = m || ''; e.style.display = m ? 'block' : 'none'; };
   const busy = (on) => el.querySelectorAll('button,input').forEach((n) => n.disabled = on);
   const creds = () => [document.getElementById('auth-user').value.trim(), document.getElementById('auth-pass').value];

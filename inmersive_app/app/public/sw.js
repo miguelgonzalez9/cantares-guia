@@ -1,5 +1,5 @@
 // Cantares service worker — offline app shell + data, runtime-cache map tiles + fotos.
-const VERSION = 'cantares-v18';
+const VERSION = 'cantares-v19';
 const SHELL = `${VERSION}-shell`;
 const TILES = `${VERSION}-tiles`;
 const IMAGES = `${VERSION}-img`;
@@ -61,14 +61,19 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
   // Map raster tiles: cache-first, cap the tile cache so a walked area stays offline.
-  if (url.hostname.includes('arcgisonline.com')) {
+  // OJO: cubre AMBOS hosts de Esri — server.arcgisonline.com y
+  // wayback.maptiles.arcgis.com (las 3 capas base 2015/2020/2024 vienen del
+  // segundo; con el filtro viejo los tiles nunca se cacheaban y el mapa
+  // quedaba gris sin señal).
+  if (url.hostname.includes('arcgisonline.com') || url.hostname.includes('arcgis.com')) {
     e.respondWith(
       caches.open(TILES).then(async (cache) => {
         const hit = await cache.match(e.request);
         if (hit) return hit;
         try {
           const res = await fetch(e.request);
-          if (res.ok) cache.put(e.request, res.clone());
+          // ok (CORS) u opaca (no-cors): ambas sirven para re-mostrar el tile offline
+          if (res.ok || res.type === 'opaque') cache.put(e.request, res.clone());
           return res;
         } catch (err) {
           return hit || Response.error();

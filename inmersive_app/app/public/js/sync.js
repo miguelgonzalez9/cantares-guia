@@ -92,7 +92,7 @@ export async function deleteRow(table, id) {
 }
 
 // ---------- subir la cola ----------
-let _flushing = false, _timer = null, _onSynced = null, _onPending = null;
+let _flushing = false, _timer = null, _onSynced = null, _onPending = null, _onStuck = null;
 export async function flushOutbox() {
   if (_flushing || !navigator.onLine || !cloudConfigured()) return { synced: 0 };
   _flushing = true;
@@ -109,9 +109,13 @@ export async function flushOutbox() {
         await idbDel(op.key); synced++;
       } catch (e) {
         if (isNetErr(e)) break;   // se fue la señal: reintentar en la próxima ronda
-        op.tries = (op.tries || 0) + 1;   // error real; tras varios intentos se descarta
-        if (op.tries >= 8) { console.warn('[sync] descartando cambio', op.key, e); await idbDel(op.key); }
-        else await idbPut(op);
+        // Error real (permisos, sesión vencida, datos): NUNCA descartar el
+        // cambio — es trabajo de campo. Se conserva en la cola (cuenta en el
+        // badge) y se sigue reintentando; al fallar varias veces, avisar.
+        op.tries = (op.tries || 0) + 1;
+        await idbPut(op);
+        console.warn('[sync] cambio con error, se reintentará', op.key, e && e.message);
+        if (op.tries === 3 && _onStuck) { try { _onStuck(op); } catch (e2) { /* no romper el flush */ } }
       }
     }
   } finally { _flushing = false; }
@@ -127,8 +131,8 @@ async function notifyPending() {
 
 // Llamar una vez al arrancar. onSynced(n): refrescar datos tras subir; onPending(n):
 // mostrar contador de cambios sin subir.
-export function initSync({ onSynced, onPending } = {}) {
-  _onSynced = onSynced || null; _onPending = onPending || null;
+export function initSync({ onSynced, onPending, onStuck } = {}) {
+  _onSynced = onSynced || null; _onPending = onPending || null; _onStuck = onStuck || null;
   window.addEventListener('online', () => scheduleFlush(1500));
   document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleFlush(2000); });
   setInterval(() => { if (navigator.onLine) flushOutbox(); }, 60000);
