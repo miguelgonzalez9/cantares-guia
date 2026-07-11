@@ -3,6 +3,8 @@
 // (IndexedDB), marca dónde se tomaron las fotos del treasure hunt y exporta una
 // imagen descargable (PNG) del recorrido dibujada sobre el contorno de la reserva.
 
+import { keepAwake, releaseAwake } from './wakelock.js';
+
 let CTX = null;
 let rec = null;     // grabación en curso
 let dbP = null;
@@ -99,6 +101,7 @@ function start() {
     routeName: CTX.state.activeRoute && CTX.state.routesById[CTX.state.activeRoute] ? CTX.L(CTX.state.routesById[CTX.state.activeRoute], 'name') : null };
   renderRecording();
   CTX.toast(RT('waiting'));
+  keepAwake();   // el navegador corta el GPS si la pantalla se apaga
   rec.watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 });
   rec.timer = setInterval(tick, 1000);
   tick();
@@ -120,6 +123,7 @@ function tick() {
 }
 async function stop() {
   if (!rec) return;
+  releaseAwake();
   navigator.geolocation.clearWatch(rec.watchId); clearInterval(rec.timer);
   const walk = { id: rec.id, startedAt: rec.startedAt, endedAt: Date.now(),
     durationMs: Date.now() - rec.startedAt, distanceM: Math.round(rec.dist),

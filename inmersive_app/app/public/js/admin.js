@@ -3,6 +3,7 @@
 // directo a Supabase. Sólo se activa para cuentas con rol 'admin'.
 import { isAdmin } from './cloud.js';
 import { saveRow, deleteRow, compressImage } from './sync.js';
+import { keepAwake, releaseAwake } from './wakelock.js';
 import { doLogout } from './auth-ui.js';
 
 let CTX = null;
@@ -334,6 +335,7 @@ function drawUpdate() {
 }
 function drawClear() {
   const map = CTX.map;
+  releaseAwake();   // la pantalla ya puede apagarse
   if (draw && draw.clickHandler) map.off('click', draw.clickHandler);
   if (draw && draw.watchId != null) navigator.geolocation.clearWatch(draw.watchId);
   if (map.getSource('admin-draw')) { const e = { type: 'FeatureCollection', features: [] }; map.getSource('admin-draw').setData(e); map.getSource('admin-draw-v').setData(e); }
@@ -414,7 +416,11 @@ function startGpsDraw(onDone) {
   if (!drawInit()) { CTX.toast('Espera a que cargue el mapa'); onDone(null); return; }
   draw = { coords: [], onDone, mode: 'gps', ema: null, acc: null, warm: 0, paused: false };
   closePanel();
-  CTX.toast('Grabando… camina el sendero (los primeros segundos calibran el GPS)');
+  // Con la pantalla apagada el navegador corta el GPS: mantenerla encendida.
+  keepAwake().then((ok) => {
+    CTX.toast(ok ? '⏺ Grabando… la pantalla quedará encendida. Camina el sendero.'
+                 : '⏺ Grabando… ⚠️ NO apagues la pantalla (el GPS se corta). Camina el sendero.');
+  });
   draw.watchId = navigator.geolocation.watchPosition((p) => {
     if (!draw) return;
     draw.acc = p.coords.accuracy;

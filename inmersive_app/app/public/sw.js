@@ -1,5 +1,5 @@
 // Cantares service worker — offline app shell + data, runtime-cache map tiles + fotos.
-const VERSION = 'cantares-v16';
+const VERSION = 'cantares-v18';
 const SHELL = `${VERSION}-shell`;
 const TILES = `${VERSION}-tiles`;
 const IMAGES = `${VERSION}-img`;
@@ -15,6 +15,7 @@ const SHELL_ASSETS = [
   'js/admin.js',
   'js/recorder.js',
   'js/sync.js',
+  'js/wakelock.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'vendor/maplibre-gl.js',
@@ -40,7 +41,11 @@ async function trimCache(name, max) {
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(SHELL).then((c) => c.addAll(SHELL_ASSETS)).then(() => self.skipWaiting())
+    // 'no-cache': revalidar contra el servidor al precachear — sin esto, la
+    // caché HTTP del navegador puede colar archivos viejos en un SW nuevo.
+    caches.open(SHELL)
+      .then((c) => c.addAll(SHELL_ASSETS.map((u) => new Request(u, { cache: 'no-cache' }))))
+      .then(() => self.skipWaiting())
   );
 });
 
