@@ -297,18 +297,20 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 @keyframes popin { from { transform: translateY(18px) scale(.97); opacity: 0; } }
 .wp-modal {
   position: relative; background: var(--card); width: 100%; max-width: 460px; max-height: 90%;
-  border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;
+  border-radius: 20px; overflow: visible; display: flex; flex-direction: column;
   box-shadow: 0 20px 55px rgba(8,22,14,.45); animation: popin .22s ease;
 }
-#wp-content { overflow-y: auto; }   /* scrollea el contenido, la × (en el modal) se queda fija */
+/* El contenido redondea y recorta/scrollea; el modal NO recorta, así la × nunca
+   se corta con la esquina redondeada (se "auto-ajusta" siempre visible). */
+#wp-content { overflow: hidden; overflow-y: auto; border-radius: 20px; flex: 1 1 auto; min-height: 0; }
 .wp-photo-hdr { height: 200px; background-size: cover; background-position: center; flex: 0 0 auto; }
 .wp-no-photo { height: 84px; display: grid; place-items: center; }
 .wp-hdr-emoji { font-size: 34px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.35)); }
 .wp-inner { padding: 18px 20px 22px; }
 .card-close {
-  position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; z-index: 3;
-  border: none; background: rgba(255,255,255,0.92); border-radius: 50%; font-size: 20px; line-height: 34px;
-  color: var(--deep); cursor: pointer; box-shadow: 0 1px 6px rgba(0,0,0,.28);
+  position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; z-index: 4;
+  border: none; background: rgba(255,255,255,0.95); border-radius: 50%; font-size: 20px; line-height: 34px;
+  color: var(--deep); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.32);
 }
 .wp-theme-badges { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
 .badge { font-size: 11px; font-weight: 700; color: #fff; padding: 3px 9px; border-radius: 999px; }
@@ -746,7 +748,9 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 
 /* Área táctil ampliada (44px iOS HIG) para botones de cierre pequeños, sin
    cambiar el diseño visual: un halo invisible alrededor recibe el toque. */
-.ri-close, .card-close, .rec-x, .gm-close { position: relative; }
+/* Área táctil ampliada SIN romper el posicionado absoluto de las × (esa regla
+   con position:relative empujaba la × fuera de la caja). Los botones ya son
+   position:absolute; el ::after sólo agranda el área de toque. */
 .ri-close::after, .card-close::after, .rec-x::after, .gm-close::after {
   content: ''; position: absolute; inset: -10px;
 }

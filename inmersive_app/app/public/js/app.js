@@ -584,17 +584,31 @@ function orderedPathFromSegments(ids) {
 // direction arrows and the marching-dash flow all run the same, correct way.
 function buildRoutePath(id) {
   const route = state.routesById[id];
-  // Si el recorrido define un orden explícito de senderos, úsalo (dirección exacta).
+  const sWp = route && route.start_id ? wpById(route.start_id) : null;
+  const eWp = route && route.end_id ? wpById(route.end_id) : null;
+  // Si el recorrido define senderos en orden, úsalos; y ORIENTA la dirección
+  // según los puntos de inicio/fin si se dieron (para que el flujo del camino
+  // apunte hacia donde el admin marcó, aunque no cambie el orden de senderos).
   if (route && Array.isArray(route.segments) && route.segments.length) {
-    const path = orderedPathFromSegments(route.segments);
+    let path = orderedPathFromSegments(route.segments);
     if (path && path.length >= 2) {
-      return { segs: [], path, startCoord: path[0], endCoord: path[path.length - 1],
-        startWp: route.start_id ? wpById(route.start_id) : null,
-        endWp: route.end_id ? wpById(route.end_id) : null };
+      const last = path.length - 1;
+      const sC = sWp && sWp.geometry.coordinates, eC = eWp && eWp.geometry.coordinates;
+      if (sC) { if (haversine(path[0], sC) > haversine(path[last], sC)) path.reverse(); }
+      else if (eC) { if (haversine(path[0], eC) < haversine(path[last], eC)) path.reverse(); }
+      return { segs: [], path, startCoord: path[0], endCoord: path[path.length - 1], startWp: sWp, endWp: eWp };
     }
   }
   const info = routeStartEnd(id);
-  if (!info) return null;
+  if (!info) {
+    // Sin senderos definidos: si hay puntos de inicio Y fin, DEDUCE el camino
+    // por la red de senderos (Dijkstra), y así el recorrido queda trazado.
+    if (sWp && eWp) {
+      const r = routeOnTrails(sWp.geometry.coordinates, eWp.geometry.coordinates);
+      if (r && r.coords.length >= 2) return { segs: [], path: r.coords, startCoord: r.coords[0], endCoord: r.coords[r.coords.length - 1], startWp: sWp, endWp: eWp };
+    }
+    return null;
+  }
   const { segs, startCoord, endCoord } = info;
   const used = new Array(segs.length).fill(false);
   let path = null, tail = startCoord;
@@ -658,23 +672,38 @@ function startFlow() {
 function applyWaypointFilter() {
   const map = state.map;
   if (!map || !map.getLayer('waypoints-pt')) return;
-  // Filtros comunes (recorrido activo + tipos ocultos). Se combinan con el
-  // constraint de tipo de cada capa (curados vs árboles) para no mezclarlas.
-  const common = [];
-  if (state.activeRoute)
-    common.push(['any', ['in', state.activeRoute, ['get', 'routes']], ['==', ['length', ['get', 'routes']], 0]]);
   const hidden = [...state.hiddenTypes];
-  if (hidden.length) common.push(['!', ['in', ['get', 'tipo'], ['literal', hidden]]]);
-  map.setFilter('waypoints-pt', ['all', ['!=', ['get', 'tipo'], 'arbol'], ...common]);
-  if (map.getLayer('trees-pt')) map.setFilter('trees-pt', ['all', ['==', ['get', 'tipo'], 'arbol'], ...common]);
+  const hiddenClause = hidden.length ? [['!', ['in', ['get', 'tipo'], ['literal', hidden]]]] : [];
+  // Puntos curados (no árboles): con un recorrido activo, SÓLO los asociados a él
+  // (los que no pertenecen a ningún recorrido desaparecen).
+  const wpParts = [['!=', ['get', 'tipo'], 'arbol'], ...hiddenClause];
+  if (state.activeRoute) wpParts.push(['in', state.activeRoute, ['get', 'routes']]);
+  map.setFilter('waypoints-pt', ['all', ...wpParts]);
+  // Árboles: sin recorrido, todos; con recorrido activo, sólo los CERCA del camino.
+  if (map.getLayer('trees-pt')) {
+    const trParts = [['==', ['get', 'tipo'], 'arbol'], ...hiddenClause];
+    if (state.activeRoute) trParts.push(['in', ['get', 'id'], ['literal', state.nearbyTrees || []]]);
+    map.setFilter('trees-pt', ['all', ...trParts]);
+  }
+}
+// Árboles a menos de ~35 m del camino del recorrido (para mostrarlos con la ruta).
+function computeNearbyTrees(path) {
+  if (!path || !path.length) { state.nearbyTrees = []; return; }
+  const THRESH = 35, step = Math.max(1, Math.floor(path.length / 120));   // muestrear el camino
+  const sample = path.filter((_, i) => i % step === 0);
+  const near = [];
+  for (const w of state.waypoints) {
+    if (w.properties.tipo !== 'arbol') continue;
+    const c = w.geometry.coordinates;
+    for (const p of sample) { if (haversine(c, p) <= THRESH) { near.push(w.properties.id); break; } }
+  }
+  state.nearbyTrees = near;
 }
 function waypointVisible(wp) {
   const p = wp.properties;
   if (state.hiddenTypes.has(p.tipo || 'punto')) return false;
-  if (state.activeRoute) {
-    const rts = p.routes || [];
-    if (rts.length && !rts.includes(state.activeRoute)) return false;
-  }
+  // Con un recorrido activo: sólo sus puntos (los no asociados desaparecen).
+  if (state.activeRoute && !(p.routes || []).includes(state.activeRoute)) return false;
   return true;
 }
 
@@ -701,11 +730,13 @@ function selectRoute(id) {
       ] } : emptyFC();
       map.getSource('route-ends').setData(ends);
       if (built) startFlow(); else stopFlow();
+      computeNearbyTrees(built && built.path);   // árboles cerca del recorrido
     } else {
       map.setFilter('trails-hl', ['==', 'id', '___none___']);
       map.getSource('route-path').setData(emptyFC());
       map.getSource('route-ends').setData(emptyFC());
       stopFlow();
+      state.nearbyTrees = [];
     }
     applyWaypointFilter();
   }
@@ -1147,6 +1178,8 @@ function showSpecies(s) {
   const photos = speciesPhotos(s);
   const admin = isAdminUser();
   const statusTxt = s.status === 'possible' ? t('possible') : '';
+  let mapImg = '';   // el mini-mapa nunca debe impedir que abra la ficha
+  if (wps.length) { try { mapImg = drawSpeciesMap(wps); } catch (e) { console.warn('speciesMap', e && e.message); } }
   const html = `
     ${photos.length
       ? `<div class="wp-photo-hdr" style="background-image:url('${escapeHtml(photos[0])}')"></div>`
@@ -1158,7 +1191,7 @@ function showSpecies(s) {
       ${photos.length > 1 ? `<div class="sp-gallery">${photos.map((u) => `<img src="${escapeHtml(u)}" class="sp-gimg" loading="lazy">`).join('')}</div>` : ''}
       ${s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : ''}
       <div class="sp-where">📍 ${wps.length ? `${wps.length} ${wps.length === 1 ? t('sp_here_1') : t('sp_here_n')}` : t('sp_nowhere')}</div>
-      ${wps.length ? `<img class="sp-map" src="${drawSpeciesMap(wps)}" alt="">
+      ${wps.length ? `${mapImg ? `<img class="sp-map" src="${mapImg}" alt="">` : ''}
         <div class="sp-locs">${wps.map((w) => `<button class="chip" data-wp="${escapeHtml(w.properties.id)}">${escapeHtml(L(w.properties, 'title') || w.properties.title)}</button>`).join('')}</div>` : ''}
       ${admin ? `<div class="sp-admin-actions">
         <button class="wp-nav" id="sp-edit" style="background:var(--deep)">✏️ ${t('sp_edit')}</button>
