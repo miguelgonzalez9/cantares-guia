@@ -152,7 +152,7 @@ function renderGate({ onEnter, onAuthChange }) {
   if (!el) { el = document.createElement('div'); el.id = 'auth-gate'; el.className = 'auth-gate'; document.body.appendChild(el); }
   el.innerHTML = `
     <div class="auth-card">
-      <img src="icons/icon.svg" class="auth-logo" alt="" />
+      <img src="img/brand/cantares-logo-white.png" class="auth-logo" alt="Cantares Reserva Natural" />
       <h1>${t('welcome')}</h1>
       <p class="auth-tag">${t('tagline')}</p>
       <div class="auth-langs">

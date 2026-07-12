@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#1b4332" />
-  <title>Cantares — Guía de la Reserva</title>
+  <meta name="theme-color" content="#0a0e1d" />
+  <title>Cantares — Reserva Natural</title>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <link rel="icon" href="icons/icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="vendor/maplibre-gl.css" />
   <link rel="stylesheet" href="css/style.css" />
   <script src="vendor/maplibre-gl.js"></script>
@@ -17,7 +17,7 @@
   <!-- Primer arranque: idioma + propuesta de valor, sin login, cae al mapa -->
   <div id="onboarding" class="onboarding hidden" role="dialog" aria-modal="true">
     <div class="ob-card">
-      <img src="icons/icon.svg" class="ob-logo" alt="" />
+      <img src="img/brand/cantares-logo-white.png" class="ob-logo" alt="Cantares Reserva Natural" />
       <h1 id="ob-title">Bienvenido a Cantares</h1>
       <div class="ob-langs">
         <button class="ob-lang" data-lang="es">Español</button>
@@ -31,16 +31,28 @@
 
   <header class="app-header">
     <div class="brand">
-      <img src="icons/icon.svg" alt="" class="brand-mark" />
+      <img src="img/brand/cantares-icon.png" alt="" class="brand-mark" />
       <div class="brand-text">
         <strong>Cantares</strong>
         <span data-i18n="subtitle">Reserva Natural</span>
       </div>
     </div>
     <div class="header-right">
+      <button id="search-btn" class="hdr-btn" title="Buscar" aria-label="Buscar">🔍</button>
+      <button id="account-btn" class="hdr-btn" title="Cuenta" aria-label="Cuenta">👤</button>
       <button id="lang-toggle" class="lang-toggle" title="Language">EN</button>
     </div>
   </header>
+
+  <!-- Búsqueda de puntos en el mapa -->
+  <div id="search-panel" class="search-panel hidden" role="dialog" aria-modal="true">
+    <div class="search-head">
+      <input id="search-input" class="search-input" type="search" autocomplete="off"
+        placeholder="Buscar un punto…" aria-label="Buscar un punto" />
+      <button id="search-close" class="search-close" aria-label="Cerrar">×</button>
+    </div>
+    <div id="search-results" class="search-results"></div>
+  </div>
 
   <main id="views">
     <!-- RECORRIDOS -->
@@ -147,7 +159,6 @@
     <button class="tab is-active" data-view="recorridos"><span>🥾</span><span data-i18n="tab_recorridos">Recorridos</span></button>
     <button class="tab" data-view="restauracion"><span>🌱</span><span data-i18n="tab_restauracion">Restauración</span></button>
     <button class="tab" data-view="especies"><span>🦋</span><span data-i18n="tab_especies">Especies</span></button>
-    <button class="tab" data-view="cuenta"><span>👤</span><span data-i18n="tab_cuenta">Cuenta</span></button>
     <button class="tab" data-view="info"><span>ℹ️</span><span data-i18n="tab_info">Info</span></button>
   </nav>
 

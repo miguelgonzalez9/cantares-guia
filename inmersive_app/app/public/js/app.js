@@ -111,6 +111,9 @@ const I18N = {
     lg_trees_layer: 'Árboles del inventario', lg_trees_toggle: 'Mostrar/ocultar árboles',
     lg_trees_hint: 'Censo georreferenciado 2021. Acércate para verlos y tócalos.',
     tree_note: 'Árbol del inventario de Cantares (censo 2021)', tree_tag: 'N.º',
+    search_none: 'Sin resultados. Escribe el nombre de un punto.',
+    nav_how: 'Cómo llegar', nav_locating: 'Buscando tu ubicación…', nav_need_gps: 'Activa el GPS para trazar la ruta.',
+    nav_by_trail: 'por los senderos', nav_direct: 'en línea recta', nav_follow: '▶ Seguir',
     lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
     base_label: 'Imagen satelital', base_hd: 'Actual (HD)', base_ortho: 'Ortofoto',
@@ -178,6 +181,9 @@ const I18N = {
     lg_trees_layer: 'Tree inventory', lg_trees_toggle: 'Show/hide trees',
     lg_trees_hint: 'Georeferenced 2021 census. Zoom in to see and tap them.',
     tree_note: 'Tree from the Cantares inventory (2021 census)', tree_tag: 'No.',
+    search_none: 'No results. Type a point name.',
+    nav_how: 'Get there', nav_locating: 'Finding your location…', nav_need_gps: 'Turn on GPS to draw the route.',
+    nav_by_trail: 'along the trails', nav_direct: 'straight line', nav_follow: '▶ Follow',
     lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
     base_label: 'Satellite image', base_hd: 'Current (HD)', base_ortho: 'Orthophoto',
@@ -410,6 +416,14 @@ async function initMap() {
         paint: { 'circle-radius': 7,
           'circle-color': ['match', ['get', 'kind'], 'start', '#2f9e44', 'end', '#e03131', '#888'],
           'circle-stroke-color': '#fff', 'circle-stroke-width': 2.5 } });
+      // Ruta "cómo llegar" (desde tu ubicación al punto elegido) — línea dorada.
+      map.addSource('nav-route', { type: 'geojson', data: emptyFC() });
+      map.addLayer({ id: 'nav-route-casing', type: 'line', source: 'nav-route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#fff', 'line-width': 8, 'line-opacity': 0.9 } });
+      map.addLayer({ id: 'nav-route-line', type: 'line', source: 'nav-route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#fab814', 'line-width': 5 } });
       // Un SOLO source para todos los puntos (curados + árboles del inventario);
       // los árboles son waypoints tipo 'arbol' (editables, con foto, linkeables).
       map.addSource('waypoints', { type: 'geojson', data: waypointsFC });
@@ -848,12 +862,14 @@ function showWaypoint(wp) {
       <div class="wp-theme-badges">${badges}</div>
       <h2 class="wp-title">${escapeHtml(L(p, 'title') || p.title)}</h2>
       ${sci ? `<p class="wp-sci"><em>${escapeHtml(sci)}</em>${family ? ` · ${escapeHtml(family)}` : ''}</p>` : ''}
+      <button class="wp-nav" id="wp-nav">🧭 ${t('nav_how')}</button>
       ${desc ? `<p class="wp-desc">${escapeHtml(desc)}</p>` : ''}
       ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
       ${p.tipo === 'arbol' ? `<p class="tiny muted" style="margin-top:10px">${t('tree_note')}${p.tag ? ` · ${t('tree_tag')} ${escapeHtml(p.tag)}` : ''}${p.altitude ? ` · ${escapeHtml(p.altitude)}` : ''}</p>` : ''}
       ${p.approx ? `<p class="tiny muted" style="margin-top:10px">${t('approx_note')}</p>` : ''}
     </div>`;
   $('#waypoint-card').classList.remove('hidden');
+  const navBtn = $('#wp-nav'); if (navBtn) navBtn.onclick = () => navigateTo(wp);
   $$('#wp-content .chip').forEach((chip) =>
     chip.onclick = () => { switchView('especies'); highlightSpecies(chip.dataset.species); });
 }
@@ -1156,8 +1172,138 @@ function switchView(name) {
   $$('.view').forEach((v) => v.classList.remove('is-active'));
   $(`#view-${name}`).classList.add('is-active');
   $$('.tab').forEach((tab) => tab.classList.toggle('is-active', tab.dataset.view === name));
+  const acc = $('#account-btn'); if (acc) acc.classList.toggle('active', name === 'cuenta');
   if (name === 'recorridos' && state.map) setTimeout(() => state.map.resize(), 60);
   if (name === 'cuenta') renderDashboard();
+}
+
+// ---------- búsqueda de puntos ----------
+function openSearch() {
+  $('#search-panel').classList.remove('hidden');
+  const inp = $('#search-input'); inp.value = ''; renderSearch(''); setTimeout(() => inp.focus(), 60);
+}
+function closeSearch() { $('#search-panel').classList.add('hidden'); }
+function renderSearch(q) {
+  const box = $('#search-results');
+  const query = (q || '').trim().toLowerCase();
+  let items = state.waypoints.map((w) => ({ w, name: L(w.properties, 'title') || w.properties.title || '' }));
+  if (query) {
+    items = items.filter((x) => x.name.toLowerCase().includes(query) || (x.w.properties.sci || '').toLowerCase().includes(query));
+    items.sort((a, b) => (b.name.toLowerCase().startsWith(query)) - (a.name.toLowerCase().startsWith(query)));
+  } else {
+    items = items.filter((x) => x.w.properties.tipo !== 'arbol');   // sin texto: solo puntos curados
+  }
+  items = items.slice(0, 40);
+  if (!items.length) { box.innerHTML = `<div class="search-empty">${t('search_none')}</div>`; return; }
+  box.innerHTML = items.map((x) => {
+    const m = typeMeta(x.w.properties.tipo);
+    const sub = x.w.properties.sci ? `<i>${escapeHtml(x.w.properties.sci)}</i>` : typeLabel(x.w.properties.tipo);
+    return `<button class="search-item" data-id="${escapeHtml(x.w.properties.id)}">
+      <span class="si-dot" style="background:${m.color}"></span>
+      <span>${escapeHtml(x.name)} · <span class="si-sub">${sub}</span></span></button>`;
+  }).join('');
+  box.querySelectorAll('.search-item').forEach((b) => b.onclick = () => selectSearch(b.dataset.id));
+}
+function selectSearch(id) {
+  const w = state.waypoints.find((x) => x.properties.id === id);
+  closeSearch();
+  if (!w || !state.map) return;
+  if (!$('#view-recorridos').classList.contains('is-active')) switchView('recorridos');
+  setTimeout(() => {
+    state.following = false;
+    state.map.easeTo({ center: w.geometry.coordinates, zoom: Math.max(state.map.getZoom(), 17.5), duration: 700 });
+    miniPopup(w);
+  }, 90);
+}
+
+// ---------- "Cómo llegar": ruta desde tu ubicación al punto, por los senderos ----------
+// Grafo de la red de senderos: vértices = puntos de las líneas; aristas entre
+// vértices consecutivos + puentes entre vértices muy cercanos (uniones que no
+// comparten vértice exacto). Se cachea porque los senderos casi no cambian.
+function buildTrailGraph() {
+  if (state._trailGraph) return state._trailGraph;
+  const nodes = [], adj = [], idxOf = new Map();
+  const key = (c) => c[0].toFixed(5) + ',' + c[1].toFixed(5);
+  const addNode = (c) => { const k = key(c); if (idxOf.has(k)) return idxOf.get(k); const i = nodes.length; nodes.push(c); adj.push([]); idxOf.set(k, i); return i; };
+  const link = (a, b) => { if (a === b) return; const w = haversine(nodes[a], nodes[b]); adj[a].push({ to: b, w }); adj[b].push({ to: a, w }); };
+  (state.trails || []).forEach((tr) => {
+    const cs = (tr.geometry && tr.geometry.coordinates) || [];
+    let prev = null;
+    for (const c of cs) { const i = addNode(c); if (prev != null) link(prev, i); prev = i; }
+  });
+  const SNAP = 12;   // m: une uniones de senderos cercanas
+  for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++)
+    if (haversine(nodes[i], nodes[j]) <= SNAP) link(i, j);
+  state._trailGraph = { nodes, adj };
+  return state._trailGraph;
+}
+function nearestNode(nodes, c) { let bi = -1, bd = Infinity; for (let i = 0; i < nodes.length; i++) { const d = haversine(nodes[i], c); if (d < bd) { bd = d; bi = i; } } return { i: bi, d: bd }; }
+// Camino más corto (Dijkstra) por los senderos desde `from` hasta `to`.
+function routeOnTrails(from, to) {
+  const g = buildTrailGraph();
+  if (!g.nodes.length) return null;
+  const s = nearestNode(g.nodes, from), t = nearestNode(g.nodes, to);
+  if (s.i < 0 || t.i < 0) return null;
+  const N = g.nodes.length, dist = new Array(N).fill(Infinity), prev = new Array(N).fill(-1), done = new Array(N).fill(false);
+  dist[s.i] = 0;
+  for (let it = 0; it < N; it++) {
+    let u = -1, best = Infinity;
+    for (let k = 0; k < N; k++) if (!done[k] && dist[k] < best) { best = dist[k]; u = k; }
+    if (u < 0 || u === t.i) break;
+    done[u] = true;
+    for (const e of g.adj[u]) { const nd = dist[u] + e.w; if (nd < dist[e.to]) { dist[e.to] = nd; prev[e.to] = u; } }
+  }
+  if (!isFinite(dist[t.i])) return null;
+  const path = [];
+  for (let u = t.i; u !== -1; u = prev[u]) path.unshift(g.nodes[u]);
+  return { coords: [from, ...path, to], distM: dist[t.i] + s.d + t.d, onTrail: true };
+}
+// Botón "Cómo llegar" del punto: rutea desde el GPS. Si aún no hay ubicación,
+// la pide y reintenta; si no hay camino por senderos, traza una línea directa.
+function navigateTo(wp) {
+  const target = wp.geometry.coordinates;
+  const go = () => {
+    if (!state.userPos) { toast(t('nav_need_gps')); return; }
+    let r = routeOnTrails(state.userPos, target);
+    if (!r) r = { coords: [state.userPos, target], distM: haversine(state.userPos, target), onTrail: false };
+    drawNav(r, wp);
+  };
+  if (state.userPos) { go(); return; }
+  toast(t('nav_locating'));
+  if (state.watchId == null) locate();
+  // esperar el primer fijo (hasta ~12 s)
+  let waited = 0;
+  const iv = setInterval(() => {
+    waited += 400;
+    if (state.userPos) { clearInterval(iv); go(); }
+    else if (waited > 12000) { clearInterval(iv); toast(t('nav_need_gps')); }
+  }, 400);
+}
+function drawNav(r, wp) {
+  const map = state.map; if (!map) return;
+  closeWaypoint(); removePopup();
+  const src = map.getSource('nav-route');
+  if (src) src.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: r.coords } }] });
+  // encuadrar la ruta
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  r.coords.forEach(([x, y]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); });
+  try { map.fitBounds([[minX, minY], [maxX, maxY]], { padding: 70, maxZoom: 18, duration: 700 }); } catch (e) { /* bounds degenerados */ }
+  showNavBanner(r, wp);
+}
+function showNavBanner(r, wp) {
+  let el = document.getElementById('nav-banner');
+  if (!el) { el = document.createElement('div'); el.id = 'nav-banner'; el.className = 'nav-banner'; (document.getElementById('view-recorridos') || document.body).appendChild(el); }
+  const name = escapeHtml(L(wp.properties, 'title') || wp.properties.title || '');
+  const note = r.onTrail ? t('nav_by_trail') : t('nav_direct');
+  el.innerHTML = `<span class="nb-txt">🧭 ${fmtDist(r.distM)} <small>· ${name} · ${note}</small></span>
+    <button class="nb-go" id="nb-go">${t('nav_follow')}</button><button id="nb-x" aria-label="Cerrar">✕</button>`;
+  el.querySelector('#nb-go').onclick = () => { state.following = true; if (state.watchId == null) locate(); };
+  el.querySelector('#nb-x').onclick = clearNav;
+}
+function clearNav() {
+  const map = state.map;
+  const src = map && map.getSource('nav-route'); if (src) src.setData(emptyFC());
+  const el = document.getElementById('nav-banner'); if (el) el.remove();
 }
 
 // ---------- restoration carbon ----------
@@ -1299,6 +1445,10 @@ async function main() {
   $('#wp-close').onclick = closeWaypoint;
   $('#inat-link').href = CONFIG.inatProjectUrl;
   $('#lang-toggle').onclick = () => setLang(LANG === 'es' ? 'en' : 'es');
+  $('#account-btn').onclick = () => switchView('cuenta');   // Cuenta pasó del tabbar al header
+  $('#search-btn').onclick = openSearch;
+  $('#search-close').onclick = closeSearch;
+  $('#search-input').oninput = (e) => renderSearch(e.target.value);
   // Legend, imagery toggle and GPS button: draggable (tap still collapses / locates).
   makeDraggable($('#legend'), $('#legend-toggle'), 'cantares_pos_legend', () => $('#legend').classList.toggle('collapsed'));
   makeDraggable($('#base-slider-box'), $('#base-toggle'), 'cantares_pos_base', () => $('#base-slider-box').classList.toggle('collapsed'));
