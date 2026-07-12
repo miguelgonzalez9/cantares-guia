@@ -70,21 +70,34 @@ export async function compressImage(file, maxDim = 1600, quality = 0.82) {
 }
 
 // ---------- guardar / eliminar con caída a la cola ----------
-// Intenta escribir directo a la nube; si no hay señal (o falla la red), encola
-// y devuelve { queued: true }. Errores REALES (permisos, datos) sí se lanzan.
-export async function saveRow(table, row, photoBlob = null) {
+// `blobs`: una foto (→ campo 'photo') o un mapa { campo: Blob } para varias
+// fotos (p.ej. { photo, photo_leaf } de un árbol). Cada blob se sube y su URL
+// se guarda en su campo. Sin señal, todo (incl. los blobs) espera en la cola.
+function toBlobMap(blobs) {
+  if (!blobs) return null;
+  if (blobs instanceof Blob) return { photo: blobs };
+  const m = {}; for (const f in blobs) if (blobs[f]) m[f] = blobs[f];
+  return Object.keys(m).length ? m : null;
+}
+async function uploadBlobs(r, map, table, key) {
+  for (const f in map) r[f] = await withTimeout(uploadImage(blobFile(map[f], key), table), UPLOAD_TIMEOUT);
+}
+export async function saveRow(table, row, blobs = null) {
+  const map = toBlobMap(blobs);
   if (cloudConfigured() && navigator.onLine) {
     try {
       const r = { ...row };
-      if (photoBlob) r.photo = await withTimeout(uploadImage(blobFile(photoBlob, rowKey(row)), table), UPLOAD_TIMEOUT);
+      if (map) await uploadBlobs(r, map, table, rowKey(row));
       await withTimeout(UPSERT[table](r), WRITE_TIMEOUT);
       return { queued: false, row: r };
     } catch (e) { if (!isNetErr(e)) throw e; }
   }
-  await idbPut({ key: `${table}:${rowKey(row)}`, table, op: 'upsert', id: rowKey(row), row, photoBlob, ts: Date.now(), tries: 0 });
+  await idbPut({ key: `${table}:${rowKey(row)}`, table, op: 'upsert', id: rowKey(row), row, blobs: map, ts: Date.now(), tries: 0 });
   notifyPending(); scheduleFlush(20000);
-  // Para mostrar la foto localmente mientras espera subirse:
-  return { queued: true, row: photoBlob ? { ...row, photo: URL.createObjectURL(photoBlob) } : row };
+  // Vista previa local mientras espera subirse:
+  const preview = { ...row };
+  if (map) for (const f in map) preview[f] = URL.createObjectURL(map[f]);
+  return { queued: true, row: preview };
 }
 export async function deleteRow(table, id) {
   if (cloudConfigured() && navigator.onLine) {
@@ -108,7 +121,8 @@ export async function flushOutbox() {
         if (op.op === 'delete') await withTimeout(REMOVE[op.table](op.id), WRITE_TIMEOUT);
         else {
           const r = { ...op.row };
-          if (op.photoBlob) r.photo = await withTimeout(uploadImage(blobFile(op.photoBlob, op.id), op.table), UPLOAD_TIMEOUT);
+          if (op.blobs) await uploadBlobs(r, op.blobs, op.table, op.id);
+          else if (op.photoBlob) r.photo = await withTimeout(uploadImage(blobFile(op.photoBlob, op.id), op.table), UPLOAD_TIMEOUT);   // compat ops viejos
           await withTimeout(UPSERT[op.table](r), WRITE_TIMEOUT);
         }
         await idbDel(op.key); synced++;

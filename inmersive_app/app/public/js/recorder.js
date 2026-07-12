@@ -93,6 +93,9 @@ export function initRecorder(ctx) {
   CTX = ctx;
   buildBar();
   rehydrateWalks();   // caminatas hechas en otro dispositivo (con sesión)
+  // Se graba desde el STREAM DE GPS COMPARTIDO (app.js lo emite): así no hay un
+  // segundo watchPosition y la grabación funciona igual en recorrido libre o guiado.
+  window.addEventListener('cantares:position', onSharedPos);
   // Cuando el juego registra una foto durante la grabación, marca su ubicación.
   window.addEventListener('cantares:capture', (e) => {
     if (!rec || !e.detail) return;
@@ -110,60 +113,58 @@ function buildBar() {
   }
   renderIdle();
 }
-function renderIdle() {
-  const el = bar();
-  el.className = 'rec-bar';
-  el.innerHTML = `<button class="rec-go" id="rec-go">${RT('start')}</button>
-    <button class="rec-hist" id="rec-hist" title="${RT('hist_h')}">${RT('history')}</button>`;
-  el.querySelector('#rec-go').onclick = start;
-  el.querySelector('#rec-hist').onclick = openHistory;
-}
+// Idle: la barra no muestra nada (menos desorden). El inicio/parada del recorrido
+// libre vive en el chip "Recorrido libre" del route-bar; el historial, en Cuenta.
+function renderIdle() { const el = bar(); el.className = 'rec-bar hidden'; el.innerHTML = ''; }
 function renderRecording() {
   const el = bar();
   el.className = 'rec-bar recording';
   el.innerHTML = `<span class="rec-live"><span class="rec-dot"></span>
       <b id="rec-time">0:00</b> · <b id="rec-dist">0 m</b></span>
     <button class="rec-stop" id="rec-stop">${RT('stop')}</button>`;
-  el.querySelector('#rec-stop').onclick = stop;
+  el.querySelector('#rec-stop').onclick = stopWalk;
 }
 
-// ---------- grabación ----------
-function start() {
+// ---------- grabación (API pública) ----------
+export function isRecording() { return !!rec; }
+export function startWalk(routeId = null, routeName = null) {
+  if (rec) return;
   if (!navigator.geolocation) { CTX.toast(RT('none')); return; }
-  rec = { id: uid(), points: [], photos: [], startedAt: Date.now(), dist: 0, last: null,
-    routeId: CTX.state.activeRoute || null,
-    routeName: CTX.state.activeRoute && CTX.state.routesById[CTX.state.activeRoute] ? CTX.L(CTX.state.routesById[CTX.state.activeRoute], 'name') : null };
+  rec = { id: uid(), points: [], photos: [], startedAt: Date.now(), dist: 0, last: null, routeId, routeName };
   renderRecording();
   CTX.toast(RT('waiting'));
-  keepAwake();   // el navegador corta el GPS si la pantalla se apaga
-  rec.watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 });
+  keepAwake();                 // el navegador corta el GPS si la pantalla se apaga
+  CTX.ensureGps && CTX.ensureGps();   // enciende el GPS compartido (sin segundo watch)
   rec.timer = setInterval(tick, 1000);
   tick();
+  window.dispatchEvent(new Event('cantares:recstate'));
 }
-function onPos(pos) {
-  if (!rec) return;
-  const c = pos.coords, pt = [c.longitude, c.latitude, Date.now()];
+function onSharedPos(e) {
+  if (!rec || !e.detail) return;
+  const { lng, lat, accuracy } = e.detail;
+  if (lng == null || lat == null) return;
+  const pt = [lng, lat, Date.now()];
   if (rec.last) {
     const d = haversine(rec.last, pt);
-    if (d > 1.5 && (c.accuracy == null || c.accuracy < 40)) { rec.dist += d; rec.points.push(pt); rec.last = pt; }
-  } else { rec.points.push(pt); rec.last = pt; if (rec.points.length === 1) CTX.toast(RT('started')); }
+    if (d > 1.5 && (accuracy == null || accuracy < 40)) { rec.dist += d; rec.points.push(pt); rec.last = pt; }
+  } else { rec.points.push(pt); rec.last = pt; CTX.toast(RT('started')); }
 }
-function onErr(e) { if (rec && e.code === 1) { CTX.toast(RT('denied')); } }
 function tick() {
   if (!rec) return;
   const td = document.getElementById('rec-time'), dd = document.getElementById('rec-dist');
   if (td) td.textContent = fmtDur(Date.now() - rec.startedAt);
   if (dd) dd.textContent = fmtDist(rec.dist);
 }
-async function stop() {
+export async function stopWalk() {
   if (!rec) return;
   releaseAwake();
-  navigator.geolocation.clearWatch(rec.watchId); clearInterval(rec.timer);
+  clearInterval(rec.timer);
   const walk = { id: rec.id, startedAt: rec.startedAt, endedAt: Date.now(),
     durationMs: Date.now() - rec.startedAt, distanceM: Math.round(rec.dist),
     points: rec.points, photos: rec.photos, routeId: rec.routeId, routeName: rec.routeName };
   rec = null;
   renderIdle();
+  window.dispatchEvent(new Event('cantares:recstate'));
   if (walk.points.length >= 2) {
     await walkPut(walk); CTX.toast(RT('saved')); showSummary(walk);
     // Con cuenta: subirla (o encolarla sin señal) para que siga al usuario.
@@ -227,7 +228,7 @@ function downloadWalk(walk) {
 // ---------- API para el dashboard de cuenta ----------
 export async function listWalks() { return (await walksAll()).sort((a, b) => b.startedAt - a.startedAt); }
 export function walkCardHTML(walk) { return summaryCardHTML(walk, true); }
-export { downloadWalk };
+export { downloadWalk, openHistory };
 
 // ---------- overlays (resumen + historial) ----------
 function overlay() {

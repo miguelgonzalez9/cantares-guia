@@ -65,7 +65,11 @@ function panelEl() {
 }
 let tab = 'puntos';
 function openPanel() { renderPanel(); panelEl().classList.remove('hidden'); }
-function closePanel() { panelEl().classList.add('hidden'); }
+function closePanel() {
+  panelEl().classList.add('hidden');
+  if (selMarker) { selMarker.remove(); selMarker = null; }   // limpia el resaltado de selección
+  _selId = null; try { clearHighlight(); } catch (e) { /* estilo transitorio */ }
+}
 
 function renderPanel() {
   const el = panelEl();
@@ -81,13 +85,71 @@ function renderPanel() {
       <button class="admin-tab ${tab === 'puntos' ? 'sel' : ''}" data-t="puntos">Puntos</button>
       <button class="admin-tab ${tab === 'senderos' ? 'sel' : ''}" data-t="senderos">Senderos</button>
       <button class="admin-tab ${tab === 'recorridos' ? 'sel' : ''}" data-t="recorridos">Recorridos</button>
-      <button class="admin-tab ${tab === 'especies' ? 'sel' : ''}" data-t="especies">Especies</button>
     </div>
+    <div class="admin-note" style="margin:6px 10px 0">Las especies se editan en la pestaña 🦋 Especies.</div>
     <div class="admin-body" id="admin-body"></div>`;
+  if (tab === 'especies') tab = 'puntos';   // las especies ya no viven en el panel
   el.querySelector('#admin-x').onclick = closePanel;
   el.querySelector('#admin-logout').onclick = doLogout;
   el.querySelectorAll('.admin-tab').forEach((b) => b.onclick = () => { tab = b.dataset.t; renderPanel(); });
-  ({ puntos: renderPuntos, senderos: renderSenderos, recorridos: renderRecorridos, especies: renderEspecies }[tab] || renderPuntos)();
+  ({ puntos: renderPuntos, senderos: renderSenderos, recorridos: renderRecorridos }[tab] || renderPuntos)();
+}
+
+// ---------------- selección lista ↔ mapa (buscar / resaltar) ----------------
+let _selId = null, selMarker = null;
+function markSelectedRow(id) {
+  document.querySelectorAll('#admin-body .admin-row').forEach((r) => r.classList.toggle('sel', r.dataset.id === id));
+}
+function fitGeom(geom) {
+  const cs = geom.type === 'LineString' ? geom.coordinates : geom.type === 'Point' ? [geom.coordinates] : [];
+  if (!cs.length || !CTX.map) return;
+  let a = [Infinity, Infinity], b = [-Infinity, -Infinity];
+  cs.forEach(([x, y]) => { a[0] = Math.min(a[0], x); a[1] = Math.min(a[1], y); b[0] = Math.max(b[0], x); b[1] = Math.max(b[1], y); });
+  try { CTX.map.fitBounds([a, b], { padding: 90, maxZoom: 18, duration: 600 }); } catch (e) { /* bounds degenerados */ }
+}
+// Selecciona (≠ editar) un item: lo resalta en el mapa (dorado) y lleva el mapa ahí.
+function selectOnMap(kind, id) {
+  const map = CTX.map; if (!map) return;
+  _selId = id;
+  if (selMarker) { selMarker.remove(); selMarker = null; }
+  clearHighlight();
+  if (kind === 'punto') {
+    const w = CTX.state.waypoints.find((x) => x.properties.id === id);
+    if (w) { selMarker = new maplibregl.Marker({ color: '#fab814' }).setLngLat(w.geometry.coordinates).addTo(map); map.easeTo({ center: w.geometry.coordinates, zoom: Math.max(map.getZoom(), 17.5), duration: 600 }); }
+  } else if (kind === 'sendero') {
+    const tr = CTX.state.trails.find((x) => x.properties.id === id);
+    if (tr) { setHl([{ type: 'Feature', properties: { _c: '#fab814' }, geometry: tr.geometry }]); fitGeom(tr.geometry); }
+  } else if (kind === 'recorrido') {
+    const r = CTX.state.routesById[id], segs = (r && r.segments) || [];
+    highlightSegments(segs, '#fab814');
+    const tr = CTX.state.trails.find((x) => segs.includes(x.properties.id));
+    if (tr) fitGeom(tr.geometry);
+  }
+  markSelectedRow(id);
+}
+// Busca en la lista + hace las filas seleccionables (llevan al mapa).
+function wireList(kind) {
+  const body = document.getElementById('admin-body');
+  const search = body.querySelector('.admin-search');
+  if (search) search.oninput = (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    body.querySelectorAll('.admin-row').forEach((r) => { r.style.display = !q || r.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+  };
+  body.querySelectorAll('.admin-row').forEach((r) => {
+    const t = r.querySelector('.admin-row-t');
+    if (t) t.onclick = () => selectOnMap(kind, r.dataset.id);
+  });
+}
+// Sentido inverso: al tocar un punto en el MAPA con el panel abierto, lleva la
+// lista al punto y lo resalta.
+export function focusFromMap(id) {
+  if (!CTX || panelEl().classList.contains('hidden')) return false;
+  if (tab !== 'puntos') { tab = 'puntos'; renderPanel(); }
+  _selId = id; markSelectedRow(id);
+  const sel = '#admin-body .admin-row';
+  const row = [...document.querySelectorAll(sel)].find((r) => r.dataset.id === id);
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return true;
 }
 
 // ---------------- PUNTOS ----------------
@@ -97,6 +159,7 @@ function renderPuntos() {
   const pts = CTX.state.waypoints.slice().sort((a, b) => (a.properties.title || '').localeCompare(b.properties.title || ''));
   body.innerHTML = `
     <button class="admin-add" id="pt-add">＋ Nuevo punto</button>
+    <input class="admin-search" placeholder="🔎 Buscar punto… (toca para verlo en el mapa)">
     <div class="admin-list">${pts.map((w) => `
       <div class="admin-row" data-id="${esc(w.properties.id)}">
         <span class="admin-dot" style="background:${CTX.typeColor(w.properties.tipo)}"></span>
@@ -104,7 +167,9 @@ function renderPuntos() {
         <button class="admin-edit" data-id="${esc(w.properties.id)}">Editar</button>
       </div>`).join('')}</div>`;
   body.querySelector('#pt-add').onclick = () => editPunto(null);
-  body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = () => editPunto(b.dataset.id));
+  body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = (e) => { e.stopPropagation(); editPunto(b.dataset.id); });
+  wireList('punto');
+  if (_selId) markSelectedRow(_selId);
 }
 
 function editPunto(id) {
@@ -114,6 +179,7 @@ function editPunto(id) {
   const p = restore ? _pointDraft.props : (existing ? { ...existing.properties } : { id: rid('punto'), routes: [], species_ids: [], tipo: 'punto' });
   const coords = restore ? _pointDraft.loc : (existing ? existing.geometry.coordinates : null);
   const draftBlob = restore ? _pointDraft.photoBlob : null;
+  const draftLeafBlob = restore ? _pointDraft.leafBlob : null;
   _pointDraft = null;
   const routeChecks = CTX.state.routes.map((r) => `
     <label class="admin-chk"><input type="checkbox" value="${r.id}" ${(p.routes || []).includes(r.id) ? 'checked' : ''}> ${esc(CTX.L(r, 'name'))}</label>`).join('');
@@ -130,11 +196,18 @@ function editPunto(id) {
       <label>Especies en este punto (opcional)</label>
       <input id="f-sp-search" placeholder="🔎 Buscar especie…">
       <div class="admin-checks admin-sp-list" id="f-sp-list">${speciesChecks(p.species_ids)}</div>
-      <label>Foto</label>
+      <label>Foto${p.tipo === 'arbol' ? ' del árbol' : ''}</label>
       <div class="admin-photo">
         <div class="admin-photo-prev" id="f-photo-prev" style="${p.photo ? `background-image:url('${esc(p.photo)}')` : ''}"></div>
         <input type="file" id="f-photo" accept="image/*">
       </div>
+      ${p.photo ? '<button type="button" class="admin-pick" id="f-dl">⬇️ Descargar foto</button>' : ''}
+      <label>Foto de la hoja <span style="font-weight:400;color:var(--muted)">(opcional, para árboles)</span></label>
+      <div class="admin-photo">
+        <div class="admin-photo-prev" id="f-leaf-prev" style="${p.photo_leaf ? `background-image:url('${esc(p.photo_leaf)}')` : ''}"></div>
+        <input type="file" id="f-leaf" accept="image/*">
+      </div>
+      ${p.photo_leaf ? '<button type="button" class="admin-pick" id="f-leaf-dl">⬇️ Descargar hoja</button>' : ''}
       <label>Ubicación</label>
       <div class="admin-loc">
         <span id="f-loc">${coords ? `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}` : 'sin fijar'}</span>
@@ -156,6 +229,16 @@ function editPunto(id) {
   let photoUrl = p.photo || null;
   let photoBlob = draftBlob || null;   // foto nueva comprimida; se sube al Guardar
   if (photoBlob) { const pv = body.querySelector('#f-photo-prev'); if (pv) pv.style.backgroundImage = `url('${URL.createObjectURL(photoBlob)}')`; }
+  let photoLeafUrl = p.photo_leaf || null;
+  let photoLeafBlob = draftLeafBlob || null;
+  if (photoLeafBlob) { const pv = body.querySelector('#f-leaf-prev'); if (pv) pv.style.backgroundImage = `url('${URL.createObjectURL(photoLeafBlob)}')`; }
+  const fdl = body.querySelector('#f-dl'); if (fdl) fdl.onclick = () => downloadPhoto(photoUrl, (p.title || 'punto'));
+  const fldl = body.querySelector('#f-leaf-dl'); if (fldl) fldl.onclick = () => downloadPhoto(photoLeafUrl, (p.title || 'punto') + '_hoja');
+  body.querySelector('#f-leaf').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    photoLeafBlob = await compressImage(file);
+    body.querySelector('#f-leaf-prev').style.backgroundImage = `url('${URL.createObjectURL(photoLeafBlob)}')`;
+  };
   const setLoc = (lng, lat) => { loc = [lng, lat]; const s = body.querySelector('#f-loc'); if (s) s.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`; };
   const coordsInput = body.querySelector('#f-coords');
   if (coordsInput) coordsInput.oninput = (e) => {
@@ -197,9 +280,9 @@ function editPunto(id) {
   };
   const pickedRoutes = () => [...body.querySelectorAll('#f-routes input:checked')].map((c) => c.value);
   const pickedSpecies = () => [...body.querySelectorAll('#f-sp-list input:checked')].map((c) => c.value);
-  const saveDraftPoint = () => { _pointDraft = { id: p.id, _new: !id, loc, photoBlob,
+  const saveDraftPoint = () => { _pointDraft = { id: p.id, _new: !id, loc, photoBlob, leafBlob: photoLeafBlob,
     props: { ...p, title: v('#f-title'), title_en: v('#f-title-en'), description: v('#f-desc'), description_en: v('#f-desc-en'),
-      tipo: v('#f-tipo'), routes: pickedRoutes(), species_ids: pickedSpecies(), photo: photoUrl } }; };
+      tipo: v('#f-tipo'), routes: pickedRoutes(), species_ids: pickedSpecies(), photo: photoUrl, photo_leaf: photoLeafUrl } }; };
   body.querySelector('#f-pick').onclick = () => {
     saveDraftPoint();
     closePanel();
@@ -245,11 +328,11 @@ function editPunto(id) {
       description: body.querySelector('#f-desc').value.trim() || null,
       description_en: body.querySelector('#f-desc-en').value.trim() || null,
       tipo: body.querySelector('#f-tipo').value,
-      routes, species_ids, lng: loc[0], lat: loc[1], photo: photoUrl,
+      routes, species_ids, lng: loc[0], lat: loc[1], photo: photoUrl, photo_leaf: photoLeafUrl,
     };
     body.querySelector('#f-err').textContent = 'Guardando…';
     try {
-      const res = await saveRow('waypoints', row, photoBlob);
+      const res = await saveRow('waypoints', row, { photo: photoBlob, photo_leaf: photoLeafBlob });
       CTX.applyLocalRow('waypoints', res.row); renderPuntos();
       CTX.toast(res.queued ? '💾 Guardado en el teléfono — se subirá con señal' : 'Punto guardado');
     } catch (err) { body.querySelector('#f-err').textContent = friendlyErr(err); }
@@ -339,6 +422,97 @@ function editEspecie(id) {
     } catch (err) { body.querySelector('#s-err').textContent = friendlyErr(err); }
   };
 }
+
+// ---------------- editor de especies STANDALONE (desde el tab Especies) ----------------
+// Modal propio (no requiere el panel admin abierto). onSaved(id) refresca la grilla.
+export function openSpeciesEditor(id, onSaved) {
+  if (!CTX) return;
+  const s = id ? CTX.state.species.find((x) => x.id === id) : { id: rid('sp'), group: 'flora', flagship: false, status: 'documented' };
+  let ov = document.getElementById('sp-editor');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'sp-editor'; ov.className = 'sp-editor'; document.body.appendChild(ov); }
+  let photoUrl = s.photo || null, photoBlob = null;
+  ov.innerHTML = `<div class="sp-editor-box">
+    <button class="card-close" id="se-x" aria-label="Cerrar">×</button>
+    <h2>${id ? 'Editar especie' : 'Nueva especie'}</h2>
+    <div class="admin-form">
+      <label>Nombre común (ES)</label><input id="se-common" value="${esc(s.common_name)}">
+      <label>Common name (EN)</label><input id="se-common-en" value="${esc(s.common_name_en)}">
+      <label>Nombre científico</label><input id="se-sci" value="${esc(s.scientific_name)}">
+      <label>Familia</label><input id="se-family" value="${esc(s.family)}">
+      <label>Grupo</label>
+      <select id="se-group">${GROUPS.map((g) => `<option value="${g}" ${s.group === g ? 'selected' : ''}>${GROUP_LABEL[g] || g}</option>`).join('')}</select>
+      <label>Estado</label>
+      <select id="se-status">
+        <option value="documented" ${s.status !== 'possible' ? 'selected' : ''}>documentada</option>
+        <option value="possible" ${s.status === 'possible' ? 'selected' : ''}>posible</option>
+      </select>
+      <label>Notas / descripción</label><textarea id="se-notes" rows="3">${esc(s.notes)}</textarea>
+      <label class="admin-chk"><input type="checkbox" id="se-flag" ${s.flagship ? 'checked' : ''}> Destacada (★)</label>
+      <label>Foto</label>
+      <div class="admin-photo">
+        <div class="admin-photo-prev" id="se-photo-prev" style="${s.photo ? `background-image:url('${esc(s.photo)}')` : ''}"></div>
+        <input type="file" id="se-photo" accept="image/*">
+      </div>
+      ${s.photo ? `<button type="button" class="admin-pick" id="se-dl">⬇️ Descargar foto</button>` : ''}
+      <div class="admin-err" id="se-err"></div>
+      <div class="admin-actions">
+        <button class="admin-save" id="se-save">Guardar</button>
+        ${id ? '<button class="admin-del" id="se-del">Eliminar</button>' : ''}
+        <button class="admin-cancel" id="se-cancel">Cancelar</button>
+      </div>
+    </div></div>`;
+  const close = () => ov.remove();
+  ov.querySelector('#se-x').onclick = close;
+  ov.querySelector('#se-cancel').onclick = close;
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  const dl = ov.querySelector('#se-dl'); if (dl) dl.onclick = () => downloadPhoto(s.photo, (s.common_name || s.scientific_name || 'especie'));
+  ov.querySelector('#se-photo').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    ov.querySelector('#se-err').textContent = 'Preparando foto…';
+    photoBlob = await compressImage(file);
+    ov.querySelector('#se-photo-prev').style.backgroundImage = `url('${URL.createObjectURL(photoBlob)}')`;
+    ov.querySelector('#se-err').textContent = '';
+  };
+  if (id) ov.querySelector('#se-del').onclick = async () => {
+    if (!confirm('¿Eliminar esta especie?')) return;
+    try { const res = await deleteRow('species', id); CTX.removeLocalRow('species', id); close(); onSaved && onSaved(); CTX.toast(res.queued ? '💾 Eliminada — se sincronizará' : 'Especie eliminada'); }
+    catch (err) { ov.querySelector('#se-err').textContent = friendlyErr(err); }
+  };
+  ov.querySelector('#se-save').onclick = async () => {
+    const row = { id: s.id,
+      common_name: ov.querySelector('#se-common').value.trim() || null,
+      common_name_en: ov.querySelector('#se-common-en').value.trim() || null,
+      scientific_name: ov.querySelector('#se-sci').value.trim() || null,
+      family: ov.querySelector('#se-family').value.trim() || null,
+      group: ov.querySelector('#se-group').value, status: ov.querySelector('#se-status').value,
+      notes: ov.querySelector('#se-notes').value.trim() || null,
+      flagship: ov.querySelector('#se-flag').checked, photo: photoUrl };
+    ov.querySelector('#se-err').textContent = 'Guardando…';
+    try {
+      const res = await saveRow('species', row, photoBlob);
+      CTX.applyLocalRow('species', res.row); close(); onSaved && onSaved(res.row.id);
+      CTX.toast(res.queued ? '💾 Guardada en el teléfono — se subirá con señal' : 'Especie guardada');
+    } catch (err) { ov.querySelector('#se-err').textContent = friendlyErr(err); }
+  };
+}
+
+// Descarga una foto (punto o especie) forzando el guardado, aun si es de otro
+// dominio (Supabase Storage): se baja como blob y se dispara la descarga.
+export async function downloadPhoto(url, name) {
+  if (!url) return;
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (String(name).replace(/[^a-zA-Z0-9._-]+/g, '_') || 'foto') + '.jpg';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) {
+    window.open(url, '_blank');   // respaldo: abrir en pestaña nueva
+  }
+}
+export function isAdminUser() { return isAdmin() || localStorage.getItem('cantares_role') === 'admin'; }
 
 // ---------------- helpers geométricos ----------------
 function hav(a, b) {
@@ -609,13 +783,16 @@ function renderSenderos() {
   const trails = CTX.state.trails.slice().sort((a, b) => (a.properties.name || '').localeCompare(b.properties.name || ''));
   body.innerHTML = `
     <button class="admin-add" id="tr-add">＋ Nuevo sendero</button>
+    <input class="admin-search" placeholder="🔎 Buscar sendero… (toca para verlo en el mapa)">
     <div class="admin-list">${trails.map((tr) => `
-      <div class="admin-row">
+      <div class="admin-row" data-id="${esc(tr.properties.id)}">
         <span class="admin-row-t">${esc(tr.properties.name || tr.properties.id)} <i>${esc((tr.properties.routes || []).join(', '))}</i></span>
         <button class="admin-edit" data-id="${esc(tr.properties.id)}">Editar</button>
       </div>`).join('')}</div>`;
   body.querySelector('#tr-add').onclick = () => editSendero(null);
-  body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = () => editSendero(b.dataset.id));
+  body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = (e) => { e.stopPropagation(); editSendero(b.dataset.id); });
+  wireList('sendero');
+  if (_selId) markSelectedRow(_selId);
 }
 function editSendero(id) {
   const body = document.getElementById('admin-body');
@@ -685,14 +862,17 @@ function renderRecorridos() {
   const routes = CTX.state.routes.slice();
   body.innerHTML = `
     <button class="admin-add" id="rt-add">＋ Nuevo recorrido</button>
+    <input class="admin-search" placeholder="🔎 Buscar recorrido… (toca para verlo en el mapa)">
     <div class="admin-list">${routes.map((r) => `
-      <div class="admin-row">
+      <div class="admin-row" data-id="${esc(r.id)}">
         <span class="admin-dot" style="background:${r.color || '#888'}"></span>
         <span class="admin-row-t">${r.emoji || ''} ${esc(CTX.L(r, 'name') || r.id)}</span>
         <button class="admin-edit" data-id="${esc(r.id)}">Editar</button>
       </div>`).join('')}</div>`;
   body.querySelector('#rt-add').onclick = () => editRecorrido(null);
-  body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = () => editRecorrido(b.dataset.id));
+  body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = (e) => { e.stopPropagation(); editRecorrido(b.dataset.id); });
+  wireList('recorrido');
+  if (_selId) markSelectedRow(_selId);
 }
 function editRecorrido(id) {
   const body = document.getElementById('admin-body');

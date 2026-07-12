@@ -4,8 +4,8 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout } from './auth-ui.js';
-import { initAdmin } from './admin.js';
-import { initRecorder, listWalks, walkCardHTML, downloadWalk } from './recorder.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap } from './admin.js';
+import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 
@@ -114,6 +114,10 @@ const I18N = {
     search_none: 'Sin resultados. Escribe el nombre de un punto.',
     nav_how: 'Cómo llegar', nav_locating: 'Buscando tu ubicación…', nav_need_gps: 'Activa el GPS para trazar la ruta.',
     nav_by_trail: 'por los senderos', nav_direct: 'en línea recta', nav_follow: '▶ Seguir',
+    free_walk: 'Recorrido libre', free_stop: 'Terminar', my_walks: 'Mis recorridos',
+    sp_here_1: 'lugar en la reserva', sp_here_n: 'lugares en la reserva', sp_nowhere: 'Aún sin puntos asociados en el mapa',
+    sp_edit: 'Editar', sp_dl: 'Descargar foto', sp_new: 'Nueva especie',
+    tree_photo: 'Árbol', leaf_photo: 'Hoja',
     lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
     base_label: 'Imagen satelital', base_hd: 'Actual (HD)', base_ortho: 'Ortofoto',
@@ -184,6 +188,10 @@ const I18N = {
     search_none: 'No results. Type a point name.',
     nav_how: 'Get there', nav_locating: 'Finding your location…', nav_need_gps: 'Turn on GPS to draw the route.',
     nav_by_trail: 'along the trails', nav_direct: 'straight line', nav_follow: '▶ Follow',
+    free_walk: 'Free walk', free_stop: 'Finish', my_walks: 'My walks',
+    sp_here_1: 'spot in the reserve', sp_here_n: 'spots in the reserve', sp_nowhere: 'No map points linked yet',
+    sp_edit: 'Edit', sp_dl: 'Download photo', sp_new: 'New species',
+    tree_photo: 'Tree', leaf_photo: 'Leaf',
     lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
     base_label: 'Satellite image', base_hd: 'Current (HD)', base_ortho: 'Orthophoto',
@@ -470,7 +478,7 @@ async function initMap() {
       map.on('mousemove', (e) => { if (canHover) setCursor(e); });
       map.on('click', (e) => {
         const wp = nearestAt(e.point);
-        if (wp) { state._wpClick = true; miniPopup(wp); }
+        if (wp) { state._wpClick = true; miniPopup(wp); try { adminFocusFromMap(wp.properties.id); } catch (er) { /* no admin */ } }
         else if (state._wpClick) { state._wpClick = false; }
         else removePopup();
       });
@@ -483,20 +491,32 @@ async function initMap() {
 function renderRouteBar() {
   const bar = $('#route-bar');
   bar.innerHTML = '';
-  const all = document.createElement('button');
-  all.className = 'route-chip' + (state.activeRoute === null ? ' active' : '');
-  all.innerHTML = `<span class="emoji">🗺️</span>${t('all_routes')}`;
-  all.onclick = () => selectRoute(null);
-  bar.appendChild(all);
+  // Chip "Recorrido libre": graba el recorrido que haga la persona (reemplaza a
+  // "Todos" y al botón de grabar). Mientras graba, muestra ⏹ y para al tocarlo.
+  // Durante un recorrido GUIADO no se muestra (el chip flotante de guía manda).
+  if (!state.guiding) {
+    const free = document.createElement('button');
+    const rec = isRecording();
+    free.className = 'route-chip free' + (rec ? ' recording' : '');
+    free.innerHTML = rec ? `<span class="emoji">⏹</span>${t('free_stop')}` : `<span class="emoji">🎒</span>${t('free_walk')}`;
+    free.onclick = () => { if (isRecording()) stopWalk(); else { selectRoute(null); startWalk(null, null); } };
+    bar.appendChild(free);
+  }
   state.routes.forEach((r) => {
     const chip = document.createElement('button');
     chip.className = 'route-chip' + (state.activeRoute === r.id ? ' active' : '');
     chip.dataset.route = r.id;
     chip.innerHTML = `<span class="emoji">${r.emoji}</span>${L(r, 'name')}`;   // full name, never truncated
     if (state.activeRoute === r.id) { chip.style.background = r.color; chip.style.color = '#fff'; }
-    chip.onclick = () => selectRoute(r.id);
+    chip.onclick = () => selectRoute(state.activeRoute === r.id ? null : r.id);   // re-tap = quitar (ver todos)
     bar.appendChild(chip);
   });
+  // Historial rápido de mis recorridos.
+  const hist = document.createElement('button');
+  hist.className = 'route-chip hist'; hist.title = t('my_walks');
+  hist.innerHTML = '<span class="emoji">📖</span>';
+  hist.onclick = () => openHistory();
+  bar.appendChild(hist);
 }
 
 const wpById = (id) => state.waypoints.find((w) => w.properties.id === id);
@@ -863,6 +883,7 @@ function showWaypoint(wp) {
       <h2 class="wp-title">${escapeHtml(L(p, 'title') || p.title)}</h2>
       ${sci ? `<p class="wp-sci"><em>${escapeHtml(sci)}</em>${family ? ` · ${escapeHtml(family)}` : ''}</p>` : ''}
       <button class="wp-nav" id="wp-nav">🧭 ${t('nav_how')}</button>
+      ${p.photo_leaf ? `<div class="sp-gallery">${photo ? `<figure class="sp-fig"><img class="sp-gimg" src="${escapeHtml(photo)}"><figcaption>${t('tree_photo')}</figcaption></figure>` : ''}<figure class="sp-fig"><img class="sp-gimg" src="${escapeHtml(p.photo_leaf)}"><figcaption>${t('leaf_photo')}</figcaption></figure></div>` : ''}
       ${desc ? `<p class="wp-desc">${escapeHtml(desc)}</p>` : ''}
       ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
       ${p.tipo === 'arbol' ? `<p class="tiny muted" style="margin-top:10px">${t('tree_note')}${p.tag ? ` · ${t('tree_tag')} ${escapeHtml(p.tag)}` : ''}${p.altitude ? ` · ${escapeHtml(p.altitude)}` : ''}</p>` : ''}
@@ -918,6 +939,7 @@ function onPosition(pos) {
   state.userPos = [longitude, latitude];
   state.userAccuracy = accuracy;   // metros — para el círculo de precisión
   setGps('on', `±${Math.round(accuracy)} m`);
+  window.dispatchEvent(new CustomEvent('cantares:position', { detail: { lng: longitude, lat: latitude, accuracy } }));   // stream compartido (grabador)
   const src = state.map && state.map.getSource('user');
   if (src) src.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: state.userPos }, properties: {} }] });
   updateAccuracyCircle();
@@ -958,6 +980,9 @@ function startGuiding(id) {
   if (built && state.map) state.map.easeTo({ center: built.path[0], zoom: 17.5, duration: 800 });
   if (state.watchId == null) locate();   // begin GPS follow (google-maps style)
   state.following = true;
+  // Grabar también el recorrido guiado en el historial del usuario.
+  const rt = state.routesById[id];
+  if (!isRecording()) startWalk(id, rt ? L(rt, 'name') : null);
   // Pantalla encendida durante la guía: si se apaga, el navegador corta el GPS
   // y los avisos de llegada a los puntos mueren en silencio.
   keepAwake().then((ok) => toast(ok ? t('guiding_screen') : t('guiding_screen_warn')));
@@ -972,6 +997,7 @@ function stopGuiding() {
   state.guiding = null;
   releaseAwake();
   guideChip(false);
+  if (isRecording()) stopWalk();   // guarda el recorrido guiado en el historial
   if (wasId) toast(t('guiding_off'));
   if (state.activeRoute) renderRouteInfo(state.routesById[state.activeRoute], buildRoutePath(state.activeRoute));
 }
@@ -1041,6 +1067,17 @@ function renderSpeciesGrid(highlightId) {
   const grid = $('#species-grid'), list = filteredSpecies();
   $('#species-count').textContent = `${list.length} ${t('count_suffix')}`;
   grid.innerHTML = '';
+  // Admin: botón para crear una especie nueva (edición vive en este tab).
+  const adminAdd = $('#species-admin-add');
+  if (isAdminUser()) {
+    if (!adminAdd) {
+      const b = document.createElement('button');
+      b.id = 'species-admin-add'; b.className = 'admin-add'; b.style.marginBottom = '10px';
+      b.textContent = '＋ ' + t('sp_new');
+      b.onclick = () => openSpeciesEditor(null, () => { refreshSpecies(); renderSpeciesGrid(); });
+      grid.parentNode.insertBefore(b, grid);
+    }
+  } else if (adminAdd) adminAdd.remove();
   list.forEach((s) => {
     const card = document.createElement('div');
     card.className = `species-card ${s.flagship ? 'flagship' : ''} ${s.status === 'possible' ? 'status-possible' : ''}`;
@@ -1055,6 +1092,7 @@ function renderSpeciesGrid(highlightId) {
       <p class="species-meta">${s.family}${s.status === 'possible' ? ' · ' + t('possible') : ''}</p>
       <span class="species-group-tag g-${s.group}">${t('grp_' + s.group)}</span>
       ${capturedBadge(s.id)}`;
+    card.onclick = () => showSpecies(s);
     grid.appendChild(card);
   });
   if (highlightId) {
@@ -1065,6 +1103,74 @@ function renderSpeciesGrid(highlightId) {
 function highlightSpecies(id) {
   if (!state.species.find((x) => x.id === id)) return;
   speciesFilter = 'all'; renderSpeciesFilters(); renderSpeciesGrid(id);
+}
+
+// ---------- ficha de especie (click en una especie) ----------
+// Puntos donde se encuentra la especie (link por id o por nombre científico).
+function speciesWaypoints(s) {
+  const keys = new Set([String(s.id).toLowerCase(), (s.scientific_name || '').toLowerCase()].filter(Boolean));
+  return state.waypoints.filter((w) => (w.properties.species_ids || []).some((sid) => keys.has(String(sid).trim().toLowerCase())));
+}
+// Todas las fotos de una especie: la de la nube + las curadas (media.json) + hoja.
+function speciesPhotos(s) {
+  const out = [];
+  if (s.photo) out.push(s.photo);
+  (state.media.bySubject[`species:${s.id}`] || []).forEach((m) => { const u = m.jpg || m.file; if (u && !out.includes(u)) out.push(u); });
+  return out;
+}
+// Mini-mapa estático (canvas) del contorno de la reserva + los puntos de la especie.
+function drawSpeciesMap(wps, size = 560) {
+  const cv = document.createElement('canvas'); cv.width = size; cv.height = Math.round(size * 0.72);
+  const g = cv.getContext('2d'); const H = cv.height;
+  g.fillStyle = '#eaf2fb'; g.fillRect(0, 0, size, H);
+  const b = state.boundary;
+  // bbox del contorno de la reserva
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const scanRing = (ring) => ring.forEach(([x, y]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); });
+  const polysOf = (gj) => { const out = []; (gj && (gj.features || [gj])).forEach((f) => { const gm = f.geometry || f; if (!gm) return; if (gm.type === 'Polygon') out.push(gm.coordinates); else if (gm.type === 'MultiPolygon') gm.coordinates.forEach((p) => out.push(p)); }); return out; };
+  const polys = polysOf(b);
+  polys.forEach((poly) => scanRing(poly[0]));
+  if (!isFinite(minX)) { wps.forEach((w) => scanRing([w.geometry.coordinates])); }
+  const pad = 20, s = Math.min((size - pad * 2) / (maxX - minX || 1), (H - pad * 2) / (maxY - minY || 1));
+  const offX = pad + ((size - pad * 2) - s * (maxX - minX)) / 2, offY = pad + ((H - pad * 2) - s * (maxY - minY)) / 2;
+  const X = (lng) => offX + (lng - minX) * s, Y = (lat) => offY + (maxY - lat) * s;
+  // contorno + senderos tenues
+  polys.forEach((poly) => { g.beginPath(); poly[0].forEach((c, i) => { const px = X(c[0]), py = Y(c[1]); i ? g.lineTo(px, py) : g.moveTo(px, py); }); g.closePath(); g.fillStyle = 'rgba(0,122,53,0.08)'; g.fill(); g.strokeStyle = '#9db8cf'; g.lineWidth = 1.5; g.stroke(); });
+  (state.trails || []).forEach((tr) => { const cs = tr.geometry.coordinates; g.beginPath(); cs.forEach((c, i) => { const px = X(c[0]), py = Y(c[1]); i ? g.lineTo(px, py) : g.moveTo(px, py); }); g.strokeStyle = '#cdd8c8'; g.lineWidth = 2; g.stroke(); });
+  // puntos de la especie
+  wps.forEach((w) => { const c = w.geometry.coordinates, m = typeMeta(w.properties.tipo); g.beginPath(); g.arc(X(c[0]), Y(c[1]), 6, 0, 7); g.fillStyle = m.color; g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke(); });
+  return cv.toDataURL('image/png');
+}
+function showSpecies(s) {
+  if (!s) return;
+  const wps = speciesWaypoints(s);
+  const photos = speciesPhotos(s);
+  const admin = isAdminUser();
+  const statusTxt = s.status === 'possible' ? t('possible') : '';
+  const html = `
+    ${photos.length
+      ? `<div class="wp-photo-hdr" style="background-image:url('${escapeHtml(photos[0])}')"></div>`
+      : `<div class="wp-photo-hdr wp-no-photo" style="background:linear-gradient(135deg, var(--green), var(--deep))"><span class="wp-hdr-emoji">${s.group === 'ave' ? '🐦' : s.group === 'mamifero' ? '🐾' : s.group === 'anfibio' ? '🐸' : '🌿'}</span></div>`}
+    <div class="wp-inner">
+      <div class="wp-theme-badges"><span class="species-group-tag g-${s.group}">${t('grp_' + s.group)}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}</div>
+      <h2 class="wp-title">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
+      ${s.scientific_name ? `<p class="wp-sci"><em>${escapeHtml(s.scientific_name)}</em>${s.family ? ` · ${escapeHtml(s.family)}` : ''}</p>` : ''}
+      ${photos.length > 1 ? `<div class="sp-gallery">${photos.map((u) => `<img src="${escapeHtml(u)}" class="sp-gimg" loading="lazy">`).join('')}</div>` : ''}
+      ${s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : ''}
+      <div class="sp-where">📍 ${wps.length ? `${wps.length} ${wps.length === 1 ? t('sp_here_1') : t('sp_here_n')}` : t('sp_nowhere')}</div>
+      ${wps.length ? `<img class="sp-map" src="${drawSpeciesMap(wps)}" alt="">
+        <div class="sp-locs">${wps.map((w) => `<button class="chip" data-wp="${escapeHtml(w.properties.id)}">${escapeHtml(L(w.properties, 'title') || w.properties.title)}</button>`).join('')}</div>` : ''}
+      ${admin ? `<div class="sp-admin-actions">
+        <button class="wp-nav" id="sp-edit" style="background:var(--deep)">✏️ ${t('sp_edit')}</button>
+        ${photos.length ? `<button class="wp-nav" id="sp-dl" style="background:var(--muted)">⬇️ ${t('sp_dl')}</button>` : ''}
+      </div>` : ''}
+    </div>`;
+  $('#wp-content').innerHTML = html;
+  $('#waypoint-card').classList.remove('hidden');
+  state.openWaypointId = null;
+  $$('#wp-content .sp-locs .chip').forEach((c) => c.onclick = () => { const w = wpById(c.dataset.wp); closeWaypoint(); if (w) selectSearch(w.properties.id); });
+  const ed = $('#sp-edit'); if (ed) ed.onclick = () => { closeWaypoint(); openSpeciesEditor(s.id, () => { refreshSpecies(); renderSpeciesGrid(); }); };
+  const dl = $('#sp-dl'); if (dl) dl.onclick = () => downloadPhoto(photos[0], L(s, 'common_name') || s.scientific_name);
 }
 
 // ---------- onboarding (primer arranque) ----------
@@ -1334,8 +1440,6 @@ function renderLegend() {
   const types = presentTypes();
   $('#legend-body').innerHTML = `
     <div class="lg-row"><span class="lg-line" style="background:#f4f1de"></span>${t('lg_trails')}</div>
-    <div class="lg-row"><span class="lg-line" style="background:#e07a1f;height:4px"></span>${t('lg_route')}</div>
-    <div class="lg-row"><span class="lg-dot" style="background:#2f9e44"></span>${t('lg_start')} · <span class="lg-dot" style="background:#e03131;margin-left:4px"></span>${t('lg_end')}</div>
     <div class="lg-sep">${t('lg_points_head')}</div>
     <div class="lg-types">
       ${types.map((tp) => {
@@ -1446,15 +1550,20 @@ async function main() {
   $('#inat-link').href = CONFIG.inatProjectUrl;
   $('#lang-toggle').onclick = () => setLang(LANG === 'es' ? 'en' : 'es');
   $('#account-btn').onclick = () => switchView('cuenta');   // Cuenta pasó del tabbar al header
+  // Tap fuera del recuadro (sobre el fondo oscuro) lo cierra.
+  $('#waypoint-card').addEventListener('click', (e) => { if (e.target.id === 'waypoint-card') closeWaypoint(); });
   $('#search-btn').onclick = openSearch;
   $('#search-close').onclick = closeSearch;
   $('#search-input').oninput = (e) => renderSearch(e.target.value);
   // Legend, imagery toggle and GPS button: draggable (tap still collapses / locates).
   makeDraggable($('#legend'), $('#legend-toggle'), 'cantares_pos_legend', () => $('#legend').classList.toggle('collapsed'));
+  // Menos desorden en móvil: la leyenda arranca colapsada (un tap la abre).
+  if (window.matchMedia && window.matchMedia('(max-width: 560px)').matches) $('#legend').classList.add('collapsed');
   makeDraggable($('#base-slider-box'), $('#base-toggle'), 'cantares_pos_base', () => $('#base-slider-box').classList.toggle('collapsed'));
   makeDraggable($('#locate-btn'), $('#locate-btn'), 'cantares_pos_locate', locate);
   window.addEventListener('online', renderOfflineStatus);
   window.addEventListener('offline', renderOfflineStatus);
+  window.addEventListener('cantares:recstate', renderRouteBar);   // refresca el chip "Recorrido libre"
 
   // Register the PMTiles protocol (for an optional local orthophoto layer).
   if (window.pmtiles && maplibregl.addProtocol) {
@@ -1526,7 +1635,7 @@ async function main() {
         refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails,
         applyLocalRow, removeLocalRow,
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
-      initRecorder({ state, t, L, toast });   // grabar recorrido + historial (todos)
+      initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); } });
     }
     // Cola offline: reflejar cambios pendientes de sesiones sin señal y
     // subirlos automáticamente cuando vuelva el internet.
@@ -1552,7 +1661,8 @@ main().catch((e) => { console.error(e); toast('Error: ' + e.message); });
 function cloudWaypointToFeature(r) {
   return { type: 'Feature', properties: {
     id: r.id, title: r.title, title_en: r.title_en, description: r.description, description_en: r.description_en,
-    tipo: r.tipo || 'punto', routes: r.routes || [], species_ids: r.species_ids || [], photo: r.photo || null,
+    tipo: r.tipo || 'punto', routes: r.routes || [], species_ids: r.species_ids || [],
+    photo: r.photo || null, photo_leaf: r.photo_leaf || null,
   }, geometry: { type: 'Point', coordinates: [r.lng, r.lat] } };
 }
 function cloudTrailToFeature(r) {
@@ -1671,6 +1781,7 @@ function applyLocalRow(table, row) {
       normalizeFeatures(fc);
       const i = state.trails.findIndex((t) => t.properties.id === row.id);
       if (i >= 0) state.trails[i] = fc.features[0]; else state.trails.push(fc.features[0]);
+      state._trailGraph = null;   // la red cambió → recalcular el grafo de "cómo llegar"
       const src = state.map && state.map.getSource('trails');
       if (src) src.setData({ type: 'FeatureCollection', features: state.trails });
     } else if (table === 'routes') {
@@ -1684,6 +1795,7 @@ function applyLocalRow(table, row) {
       renderSpeciesFilters(); renderSpeciesGrid();
     }
     if (state.activeRoute) selectRoute(state.activeRoute);
+    if (state.map && state.map.triggerRepaint) state.map.triggerRepaint();   // fuerza repintado tras el cambio
   } catch (e) { console.warn('applyLocalRow', table, e); }
 }
 function removeLocalRow(table, id) {
@@ -1695,6 +1807,7 @@ function removeLocalRow(table, id) {
       renderLegend(); applyWaypointFilter();
     } else if (table === 'trails') {
       state.trails = state.trails.filter((t) => t.properties.id !== id);
+      state._trailGraph = null;
       const src = state.map && state.map.getSource('trails');
       if (src) src.setData({ type: 'FeatureCollection', features: state.trails });
     } else if (table === 'routes') {
