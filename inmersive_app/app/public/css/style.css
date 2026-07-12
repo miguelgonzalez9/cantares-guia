@@ -707,9 +707,10 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-logout { border: 1px solid rgba(255,255,255,.5); background: transparent; color: #fff;
   font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; cursor: pointer; }
 .admin-x { border: none; background: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
-.admin-tabs { display: flex; gap: 4px; padding: 8px 12px 0; background: var(--card); }
-.admin-tab { border: none; background: none; padding: 9px 14px; font-size: 14px; font-weight: 700;
-  color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; }
+.admin-tabs { display: flex; gap: 4px; padding: 8px 12px 0; background: var(--card);
+  overflow-x: auto; flex-wrap: nowrap; }
+.admin-tab { border: none; background: none; padding: 9px 12px; font-size: 14px; font-weight: 700;
+  color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; flex: 0 0 auto; }
 .admin-tab.sel { color: var(--forest); border-bottom-color: var(--sun); }
 .admin-body { flex: 1; overflow-y: auto; padding: 14px; }
 .admin-add { width: 100%; border: 1.5px dashed var(--leaf); background: var(--mist); color: var(--forest);
@@ -881,3 +882,62 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .dash-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .dash-photos figcaption { font-size: 10.5px; padding: 5px 6px; color: var(--forest);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============ Media: galerías (foto + video), lightbox ============ */
+/* La galería usa <picture>/<video>/<img> con clase sp-gimg; encuadre por object-position. */
+.sp-fig { width: 120px; }
+.sp-gimg, .sp-gimg img, video.sp-gimg { display: block; width: 100%; height: 84px;
+  object-fit: cover; border-radius: 9px; }
+.sp-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sp-fig { cursor: zoom-in; position: relative; }
+.wp-video-hdr { position: relative; height: 200px; background: #000; overflow: hidden; }
+.wp-hdr-video { width: 100%; height: 100%; object-fit: cover; }
+/* Visor a pantalla completa */
+.media-lightbox { position: fixed; inset: 0; z-index: 120; background: rgba(6,9,18,0.92);
+  display: none; align-items: center; justify-content: center; padding: 20px; }
+.media-lightbox.open { display: flex; }
+.media-lightbox .lb-media { max-width: 100%; max-height: 92vh; border-radius: 10px; }
+.media-lightbox .lb-close { position: absolute; top: 14px; right: 16px; width: 44px; height: 44px;
+  border: none; border-radius: 999px; background: rgba(255,255,255,0.18); color: #fff;
+  font-size: 26px; line-height: 1; cursor: pointer; }
+
+/* ============ Clasificador de fotos/videos (admin) ============ */
+.fm-badge { background: var(--orange); color: #fff; border-radius: 999px; font-size: 11px;
+  padding: 1px 6px; margin-left: 2px; }
+.fm-modes { display: flex; gap: 6px; padding: 8px 0 10px; }
+.fm-modes button { flex: 1; border: 1.5px solid var(--line); background: var(--card); border-radius: 999px;
+  padding: 8px; font-weight: 700; font-size: 13px; color: var(--muted); cursor: pointer; }
+.fm-modes button.sel { background: var(--deep); color: #fff; border-color: var(--deep); }
+.fm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.fm-card { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); }
+.fm-thumb { width: 100%; aspect-ratio: 4 / 3; background: #eef2ee center/cover no-repeat; }
+.fm-thumb.fm-video { display: flex; align-items: center; justify-content: center; background-color: #0a0e1d; }
+.fm-thumb.fm-video span { color: #fff; font-size: 26px; opacity: 0.85; }
+.fm-meta { padding: 7px 8px 8px; }
+.fm-subj { display: block; font-size: 12px; font-weight: 700; color: var(--forest);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
+.fm-subj i { font-weight: 400; color: var(--muted); }
+.fm-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.fm-btns button { border: 1px solid var(--line); background: var(--mist); border-radius: 7px;
+  padding: 4px 7px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--forest); }
+.fm-btns button[data-a="primary"].on { background: var(--gold); border-color: var(--gold); color: var(--navy); }
+.fm-btns button[data-a="del"] { color: var(--red); }
+.fm-open { background: var(--mist); }
+/* Selector de sujeto para clasificar */
+.fm-assign { position: fixed; inset: 0; z-index: 90; background: rgba(10,14,29,0.55);
+  display: flex; align-items: center; justify-content: center; padding: 16px; }
+.fm-assign-box { position: relative; background: var(--card); border-radius: 16px; width: 100%;
+  max-width: 420px; max-height: 88%; overflow-y: auto; padding: 18px; box-shadow: var(--shadow); }
+.fm-assign-box h3 { margin: 0 30px 12px 0; }
+.fm-type-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+.fm-type-toggle button { flex: 1; border: 1.5px solid var(--line); background: var(--card);
+  border-radius: 999px; padding: 8px; font-weight: 700; font-size: 13px; cursor: pointer; color: var(--muted); }
+.fm-type-toggle button.sel { background: var(--sky); color: #fff; border-color: var(--sky); }
+.fm-assign-list { max-height: 320px; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.fm-assign-list.hidden { display: none; }
+.fm-assign-item { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 9px;
+  padding: 8px 10px; cursor: pointer; font-size: 13px; }
+.fm-assign-item:hover { background: var(--mist); }
+.fm-assign-item span { color: var(--muted); font-style: italic; font-size: 12px; }
+.fm-subj-pick { margin: 8px 0 10px; }
+.fm-subj-pick .fm-assign-list { max-height: 240px; }

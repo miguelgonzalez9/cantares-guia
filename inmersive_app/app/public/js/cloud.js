@@ -119,6 +119,18 @@ export async function deleteTrail(id) { const c = await getClient(); const { err
 export async function upsertRoute(r) { const c = await getClient(); const { error } = await c.from('routes').upsert(r); if (error) throw error; }
 export async function deleteRoute(id) { const c = await getClient(); const { error } = await c.from('routes').delete().eq('id', id); if (error) throw error; }
 
+// ---------- medios (fotos + videos): tabla runtime, espejo de media.json ----------
+export const listMedia = () => sel('media');
+export async function upsertMedia(m) {
+  const c = await getClient();
+  // Un visitante sólo puede contribuir fotos sin clasificar (RLS); el admin, todo.
+  const row = { ...m };
+  if (!isAdmin()) { const u = currentUser(); row.contributor = u ? u.id : null; row.status = 'unclassified'; }
+  const { error } = await c.from('media').upsert(row);
+  if (error) throw error;
+}
+export async function deleteMedia(id) { const c = await getClient(); const { error } = await c.from('media').delete().eq('id', id); if (error) throw error; }
+
 // ---------- inventario global (sightings) + progreso del visitante ----------
 export async function listSightings() { return sel('sightings'); }
 export async function addSighting(s) {

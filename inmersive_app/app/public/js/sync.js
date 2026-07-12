@@ -3,12 +3,13 @@
 // (al volver el internet, al volver a la app, o cada minuto). Así se puede crear
 // senderos y puntos en plena montaña sin cobertura.
 import { cloudConfigured, uploadImage, upsertWaypoint, deleteWaypoint, upsertSpecies, deleteSpecies,
-  upsertTrail, deleteTrail, upsertRoute, deleteRoute, upsertSighting, upsertWalk, deleteWalkCloud } from './cloud.js';
+  upsertTrail, deleteTrail, upsertRoute, deleteRoute, upsertSighting, upsertWalk, deleteWalkCloud,
+  upsertMedia, deleteMedia } from './cloud.js';
 
 const UPSERT = { waypoints: upsertWaypoint, trails: upsertTrail, routes: upsertRoute, species: upsertSpecies,
-  sightings: upsertSighting, walks: upsertWalk };
+  sightings: upsertSighting, walks: upsertWalk, media: upsertMedia };
 const REMOVE = { waypoints: deleteWaypoint, trails: deleteTrail, routes: deleteRoute, species: deleteSpecies,
-  walks: deleteWalkCloud };
+  walks: deleteWalkCloud, media: deleteMedia };
 // La clave de cada fila: id normal, o client_id (avistamientos: el id del
 // servidor lo genera la base; el cliente identifica por client_id).
 const rowKey = (row) => row.id != null ? row.id : row.client_id;
@@ -51,7 +52,15 @@ function isNetErr(e) {
   const m = (e && e.message) || String(e || '');
   return (e && e.name === 'TypeError') || /fetch|network|timeout|load failed|abort|conex/i.test(m);
 }
-const blobFile = (b, id) => new File([b], `${id}_${Date.now().toString(36)}.jpg`, { type: b.type || 'image/jpeg' });
+// Extensión coherente con el tipo del blob (jpg por defecto; mp4/webm para video),
+// para que la subida a Storage no bautice un video como .jpg.
+const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+  'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' };
+const blobFile = (b, id) => {
+  const type = b.type || 'image/jpeg';
+  const ext = EXT[type] || (type.startsWith('video/') ? 'mp4' : 'jpg');
+  return new File([b], `${id}_${Date.now().toString(36)}.${ext}`, { type });
+};
 
 // ---------- compresión de fotos (celular: 5–12 MB → ~200–400 KB) ----------
 export async function compressImage(file, maxDim = 1600, quality = 0.82) {

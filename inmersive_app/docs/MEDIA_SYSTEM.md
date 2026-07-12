@@ -111,6 +111,44 @@ python inmersive_app/data_prep/10_process_photos.py
 *Ajustes → Cámara → Formatos → «Más compatible»* (guarda JPG), o instalar
 `pip install pillow-heif` para convertirlos.
 
+## Integración con la app (runtime)
+
+El pipeline de arriba es **build-time**: el dueño suelta fotos, corre el script y
+versiona `media.json` + las imágenes optimizadas. Pero el admin y los visitantes
+también suben fotos/videos **desde el celular, sin tocar el repo**. Para eso la app
+tiene un espejo en la nube: la tabla **`public.media`** de Supabase (migración
+`data/17_media_table.sql`), con el **mismo esquema** que `media.json` más
+`kind` (`photo`|`video`), `focal_x/y` (encuadre), `sort`, `status`
+(`classified`|`unclassified`) y `contributor`.
+
+```
+  media.json  (build-time, curado, versionado, WebP)  ─┐
+                                                         ├─►  app fusiona (normMedia) ─► galerías / portada
+  tabla media (runtime, Supabase: admin + visitantes)  ─┘
+```
+
+- **Fusión.** `applyCloudMedia()` combina la tabla de la nube SOBRE `media.json`
+  y reindexa por sujeto (`species:<id>` / `waypoint:<id>`), igual que se fusionan
+  puntos/especies/recorridos. Una tabla incompleta nunca borra las fotos curadas.
+- **Galerías + portada.** La ficha de un punto o especie muestra todas sus fotos
+  y videos; el primer registro `is_primary` es la portada. El admin elige portada,
+  reordena, pone pie de foto y sube/borra desde el clasificador.
+- **Compartir punto↔especie.** Si un punto está linkeado a una especie, su foto
+  aparece **también** en la galería de la especie (unión en lectura: `speciesGallery`),
+  sin duplicar archivos.
+- **Videos.** Van a Supabase Storage (bucket `media`) con aviso de peso; se
+  reproducen en la galería y a pantalla completa (lightbox). Offline aún no se
+  cachean (pendiente: regla de SW para el host de Storage).
+- **Clasificador manual (admin → 🖼️ Fotos).** Bandeja de fotos/videos **sin
+  clasificar** (o mal clasificados) para asignarlos a un punto o especie; y modo
+  **por sujeto** para gestionar la galería de cada uno. Todo pasa por la cola
+  offline (`saveRow('media', …)`), así funciona en la montaña sin señal.
+- **RLS.** Lectura pública; el admin escribe todo; un visitante autenticado puede
+  **contribuir** una foto que entra como `unclassified` hasta que el admin la clasifique.
+
+Prioridad de la portada: un registro `is_primary` de la tabla (elegido por el
+admin) gana sobre la foto directa del punto/especie (`photo`) y sobre `media.json`.
+
 ## Cómo verificar
 
 - `--dry-run` imprime qué procesaría sin tocar archivos.

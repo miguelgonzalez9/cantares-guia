@@ -69,25 +69,76 @@ function presentTypes() {
   return order.filter((t) => seen.has(t));
 }
 
-// ---------- media (fotos curadas de especies y puntos, desde media.json) ----------
-function indexMedia(doc) {
-  const bySubject = {};
-  (doc && doc.photos || []).forEach((p) => {
-    const key = `${p.subject_type}:${p.subject_id}`;
-    (bySubject[key] = bySubject[key] || []).push(p);
+// ---------- media (fotos + videos de especies y puntos) ----------
+// Dos fuentes se combinan en un registro canónico: (1) las fotos curadas de
+// build-time (media.json: campos file/jpg/thumb, WebP) y (2) la tabla `media`
+// de la nube (campos url/kind/focal…, subida por admin/visitantes). normMedia
+// las lleva a la misma forma para que las galerías, la portada y los videos las
+// rendericen igual.
+function normMedia(r) {
+  const isCloud = !!r.url;
+  const full = r.url || r.jpg || r.file || '';
+  const thumb = r.thumb || full;
+  return {
+    id: r.id || full,
+    kind: r.kind || 'photo',                 // 'photo' | 'video'
+    full, thumb, poster: r.poster || null,
+    webpThumb: (!isCloud && r.file) ? (r.thumb || r.file) : null,   // <picture> WebP (pipeline estático)
+    jpgThumb: (!isCloud && r.jpg) ? r.jpg : thumb,
+    is_primary: r.is_primary === true,
+    sort: r.sort != null ? r.sort : 0,
+    focal_x: r.focal_x != null ? r.focal_x : 0.5,
+    focal_y: r.focal_y != null ? r.focal_y : 0.5,
+    caption: r.caption || '', caption_en: r.caption_en || '',
+    credit: r.credit || '', license: r.license || '',
+    subject_type: r.subject_type || null, subject_id: r.subject_id || null,
+    source: r.source || (isCloud ? 'cloud' : 'curated'),
+    status: r.status || ((r.subject_type && r.subject_id) ? 'classified' : (isCloud ? 'unclassified' : 'classified')),
+  };
+}
+function indexMedia(doc, cloud) {
+  const all = [];
+  ((doc && doc.photos) || []).forEach((p) => all.push(normMedia(p)));
+  (cloud || []).forEach((r) => all.push(normMedia(r)));
+  const bySubject = {}, byId = {}, unclassified = [];
+  all.forEach((m) => {
+    byId[m.id] = m;
+    if (m.subject_type && m.subject_id && m.status !== 'unclassified') {
+      const k = `${m.subject_type}:${m.subject_id}`;
+      (bySubject[k] = bySubject[k] || []).push(m);
+    } else unclassified.push(m);
   });
-  // la principal primero
-  Object.values(bySubject).forEach((arr) => arr.sort((a, b) => (b.is_primary === true) - (a.is_primary === true)));
-  return { bySubject };
+  // portada primero, luego por 'sort'
+  Object.values(bySubject).forEach((arr) => arr.sort((a, b) => (b.is_primary - a.is_primary) || (a.sort - b.sort)));
+  return { bySubject, byId, unclassified, all };
+}
+// Combina la tabla `media` de la nube SOBRE las fotos estáticas (reindexa todo).
+function applyCloudMedia(cm) {
+  state.cloudMedia = cm || [];
+  state.media = indexMedia(state.staticMedia, state.cloudMedia);
 }
 function photosFor(type, id) { return state.media.bySubject[`${type}:${id}`] || []; }
 function primaryPhoto(type, id) { const a = photosFor(type, id); return a[0] || null; }
-// <picture> WebP + respaldo JPEG. `cls` para estilo, `alt` texto alternativo.
+// <picture>/<video> con recorte por punto focal (focal_x/y → object-position).
 function pictureTag(ph, cls, alt) {
   if (!ph) return '';
-  const src = ph.thumb || ph.file;
-  return `<picture class="${cls}"><source srcset="${src}" type="image/webp">` +
-    `<img src="${ph.jpg || ph.file}" alt="${(alt || '').replace(/"/g, '&quot;')}" loading="lazy"></picture>`;
+  const pos = `object-position:${(ph.focal_x * 100).toFixed(1)}% ${(ph.focal_y * 100).toFixed(1)}%`;
+  const a = (alt || '').replace(/"/g, '&quot;');
+  if (ph.kind === 'video') {
+    return `<video class="${cls}" src="${ph.full}" ${ph.poster ? `poster="${ph.poster}"` : ''} muted loop playsinline preload="metadata" style="${pos}"></video>`;
+  }
+  const src = ph.jpgThumb || ph.thumb || ph.full;
+  return `<picture class="${cls}">${ph.webpThumb ? `<source srcset="${ph.webpThumb}" type="image/webp">` : ''}` +
+    `<img src="${src}" alt="${a}" loading="lazy" style="${pos}"></picture>`;
+}
+// Media a tamaño grande (galería/ampliada): usa la versión full, no la miniatura.
+function mediaFullTag(m, cls, alt) {
+  const pos = `object-position:${(m.focal_x * 100).toFixed(1)}% ${(m.focal_y * 100).toFixed(1)}%`;
+  const a = (alt || m.caption || '').replace(/"/g, '&quot;');
+  if (m.kind === 'video') {
+    return `<video class="${cls}" src="${m.full}" ${m.poster ? `poster="${m.poster}"` : ''} controls muted playsinline preload="metadata" style="${pos}"></video>`;
+  }
+  return `<img class="${cls}" src="${m.full}" alt="${a}" loading="lazy" style="${pos}">`;
 }
 
 // ---------- i18n ----------
@@ -837,9 +888,21 @@ function routeLabel(rid) {
 // Real curated photo for a point, or null. No placeholder: popups adapt to the
 // content they actually have (title-only if there's nothing else).
 function realPhoto(wp) {
-  if (wp.properties.photo) return wp.properties.photo;
-  const mp = primaryPhoto('waypoint', wp.properties.id);   // foto curada real (media.json)
-  return mp ? (mp.jpg || mp.file) : null;                  // jpg: universal en background-image
+  // Prefiere la portada elegida en la galería (media); si es video, su poster.
+  const mp = primaryPhoto('waypoint', wp.properties.id);
+  if (mp) return mp.kind === 'video' ? (mp.poster || wp.properties.photo || null) : mp.full;
+  return wp.properties.photo || null;
+}
+// Galería del punto: portada/fotos de la tabla media + foto y hoja heredadas.
+function waypointGallery(wp) {
+  const p = wp.properties, out = [], seen = new Set();
+  const push = (m) => { if (m && m.full && !seen.has(m.full)) { seen.add(m.full); out.push(m); } };
+  (state.media.bySubject[`waypoint:${p.id}`] || []).forEach(push);
+  if (p.photo) push(normMedia({ url: p.photo, subject_type: 'waypoint', subject_id: p.id, id: 'wp-photo:' + p.id,
+    caption: p.tipo === 'arbol' ? t('tree_photo') : '', caption_en: p.tipo === 'arbol' ? 'Tree' : '' }));
+  if (p.photo_leaf) push(normMedia({ url: p.photo_leaf, id: 'wp-leaf:' + p.id, caption: t('leaf_photo'), caption_en: 'Leaf' }));
+  out.sort((a, b) => (b.is_primary - a.is_primary) || (a.sort - b.sort));
+  return out;
 }
 // Especies linkeadas a un punto (por id de especie o por nombre científico).
 // Guarda contra scientific_name nulo. Devuelve los objetos-especie encontrados.
@@ -895,7 +958,7 @@ function miniPopup(wp) {
 function showWaypoint(wp) {
   if (!wp) return;
   const p = wp.properties;
-  state.openWaypointId = p.id;
+  state.openWaypointId = p.id; state.openSpeciesId = null;
   // Una sola caja a la vez: la tarjeta del punto oculta la caja del recorrido
   // (y al cerrarla, la caja vuelve si estaba abierta).
   const ri = $('#route-info');
@@ -907,6 +970,7 @@ function showWaypoint(wp) {
   const linked = linkedSpecies(p);
   const speciesChips = linked.map((s) => `<span class="chip" data-species="${s.id}">${L(s, 'common_name') || s.scientific_name}</span>`).join('');
   const photo = realPhoto(wp);
+  const gallery = waypointGallery(wp);
   const tm = typeMeta(p.tipo);
   const desc = L(p, 'description');
   // Nombre científico/familia: del waypoint (árboles estáticos) o, si no, de la
@@ -922,7 +986,7 @@ function showWaypoint(wp) {
       <h2 class="wp-title">${escapeHtml(L(p, 'title') || p.title)}</h2>
       ${sci ? `<p class="wp-sci"><em>${escapeHtml(sci)}</em>${family ? ` · ${escapeHtml(family)}` : ''}</p>` : ''}
       <button class="wp-nav" id="wp-nav">🧭 ${t('nav_how')}</button>
-      ${p.photo_leaf ? `<div class="sp-gallery">${photo ? `<figure class="sp-fig"><img class="sp-gimg" src="${escapeHtml(photo)}"><figcaption>${t('tree_photo')}</figcaption></figure>` : ''}<figure class="sp-fig"><img class="sp-gimg" src="${escapeHtml(p.photo_leaf)}"><figcaption>${t('leaf_photo')}</figcaption></figure></div>` : ''}
+      ${gallery.length > 1 ? `<div class="sp-gallery">${gallery.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(p, 'title'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
       ${desc ? `<p class="wp-desc">${escapeHtml(desc)}</p>` : ''}
       ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
       ${p.tipo === 'arbol' ? `<p class="tiny muted" style="margin-top:10px">${t('tree_note')}${p.tag ? ` · ${t('tree_tag')} ${escapeHtml(p.tag)}` : ''}${p.altitude ? ` · ${escapeHtml(p.altitude)}` : ''}</p>` : ''}
@@ -930,13 +994,14 @@ function showWaypoint(wp) {
     </div>`;
   $('#waypoint-card').classList.remove('hidden');
   const navBtn = $('#wp-nav'); if (navBtn) navBtn.onclick = () => navigateTo(wp);
+  $$('#wp-content .sp-gallery .sp-fig').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
   $$('#wp-content .route-badge').forEach((b) =>
     b.onclick = () => { const rid = b.dataset.route; closeWaypoint(); selectRoute(rid); });
   $$('#wp-content .chip').forEach((chip) =>
     chip.onclick = () => { switchView('especies'); highlightSpecies(chip.dataset.species); });
 }
 function closeWaypoint() {
-  $('#waypoint-card').classList.add('hidden'); state.openWaypointId = null;
+  $('#waypoint-card').classList.add('hidden'); state.openWaypointId = null; state.openSpeciesId = null;
   if (state._riWasOpen && state.activeRoute) $('#route-info').classList.remove('hidden');
   state._riWasOpen = false;
 }
@@ -1152,11 +1217,20 @@ function speciesWaypoints(s) {
   const keys = new Set([String(s.id).toLowerCase(), (s.scientific_name || '').toLowerCase()].filter(Boolean));
   return state.waypoints.filter((w) => (w.properties.species_ids || []).some((sid) => keys.has(String(sid).trim().toLowerCase())));
 }
-// Todas las fotos de una especie: la de la nube + las curadas (media.json) + hoja.
-function speciesPhotos(s) {
-  const out = [];
-  if (s.photo) out.push(s.photo);
-  (state.media.bySubject[`species:${s.id}`] || []).forEach((m) => { const u = m.jpg || m.file; if (u && !out.includes(u)) out.push(u); });
+// Galería de una especie (registros normalizados): media de la nube + curadas
+// (media.json) + su foto directa + COMPARTIDAS de los puntos asociados. Así, si
+// un punto está linkeado a una especie, su foto aparece también en la especie.
+function speciesGallery(s) {
+  const out = [], seen = new Set();
+  const push = (m) => { if (m && m.full && !seen.has(m.full)) { seen.add(m.full); out.push(m); } };
+  (state.media.bySubject[`species:${s.id}`] || []).forEach(push);
+  if (s.photo) push(normMedia({ url: s.photo, subject_type: 'species', subject_id: s.id, id: 'sp-photo:' + s.id }));
+  speciesWaypoints(s).forEach((w) => {
+    const p = w.properties, ttl = L(p, 'title') || p.title || '';
+    if (p.photo) push(normMedia({ url: p.photo, id: 'shared:' + p.id, caption: ttl, source: 'shared' }));
+    (state.media.bySubject[`waypoint:${p.id}`] || []).forEach((m) => push({ ...m, caption: m.caption || ttl }));
+  });
+  out.sort((a, b) => (b.is_primary - a.is_primary) || (a.sort - b.sort));
   return out;
 }
 // Mini-mapa estático (canvas) del contorno de la reserva + los puntos de la especie.
@@ -1185,35 +1259,52 @@ function drawSpeciesMap(wps, size = 560) {
 function showSpecies(s) {
   if (!s) return;
   const wps = speciesWaypoints(s);
-  const photos = speciesPhotos(s);
+  const gallery = speciesGallery(s);
+  const cover = gallery[0] || null;
   const admin = isAdminUser();
   const statusTxt = s.status === 'possible' ? t('possible') : '';
   let mapImg = '';   // el mini-mapa nunca debe impedir que abra la ficha
   if (wps.length) { try { mapImg = drawSpeciesMap(wps); } catch (e) { console.warn('speciesMap', e && e.message); } }
+  const coverBg = cover ? (cover.kind === 'video' ? (cover.poster || '') : cover.full) : '';
   const html = `
-    ${photos.length
-      ? `<div class="wp-photo-hdr" style="background-image:url('${escapeHtml(photos[0])}')"></div>`
+    ${cover
+      ? (cover.kind === 'video'
+          ? `<div class="wp-photo-hdr wp-video-hdr">${mediaFullTag(cover, 'wp-hdr-video', L(s, 'common_name'))}</div>`
+          : `<div class="wp-photo-hdr" style="background-image:url('${escapeHtml(coverBg)}');background-position:${(cover.focal_x * 100).toFixed(0)}% ${(cover.focal_y * 100).toFixed(0)}%"></div>`)
       : `<div class="wp-photo-hdr wp-no-photo" style="background:linear-gradient(135deg, var(--green), var(--deep))"><span class="wp-hdr-emoji">${s.group === 'ave' ? '🐦' : s.group === 'mamifero' ? '🐾' : s.group === 'anfibio' ? '🐸' : '🌿'}</span></div>`}
     <div class="wp-inner">
       <div class="wp-theme-badges"><span class="species-group-tag g-${s.group}">${t('grp_' + s.group)}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}</div>
       <h2 class="wp-title">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
       ${s.scientific_name ? `<p class="wp-sci"><em>${escapeHtml(s.scientific_name)}</em>${s.family ? ` · ${escapeHtml(s.family)}` : ''}</p>` : ''}
-      ${photos.length > 1 ? `<div class="sp-gallery">${photos.map((u) => `<img src="${escapeHtml(u)}" class="sp-gimg" loading="lazy">`).join('')}</div>` : ''}
+      ${gallery.length > 1 ? `<div class="sp-gallery">${gallery.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
       ${s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : ''}
       <div class="sp-where">📍 ${wps.length ? `${wps.length} ${wps.length === 1 ? t('sp_here_1') : t('sp_here_n')}` : t('sp_nowhere')}</div>
       ${wps.length ? `${mapImg ? `<img class="sp-map" src="${mapImg}" alt="">` : ''}
         <div class="sp-locs">${wps.map((w) => `<button class="chip" data-wp="${escapeHtml(w.properties.id)}">${escapeHtml(L(w.properties, 'title') || w.properties.title)}</button>`).join('')}</div>` : ''}
       ${admin ? `<div class="sp-admin-actions">
         <button class="wp-nav" id="sp-edit" style="background:var(--deep)">✏️ ${t('sp_edit')}</button>
-        ${photos.length ? `<button class="wp-nav" id="sp-dl" style="background:var(--muted)">⬇️ ${t('sp_dl')}</button>` : ''}
+        ${cover ? `<button class="wp-nav" id="sp-dl" style="background:var(--muted)">⬇️ ${t('sp_dl')}</button>` : ''}
       </div>` : ''}
     </div>`;
   $('#wp-content').innerHTML = html;
   $('#waypoint-card').classList.remove('hidden');
-  state.openWaypointId = null;
+  state.openWaypointId = null; state.openSpeciesId = s.id;
+  $$('#wp-content .sp-gallery .sp-fig').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
   $$('#wp-content .sp-locs .chip').forEach((c) => c.onclick = () => { const w = wpById(c.dataset.wp); closeWaypoint(); if (w) selectSearch(w.properties.id); });
   const ed = $('#sp-edit'); if (ed) ed.onclick = () => { closeWaypoint(); openSpeciesEditor(s.id, () => { refreshSpecies(); renderSpeciesGrid(); }); };
-  const dl = $('#sp-dl'); if (dl) dl.onclick = () => downloadPhoto(photos[0], L(s, 'common_name') || s.scientific_name);
+  const dl = $('#sp-dl'); if (dl) dl.onclick = () => downloadPhoto(cover.full, L(s, 'common_name') || s.scientific_name);
+}
+// Visor a pantalla completa para una foto/video de la galería.
+function openLightbox(url, kind) {
+  if (!url) return;
+  let ov = document.getElementById('media-lightbox');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'media-lightbox'; ov.className = 'media-lightbox'; document.body.appendChild(ov); }
+  ov.innerHTML = kind === 'video'
+    ? `<video src="${escapeHtml(url)}" controls autoplay playsinline class="lb-media"></video><button class="lb-close" aria-label="Cerrar">×</button>`
+    : `<img src="${escapeHtml(url)}" class="lb-media" alt=""><button class="lb-close" aria-label="Cerrar">×</button>`;
+  ov.classList.add('open');
+  const close = () => ov.classList.remove('open');
+  ov.onclick = (e) => { if (e.target === ov || e.target.classList.contains('lb-close')) close(); };
 }
 
 // ---------- onboarding (primer arranque) ----------
@@ -1641,7 +1732,9 @@ async function main() {
   state.species = speciesDoc.species;
   state.staticSpecies = speciesDoc.species;   // respaldo para el merge con la nube
   state.reserveInfo = reserveInfo;
-  state.media = indexMedia(mediaDoc);
+  state.staticMedia = mediaDoc;             // respaldo para el merge con la nube
+  state.cloudMedia = [];
+  state.media = indexMedia(mediaDoc, []);
 
   // Waypoints base = puntos curados + inventario de árboles (tipo 'arbol').
   // La nube se combina ENCIMA de esta base (los árboles editados/con foto la
@@ -1686,7 +1779,7 @@ async function main() {
     initSync({
       onSynced: async (n) => {
         toast(`☁️ ${n} cambio(s) sincronizado(s)`);
-        await refreshRoutes(); await refreshTrails(); await refreshWaypoints(); await refreshSpecies();
+        await refreshRoutes(); await refreshTrails(); await refreshWaypoints(); await refreshSpecies(); await refreshMedia();
       },
       onPending: (n) => { const fab = document.getElementById('admin-fab'); if (fab) fab.dataset.pending = String(n || 0); },
       onStuck: (op) => toast(`⚠️ Un cambio (${op.table}) no se ha podido subir. Revisa tu sesión de admin; se seguirá reintentando.`),
@@ -1757,14 +1850,16 @@ function applyCloudSpecies(cs) {
 async function loadCloudData() {
   if (!Cloud.cloudConfigured()) return;
   try {
-    const [cw, cs, cr, ct] = await Promise.all([
+    const [cw, cs, cr, ct, cm] = await Promise.all([
       Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null),
       Cloud.listRoutes().catch(() => null), Cloud.listTrails().catch(() => null),
+      Cloud.listMedia().catch(() => null),
     ]);
     if (cw && cw.length) applyCloudWaypoints(cw);
     if (cs && cs.length) applyCloudSpecies(cs);
     if (cr && cr.length) applyCloudRoutes(cr);
     if (ct && ct.length) { const fc = { type: 'FeatureCollection', features: ct.map(cloudTrailToFeature) }; normalizeFeatures(fc); state.trails = fc.features; }
+    if (cm) applyCloudMedia(cm);   // tabla de medios (fotos + videos) sobre las estáticas
   } catch (e) { console.warn('[cloud] datos', e && e.message); }
 }
 async function refreshRoutes() {
@@ -1804,6 +1899,13 @@ async function refreshSpecies() {
     renderSpeciesFilters(); renderSpeciesGrid();
   } catch (e) { console.warn('[cloud] refreshSpecies', e && e.message); }
 }
+async function refreshMedia() {
+  if (!Cloud.cloudConfigured() || !navigator.onLine) return;
+  try {
+    applyCloudMedia(await Cloud.listMedia());
+    renderSpeciesGrid(); refreshOpenCard();
+  } catch (e) { console.warn('[cloud] refreshMedia', e && e.message); }
+}
 
 // ---------- modo offline: aplicar cambios al estado local sin red ----------
 // Espejo local de lo que la nube devolvería tras un upsert/delete. Lo usa el
@@ -1836,6 +1938,12 @@ function applyLocalRow(table, row) {
       const i = state.species.findIndex((s) => s.id === row.id);
       if (i >= 0) state.species[i] = { ...state.species[i], ...row }; else state.species.push(row);
       renderSpeciesFilters(); renderSpeciesGrid();
+    } else if (table === 'media') {
+      const list = state.cloudMedia || (state.cloudMedia = []);
+      const i = list.findIndex((m) => m.id === row.id);
+      if (i >= 0) list[i] = { ...list[i], ...row }; else list.push(row);
+      applyCloudMedia(list);
+      renderSpeciesGrid(); refreshOpenCard();
     }
     if (state.activeRoute) selectRoute(state.activeRoute);
     if (state.map && state.map.triggerRepaint) state.map.triggerRepaint();   // fuerza repintado tras el cambio
@@ -1861,9 +1969,20 @@ function removeLocalRow(table, id) {
     } else if (table === 'species') {
       state.species = state.species.filter((s) => s.id !== id);
       renderSpeciesFilters(); renderSpeciesGrid();
+    } else if (table === 'media') {
+      state.cloudMedia = (state.cloudMedia || []).filter((m) => m.id !== id);
+      applyCloudMedia(state.cloudMedia);
+      renderSpeciesGrid(); refreshOpenCard();
     }
     if (state.activeRoute) selectRoute(state.activeRoute);
   } catch (e) { console.warn('removeLocalRow', table, e); }
+}
+// Re-renderiza la ficha abierta (punto o especie) tras cambiar sus medios.
+function refreshOpenCard() {
+  try {
+    if (state.openSpeciesId) { const s = state.species.find((x) => x.id === state.openSpeciesId); if (s) showSpecies(s); }
+    else if (state.openWaypointId) { const w = wpById(state.openWaypointId); if (w) showWaypoint(w); }
+  } catch (e) { console.warn('refreshOpenCard', e && e.message); }
 }
 // Al arrancar: superponer los cambios que quedaron en la cola (hechos sin señal
 // en una sesión anterior) sobre los datos cargados, para que no "desaparezcan".
@@ -1873,7 +1992,8 @@ async function applyPendingLocally() {
       if (op.op === 'delete') removeLocalRow(op.table, op.id);
       else {
         const row = { ...op.row };
-        if (op.photoBlob) row.photo = URL.createObjectURL(op.photoBlob);
+        if (op.photoBlob) row.photo = URL.createObjectURL(op.photoBlob);   // compat ops viejos
+        if (op.blobs) for (const f in op.blobs) if (!row[f]) row[f] = URL.createObjectURL(op.blobs[f]);
         applyLocalRow(op.table, row);
       }
     }

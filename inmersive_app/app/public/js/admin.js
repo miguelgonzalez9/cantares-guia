@@ -5,6 +5,7 @@ import { isAdmin } from './cloud.js';
 import { saveRow, deleteRow, compressImage } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 import { doLogout } from './auth-ui.js';
+import { exportFieldBackup } from './field-export.js';   // respaldo de fotos del juego → SIC (Dropbox)
 
 let CTX = null;
 let _pointDraft = null, moveMarker = null;
@@ -85,6 +86,7 @@ function renderPanel() {
       <button class="admin-tab ${tab === 'puntos' ? 'sel' : ''}" data-t="puntos">Puntos</button>
       <button class="admin-tab ${tab === 'senderos' ? 'sel' : ''}" data-t="senderos">Senderos</button>
       <button class="admin-tab ${tab === 'recorridos' ? 'sel' : ''}" data-t="recorridos">Recorridos</button>
+      <button class="admin-tab ${tab === 'fotos' ? 'sel' : ''}" data-t="fotos">🖼️ Fotos${unclassifiedCount() ? ` <span class="fm-badge">${unclassifiedCount()}</span>` : ''}</button>
     </div>
     <div class="admin-note" style="margin:6px 10px 0">Las especies se editan en la pestaña 🦋 Especies.</div>
     <div class="admin-body" id="admin-body"></div>`;
@@ -92,7 +94,7 @@ function renderPanel() {
   el.querySelector('#admin-x').onclick = closePanel;
   el.querySelector('#admin-logout').onclick = doLogout;
   el.querySelectorAll('.admin-tab').forEach((b) => b.onclick = () => { tab = b.dataset.t; renderPanel(); });
-  ({ puntos: renderPuntos, senderos: renderSenderos, recorridos: renderRecorridos }[tab] || renderPuntos)();
+  ({ puntos: renderPuntos, senderos: renderSenderos, recorridos: renderRecorridos, fotos: renderFotos }[tab] || renderPuntos)();
 }
 
 // ---------------- selección lista ↔ mapa (buscar / resaltar) ----------------
@@ -208,6 +210,7 @@ function editPunto(id) {
         <input type="file" id="f-leaf" accept="image/*">
       </div>
       ${p.photo_leaf ? '<button type="button" class="admin-pick" id="f-leaf-dl">⬇️ Descargar hoja</button>' : ''}
+      ${id ? '<button type="button" class="admin-pick fm-open" id="f-media">🖼️ Fotos y videos (galería, portada)…</button>' : ''}
       <label>Ubicación</label>
       <div class="admin-loc">
         <span id="f-loc">${coords ? `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}` : 'sin fijar'}</span>
@@ -232,6 +235,7 @@ function editPunto(id) {
   let photoLeafUrl = p.photo_leaf || null;
   let photoLeafBlob = draftLeafBlob || null;
   if (photoLeafBlob) { const pv = body.querySelector('#f-leaf-prev'); if (pv) pv.style.backgroundImage = `url('${URL.createObjectURL(photoLeafBlob)}')`; }
+  const fmb = body.querySelector('#f-media'); if (fmb) fmb.onclick = () => openMediaFor('waypoint', id);
   const fdl = body.querySelector('#f-dl'); if (fdl) fdl.onclick = () => downloadPhoto(photoUrl, (p.title || 'punto'));
   const fldl = body.querySelector('#f-leaf-dl'); if (fldl) fldl.onclick = () => downloadPhoto(photoLeafUrl, (p.title || 'punto') + '_hoja');
   body.querySelector('#f-leaf').onchange = async (e) => {
@@ -454,6 +458,7 @@ export function openSpeciesEditor(id, onSaved) {
         <input type="file" id="se-photo" accept="image/*">
       </div>
       ${s.photo ? `<button type="button" class="admin-pick" id="se-dl">⬇️ Descargar foto</button>` : ''}
+      ${id ? '<button type="button" class="admin-pick fm-open" id="se-media">🖼️ Fotos y videos (galería, portada)…</button>' : ''}
       <div class="admin-err" id="se-err"></div>
       <div class="admin-actions">
         <button class="admin-save" id="se-save">Guardar</button>
@@ -466,6 +471,7 @@ export function openSpeciesEditor(id, onSaved) {
   ov.querySelector('#se-cancel').onclick = close;
   ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
   const dl = ov.querySelector('#se-dl'); if (dl) dl.onclick = () => downloadPhoto(s.photo, (s.common_name || s.scientific_name || 'especie'));
+  const smb = ov.querySelector('#se-media'); if (smb) smb.onclick = () => { close(); openMediaFor('species', id); };
   ov.querySelector('#se-photo').onchange = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     ov.querySelector('#se-err').textContent = 'Preparando foto…';
@@ -513,6 +519,252 @@ export async function downloadPhoto(url, name) {
   }
 }
 export function isAdminUser() { return isAdmin() || localStorage.getItem('cantares_role') === 'admin'; }
+
+// ================= FOTOS / MEDIOS (clasificador manual) =================
+// Bandeja de fotos y videos: clasificar las que llegan sin sujeto (o mal
+// clasificadas), elegir la portada de cada punto/especie, subir nuevas, borrar.
+// Todo pasa por la cola offline (saveRow/deleteRow 'media').
+let mediaMode = 'inbox', mediaSubject = null;   // mediaSubject = { type, id }
+const VIDEO_WARN = 20 * 1024 * 1024;            // aviso de peso (afecta el espacio gratis)
+
+function allMedia() { return (CTX.state.media && CTX.state.media.all) || []; }
+function unclassifiedMedia() {
+  // Sólo las que puede tocar el admin (de la nube/subidas), no las curadas build-time.
+  return ((CTX.state.media && CTX.state.media.unclassified) || []).filter((m) => m.source !== 'curated');
+}
+function unclassifiedCount() { try { return unclassifiedMedia().length; } catch (e) { return 0; } }
+function subjectMedia(type, id) { return (CTX.state.media && CTX.state.media.bySubject[`${type}:${id}`]) || []; }
+
+function subjectLabel(m) {
+  if (!m.subject_id) return '❓ Sin clasificar';
+  if (m.subject_type === 'species') { const s = CTX.state.species.find((x) => x.id === m.subject_id); return '🦋 ' + esc(s ? (CTX.L(s, 'common_name') || s.scientific_name || m.subject_id) : m.subject_id); }
+  const w = CTX.state.waypoints.find((x) => x.properties.id === m.subject_id);
+  return '📍 ' + esc(w ? (CTX.L(w.properties, 'title') || w.properties.title || m.subject_id) : m.subject_id);
+}
+// Reconstruye la fila de la tabla `media` a partir del registro normalizado + un parche.
+function mediaRow(m, patch) {
+  return { id: m.id, kind: m.kind || 'photo', url: m.full || null,
+    thumb: (m.thumb && m.thumb !== m.full) ? m.thumb : null, poster: m.poster || null,
+    subject_type: m.subject_type || null, subject_id: m.subject_id || null,
+    is_primary: !!m.is_primary, sort: m.sort || 0, focal_x: m.focal_x != null ? m.focal_x : 0.5,
+    focal_y: m.focal_y != null ? m.focal_y : 0.5, caption: m.caption || null, caption_en: m.caption_en || null,
+    credit: m.credit || null, source: m.source === 'curated' ? 'admin' : (m.source || 'admin'),
+    status: (m.subject_type && m.subject_id) ? 'classified' : 'unclassified', ...patch };
+}
+async function saveMedia(row, blob) {
+  try {
+    const res = await saveRow('media', row, blob ? { url: blob } : null);
+    CTX.applyLocalRow('media', res.row);
+    renderFotos();
+    CTX.toast(res.queued ? '💾 Guardado en el teléfono — se subirá con señal' : '🖼️ Guardado');
+  } catch (e) { CTX.toast(friendlyErr(e)); }
+}
+async function classifyMedia(m, type, id) { await saveMedia(mediaRow(m, { subject_type: type, subject_id: id, status: 'classified' })); }
+async function setPrimaryMedia(m) {
+  const sibs = subjectMedia(m.subject_type, m.subject_id);
+  for (const s of sibs) {
+    const want = s.id === m.id;
+    if (s.is_primary === want || s.source === 'curated') continue;
+    try { const r = await saveRow('media', mediaRow(s, { is_primary: want })); CTX.applyLocalRow('media', r.row); }
+    catch (e) { console.warn('[media] primary', e && e.message); }
+  }
+  renderFotos(); CTX.toast('★ Portada actualizada');
+}
+async function reorderMedia(m, dir) {
+  const sibs = subjectMedia(m.subject_type, m.subject_id).slice();
+  const i = sibs.findIndex((x) => x.id === m.id), j = i + dir;
+  if (i < 0 || j < 0 || j >= sibs.length) return;
+  const a = sibs[i], b = sibs[j];
+  try {
+    const ra = await saveRow('media', mediaRow(a, { sort: b.sort })); CTX.applyLocalRow('media', ra.row);
+    const rb = await saveRow('media', mediaRow(b, { sort: a.sort })); CTX.applyLocalRow('media', rb.row);
+  } catch (e) { console.warn('[media] reorder', e && e.message); }
+  renderFotos();
+}
+async function delMedia(m) {
+  if (m.source === 'curated') { CTX.toast('Esa foto es del catálogo (build-time); edítala con el script.'); return; }
+  if (!confirm('¿Eliminar esta foto/video?')) return;
+  try { const res = await deleteRow('media', m.id); CTX.removeLocalRow('media', m.id); renderFotos(); CTX.toast(res.queued ? '💾 Eliminado — se sincronizará' : 'Eliminado'); }
+  catch (e) { CTX.toast(friendlyErr(e)); }
+}
+function editCaption(m) {
+  const cur = m.caption || '';
+  const val = prompt('Pie de foto (ES):', cur);
+  if (val == null) return;
+  saveMedia(mediaRow(m, { caption: val.trim() || null }));
+}
+function addMedia(preset) {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,video/*';
+  inp.onchange = async () => {
+    const file = inp.files[0]; if (!file) return;
+    const isVid = /^video\//.test(file.type);
+    if (isVid && file.size > VIDEO_WARN && !confirm(`El video pesa ${Math.round(file.size / 1048576)} MB. Puede tardar en subir y consume el espacio gratis de la nube. ¿Subir igual?`)) return;
+    CTX.toast('Preparando…');
+    const blob = isVid ? file : await compressImage(file);
+    const id = rid('media');
+    const row = { id, kind: isVid ? 'video' : 'photo', url: null,
+      subject_type: preset ? preset.type : null, subject_id: preset ? preset.id : null,
+      is_primary: false, sort: Date.now() % 100000, focal_x: 0.5, focal_y: 0.5,
+      source: 'admin', status: preset ? 'classified' : 'unclassified',
+      caption: null, caption_en: null, credit: null };
+    await saveMedia(row, blob);
+  };
+  inp.click();
+}
+
+// Tarjeta de un medio (foto/video) con sus acciones.
+function mediaCardHTML(m, opts = {}) {
+  const thumb = m.kind === 'video'
+    ? `<div class="fm-thumb fm-video" style="${m.poster ? `background-image:url('${esc(m.poster)}')` : ''}"><span>▶</span></div>`
+    : `<div class="fm-thumb" style="background-image:url('${esc(m.thumb || m.full)}')"></div>`;
+  const order = opts.subject ? `<button data-a="up" title="Subir">↑</button><button data-a="down" title="Bajar">↓</button>` : '';
+  return `<div class="fm-card" data-id="${esc(m.id)}">
+    ${thumb}
+    <div class="fm-meta">
+      <span class="fm-subj">${subjectLabel(m)}${m.caption ? ` · <i>${esc(m.caption)}</i>` : ''}</span>
+      <div class="fm-btns">
+        <button data-a="assign">${m.subject_id ? '↻ Reasignar' : '🏷️ Clasificar'}</button>
+        ${m.subject_id ? `<button data-a="primary" class="${m.is_primary ? 'on' : ''}" title="Portada">★</button>` : ''}
+        ${m.subject_id ? `<button data-a="caption" title="Pie">✎</button>` : ''}
+        ${order}
+        <button data-a="dl" title="Descargar">⬇️</button>
+        <button data-a="del" title="Eliminar">🗑️</button>
+      </div>
+    </div>
+  </div>`;
+}
+function wireMediaCards(container, opts = {}) {
+  container.querySelectorAll('.fm-card').forEach((card) => {
+    const m = allMedia().find((x) => x.id === card.dataset.id); if (!m) return;
+    card.querySelectorAll('[data-a]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      const a = b.dataset.a;
+      if (a === 'assign') assignPicker(m);
+      else if (a === 'primary') setPrimaryMedia(m);
+      else if (a === 'caption') editCaption(m);
+      else if (a === 'up') reorderMedia(m, -1);
+      else if (a === 'down') reorderMedia(m, +1);
+      else if (a === 'dl') downloadPhoto(m.full, subjectLabel(m).replace(/[^a-zA-Z0-9]+/g, '_'));
+      else if (a === 'del') delMedia(m);
+    });
+  });
+}
+
+// Selector de sujeto (punto o especie) para clasificar/reasignar un medio.
+function assignPicker(m) {
+  let ov = document.getElementById('fm-assign');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'fm-assign'; ov.className = 'fm-assign'; document.body.appendChild(ov); }
+  let pt = m.subject_type || 'waypoint';
+  const render = () => {
+    const items = pt === 'species'
+      ? CTX.state.species.slice().sort((a, b) => (a.common_name || a.scientific_name || '').localeCompare(b.common_name || b.scientific_name || ''))
+          .map((s) => ({ id: s.id, label: (CTX.L(s, 'common_name') || s.scientific_name || s.id), sub: s.scientific_name || '' }))
+      : CTX.state.waypoints.slice().sort((a, b) => (a.properties.title || '').localeCompare(b.properties.title || ''))
+          .map((w) => ({ id: w.properties.id, label: (CTX.L(w.properties, 'title') || w.properties.title || w.properties.id), sub: w.properties.tipo || '' }));
+    ov.innerHTML = `<div class="fm-assign-box">
+      <button class="card-close" id="fa-x" aria-label="Cerrar">×</button>
+      <h3>Clasificar foto/video</h3>
+      <div class="fm-type-toggle">
+        <button data-tp="waypoint" class="${pt === 'waypoint' ? 'sel' : ''}">📍 Punto</button>
+        <button data-tp="species" class="${pt === 'species' ? 'sel' : ''}">🦋 Especie</button>
+      </div>
+      <input class="admin-search" id="fa-search" placeholder="🔎 Buscar…">
+      <div class="fm-assign-list" id="fa-list">${items.map((it) => `<button class="fm-assign-item" data-id="${esc(it.id)}"><b>${esc(it.label)}</b>${it.sub ? ` <span>${esc(it.sub)}</span>` : ''}</button>`).join('')}</div>
+      ${m.subject_id ? '<button class="admin-cancel" id="fa-unclass">Dejar sin clasificar</button>' : ''}
+    </div>`;
+    const close = () => ov.remove();
+    ov.querySelector('#fa-x').onclick = close;
+    ov.onclick = (e) => { if (e.target === ov) close(); };
+    ov.querySelectorAll('.fm-type-toggle button').forEach((b) => b.onclick = () => { pt = b.dataset.tp; render(); });
+    ov.querySelector('#fa-search').oninput = (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      ov.querySelectorAll('.fm-assign-item').forEach((it) => { it.style.display = !q || it.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+    };
+    ov.querySelectorAll('.fm-assign-item').forEach((it) => it.onclick = async () => { close(); await classifyMedia(m, pt, it.dataset.id); });
+    const uc = ov.querySelector('#fa-unclass'); if (uc) uc.onclick = async () => { close(); await saveMedia(mediaRow(m, { subject_type: null, subject_id: null, is_primary: false, status: 'unclassified' })); };
+  };
+  render();
+}
+
+// Abre el clasificador directamente en un punto/especie (desde sus editores).
+export function openMediaFor(type, id) {
+  if (!id) { CTX && CTX.toast('Guarda primero para poder añadir fotos/videos.'); return; }
+  tab = 'fotos'; mediaMode = 'subject'; mediaSubject = { type, id };
+  openPanel();
+}
+function renderFotos() {
+  clearHighlight();
+  const body = document.getElementById('admin-body');
+  const n = unclassifiedMedia().length;
+  body.innerHTML = `
+    <div class="fm-modes">
+      <button data-m="inbox" class="${mediaMode === 'inbox' ? 'sel' : ''}">Sin clasificar${n ? ` (${n})` : ''}</button>
+      <button data-m="subject" class="${mediaMode === 'subject' ? 'sel' : ''}">Por punto / especie</button>
+    </div>
+    <div id="fm-body"></div>`;
+  body.querySelectorAll('.fm-modes button').forEach((b) => b.onclick = () => { mediaMode = b.dataset.m; renderFotos(); });
+  const fm = document.getElementById('fm-body');
+  if (mediaMode === 'inbox') {
+    const list = unclassifiedMedia();
+    fm.innerHTML = `
+      <button class="admin-add" id="fm-add">＋ Añadir foto / video</button>
+      <div class="admin-note">Sube o clasifica fotos/videos. Las que llegan sin sujeto se listan aquí para asignarlas a un punto o especie.</div>
+      ${list.length ? `<div class="fm-grid">${list.map((m) => mediaCardHTML(m)).join('')}</div>`
+        : '<div class="admin-note" style="text-align:center;padding:20px">✓ Nada sin clasificar.</div>'}
+      <button class="admin-pick fm-open" id="fm-field-export" style="margin-top:14px">⬇️ Exportar fotos de campo (juego) al sistema</button>
+      <div class="admin-note">Descarga el respaldo de las fotos/avistamientos del juego para reingresarlas al sistema local (Dropbox).</div>`;
+    document.getElementById('fm-add').onclick = () => addMedia(null);
+    document.getElementById('fm-field-export').onclick = async () => {
+      try { const n = await exportFieldBackup(); CTX.toast(n ? `⬇️ ${n} registro(s) de campo exportado(s)` : 'No hay fotos de campo del juego aún'); }
+      catch (e) { CTX.toast(friendlyErr(e)); }
+    };
+    wireMediaCards(fm);
+  } else {
+    renderFotosSubject(fm);
+  }
+}
+function renderFotosSubject(fm) {
+  const sub = mediaSubject;
+  const label = sub ? (sub.type === 'species'
+    ? subjectLabel({ subject_type: 'species', subject_id: sub.id })
+    : subjectLabel({ subject_type: 'waypoint', subject_id: sub.id })) : '';
+  fm.innerHTML = `
+    <div class="fm-subj-pick">
+      <div class="fm-type-toggle">
+        <button data-tp="waypoint" class="${(!sub || sub.type === 'waypoint') ? 'sel' : ''}">📍 Punto</button>
+        <button data-tp="species" class="${sub && sub.type === 'species' ? 'sel' : ''}">🦋 Especie</button>
+      </div>
+      <input class="admin-search" id="fm-subj-search" placeholder="🔎 Elegir punto/especie…" value="${sub ? esc(label.replace(/^[^ ]+ /, '')) : ''}">
+      <div class="fm-assign-list ${sub ? 'hidden' : ''}" id="fm-subj-list"></div>
+    </div>
+    <div id="fm-subj-media"></div>`;
+  let pt = sub ? sub.type : 'waypoint';
+  const renderList = (q) => {
+    const box = document.getElementById('fm-subj-list');
+    const items = pt === 'species'
+      ? CTX.state.species.map((s) => ({ id: s.id, label: CTX.L(s, 'common_name') || s.scientific_name || s.id }))
+      : CTX.state.waypoints.map((w) => ({ id: w.properties.id, label: CTX.L(w.properties, 'title') || w.properties.title || w.properties.id }));
+    const ql = (q || '').trim().toLowerCase();
+    box.innerHTML = items.filter((it) => !ql || it.label.toLowerCase().includes(ql)).slice(0, 60)
+      .map((it) => `<button class="fm-assign-item" data-id="${esc(it.id)}"><b>${esc(it.label)}</b></button>`).join('');
+    box.querySelectorAll('.fm-assign-item').forEach((b) => b.onclick = () => { mediaSubject = { type: pt, id: b.dataset.id }; renderFotos(); });
+  };
+  fm.querySelectorAll('.fm-type-toggle button').forEach((b) => b.onclick = () => { pt = b.dataset.tp; mediaSubject = null; document.getElementById('fm-subj-list').classList.remove('hidden'); renderList(''); });
+  const search = document.getElementById('fm-subj-search');
+  search.oninput = (e) => { document.getElementById('fm-subj-list').classList.remove('hidden'); renderList(e.target.value); };
+  search.onfocus = () => { document.getElementById('fm-subj-list').classList.remove('hidden'); renderList(search.value); };
+  if (!sub) renderList('');
+  const mediaBox = document.getElementById('fm-subj-media');
+  if (sub) {
+    const list = subjectMedia(sub.type, sub.id);
+    mediaBox.innerHTML = `
+      <button class="admin-add" id="fm-add-subj">＋ Añadir foto / video a ${esc(label)}</button>
+      ${list.length ? `<div class="fm-grid">${list.map((m) => mediaCardHTML(m, { subject: true })).join('')}</div>`
+        : '<div class="admin-note" style="text-align:center;padding:16px">Aún sin fotos/videos. Añade una arriba.</div>'}`;
+    document.getElementById('fm-add-subj').onclick = () => addMedia({ type: sub.type, id: sub.id });
+    wireMediaCards(mediaBox, { subject: true });
+  }
+}
 
 // ---------------- helpers geométricos ----------------
 function hav(a, b) {
