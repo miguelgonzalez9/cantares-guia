@@ -21,6 +21,7 @@ const CONFIG = {
     trees: 'data/trees.geojson',
     routes: 'data/routes.json', species: 'data/species.json',
     reserveInfo: 'data/reserve_info.json', media: 'data/media.json',
+    speciesGroups: 'data/species_groups.json',
   },
   // Base imagery time-slider stops. Esri Wayback = free, keyless, sub-meter.
   // Labeled by the REAL acquisition date over the reserve (from the Wayback
@@ -1153,10 +1154,44 @@ function toast(msg) {
 }
 
 // ---------- species ----------
+// ---------- grupos de especies (orden canónico de la estructura de información) ----------
+// Fuente compartida: data/species_groups.json (cargado en main con este respaldo
+// idéntico). El orden del arreglo define el orden de aparición y de las secciones.
+const SPECIES_GROUPS_FALLBACK = [
+  { key: 'ave',      es: 'Aves',      en: 'Birds',      emoji: '🐦', color: '#269ed9' },
+  { key: 'anfibio',  es: 'Anfibios',  en: 'Amphibians', emoji: '🐸', color: '#1098ad' },
+  { key: 'mamifero', es: 'Mamíferos', en: 'Mammals',    emoji: '🐾', color: '#8d6e63' },
+  { key: 'arbol',    es: 'Árboles',   en: 'Trees',      emoji: '🌳', color: '#1b7a3a' },
+  { key: 'flor',     es: 'Flores',    en: 'Flowers',    emoji: '🌸', color: '#c2255c' },
+  { key: 'planta',   es: 'Plantas',   en: 'Plants',     emoji: '🌿', color: '#5a8f2b' },
+  { key: 'fungi',    es: 'Hongos',    en: 'Fungi',      emoji: '🍄', color: '#6a4c93' },
+];
+function speciesGroupsList() { return (state.speciesGroups && state.speciesGroups.length) ? state.speciesGroups : SPECIES_GROUPS_FALLBACK; }
+function groupMeta(key) {
+  return speciesGroupsList().find((g) => g.key === key)
+    || { key: key || 'otro', es: 'Otros', en: 'Other', emoji: '❓', color: '#8a97a5' };
+}
+function groupLabel(key) { const g = groupMeta(key); return LANG === 'en' ? g.en : g.es; }
+const groupOrderIndex = (key) => { const i = speciesGroupsList().findIndex((g) => g.key === key); return i < 0 ? 99 : i; };
+// ¿La especie es un árbol? (linkeada a un punto tipo 'arbol' del inventario).
+function isTreeSpecies(s) { return speciesWaypoints(s).some((w) => w.properties.tipo === 'arbol'); }
+// Grupo de VISUALIZACIÓN: respeta el vocabulario nuevo si ya está; deriva la
+// 'flora' heredada a árbol (si es un árbol del inventario) o planta (fallback).
+function speciesGroup(s) {
+  const g = String(s.group || '').toLowerCase();
+  if (g === 'fungi' || g === 'hongo' || g === 'hongos') return 'fungi';
+  if (['ave', 'anfibio', 'mamifero', 'arbol', 'flor', 'planta'].includes(g)) return g;
+  if (g === 'flora' || g === 'vegetal' || g === '') return isTreeSpecies(s) ? 'arbol' : 'planta';
+  return 'planta';   // fallback general (incl. 'otro' → planta)
+}
+
 let speciesFilter = 'all';
 function renderSpeciesFilters() {
   const wrap = $('#species-filters');
-  const opts = [['all', t('f_all')], ['flagship', t('f_flagship')], ['flora', t('f_flora')], ['ave', t('f_aves')], ['mamifero', t('f_mam')], ['anfibio', t('f_anf')]];
+  // Sólo los grupos presentes (según el grupo derivado), en el orden canónico.
+  const present = new Set(state.species.map(speciesGroup));
+  const groupChips = speciesGroupsList().filter((g) => present.has(g.key)).map((g) => [g.key, groupLabel(g.key)]);
+  const opts = [['all', t('f_all')], ['flagship', t('f_flagship')], ...groupChips];
   wrap.innerHTML = '';
   opts.forEach(([key, label]) => {
     const b = document.createElement('button');
@@ -1167,12 +1202,21 @@ function renderSpeciesFilters() {
   });
 }
 function filteredSpecies() {
-  return state.species.filter((s) => speciesFilter === 'all' ? true : speciesFilter === 'flagship' ? s.flagship : s.group === speciesFilter);
+  return state.species.filter((s) => speciesFilter === 'all' ? true : speciesFilter === 'flagship' ? s.flagship : speciesGroup(s) === speciesFilter);
 }
 function renderSpeciesGrid(highlightId) {
-  const grid = $('#species-grid'), list = filteredSpecies();
+  const grid = $('#species-grid');
+  // Grupo derivado precomputado (evita recalcular el lookup de árbol en el sort).
+  const grpOf = new Map(state.species.map((s) => [s.id, speciesGroup(s)]));
+  const gOf = (s) => grpOf.get(s.id) || 'planta';
+  // Orden canónico de la estructura de información (grupo → nombre).
+  const list = filteredSpecies().slice().sort((a, b) =>
+    groupOrderIndex(gOf(a)) - groupOrderIndex(gOf(b))
+    || (L(a, 'common_name') || a.scientific_name || '').localeCompare(L(b, 'common_name') || b.scientific_name || ''));
   $('#species-count').textContent = `${list.length} ${t('count_suffix')}`;
   grid.innerHTML = '';
+  const showHeaders = speciesFilter === 'all';   // separar por secciones sólo en «Todos»
+  let lastGroup = null;
   // Admin: botón para crear una especie nueva (edición vive en este tab).
   const adminAdd = $('#species-admin-add');
   if (isAdminUser()) {
@@ -1185,6 +1229,14 @@ function renderSpeciesGrid(highlightId) {
     }
   } else if (adminAdd) adminAdd.remove();
   list.forEach((s) => {
+    const gg = gOf(s), gm = groupMeta(gg);
+    if (showHeaders && gg !== lastGroup) {
+      lastGroup = gg;
+      const h = document.createElement('div');
+      h.className = 'species-section-head';
+      h.innerHTML = `<span class="ssh-emoji">${gm.emoji}</span> ${escapeHtml(groupLabel(gg))}`;
+      grid.appendChild(h);
+    }
     const card = document.createElement('div');
     card.className = `species-card ${s.flagship ? 'flagship' : ''} ${s.status === 'possible' ? 'status-possible' : ''}`;
     card.id = `sp-${s.id}`;
@@ -1196,7 +1248,7 @@ function renderSpeciesGrid(highlightId) {
       <p class="species-common">${L(s, 'common_name')}</p>
       <p class="species-sci">${s.scientific_name}</p>
       <p class="species-meta">${s.family}${s.status === 'possible' ? ' · ' + t('possible') : ''}</p>
-      <span class="species-group-tag g-${s.group}">${t('grp_' + s.group)}</span>
+      <span class="species-group-tag" style="background:${gm.color}">${escapeHtml(groupLabel(gg))}</span>
       ${capturedBadge(s.id)}`;
     card.onclick = () => showSpecies(s);
     grid.appendChild(card);
@@ -1271,9 +1323,9 @@ function showSpecies(s) {
       ? (cover.kind === 'video'
           ? `<div class="wp-photo-hdr wp-video-hdr">${mediaFullTag(cover, 'wp-hdr-video', L(s, 'common_name'))}</div>`
           : `<div class="wp-photo-hdr" style="background-image:url('${escapeHtml(coverBg)}');background-position:${(cover.focal_x * 100).toFixed(0)}% ${(cover.focal_y * 100).toFixed(0)}%"></div>`)
-      : `<div class="wp-photo-hdr wp-no-photo" style="background:linear-gradient(135deg, var(--green), var(--deep))"><span class="wp-hdr-emoji">${s.group === 'ave' ? '🐦' : s.group === 'mamifero' ? '🐾' : s.group === 'anfibio' ? '🐸' : '🌿'}</span></div>`}
+      : `<div class="wp-photo-hdr wp-no-photo" style="background:linear-gradient(135deg, var(--green), var(--deep))"><span class="wp-hdr-emoji">${groupMeta(speciesGroup(s)).emoji}</span></div>`}
     <div class="wp-inner">
-      <div class="wp-theme-badges"><span class="species-group-tag g-${s.group}">${t('grp_' + s.group)}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}</div>
+      <div class="wp-theme-badges"><span class="species-group-tag" style="background:${groupMeta(speciesGroup(s)).color}">${escapeHtml(groupLabel(speciesGroup(s)))}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}</div>
       <h2 class="wp-title">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
       ${s.scientific_name ? `<p class="wp-sci"><em>${escapeHtml(s.scientific_name)}</em>${s.family ? ` · ${escapeHtml(s.family)}` : ''}</p>` : ''}
       ${gallery.length > 1 ? `<div class="sp-gallery">${gallery.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
@@ -1724,11 +1776,13 @@ async function main() {
     baseSwapTimer = setTimeout(() => setBaseLayer(i), 130);          // debounce the heavy layer swap
   };
 
-  const [routesDoc, speciesDoc, reserveInfo, mediaDoc] = await Promise.all([
+  const [routesDoc, speciesDoc, reserveInfo, mediaDoc, groupsDoc] = await Promise.all([
     loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species),
     loadJSON(CONFIG.data.reserveInfo).catch(() => null),
     loadJSON(CONFIG.data.media).catch(() => null),
+    loadJSON(CONFIG.data.speciesGroups).catch(() => null),
   ]);
+  state.speciesGroups = (groupsDoc && Array.isArray(groupsDoc.groups) && groupsDoc.groups.length) ? groupsDoc.groups : SPECIES_GROUPS_FALLBACK;
   state.routes = routesDoc.routes;
   state.staticRoutes = routesDoc.routes;   // respaldo para el merge con la nube
   state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));

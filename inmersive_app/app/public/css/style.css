@@ -396,6 +396,12 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .g-mamifero { background: #8d6e63; }
 .g-anfibio { background: #0ca678; }
 .status-possible { opacity: 0.86; }
+/* Encabezado de sección de grupo en la grilla de especies (ocupa toda la fila) */
+.species-section-head { grid-column: 1 / -1; font-size: 15px; font-weight: 800; color: var(--forest);
+  margin: 10px 0 2px; padding-bottom: 5px; border-bottom: 2px solid var(--line);
+  display: flex; align-items: center; gap: 7px; }
+.species-section-head:first-child { margin-top: 0; }
+.species-section-head .ssh-emoji { font-size: 18px; }
 
 .facts { list-style: none; padding: 0; margin: 0 0 18px; }
 .facts li { font-size: 13.5px; line-height: 1.5; padding: 9px 0; border-bottom: 1px solid var(--line); }

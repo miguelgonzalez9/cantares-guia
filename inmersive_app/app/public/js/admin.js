@@ -12,8 +12,21 @@ let _pointDraft = null, moveMarker = null;
 const TIPOS = ['mirador', 'avistamiento', 'agua', 'flora', 'servicio', 'punto'];
 // Etiquetas humanas para los selects (los valores internos no cambian).
 const TIPO_LABEL = { mirador: '🔭 Mirador', avistamiento: '🐾 Avistamiento', agua: '💧 Agua', flora: '🌿 Flora', servicio: '🏠 Servicio (casa, cabaña…)', punto: '📍 Otro punto' };
-const GROUPS = ['flora', 'ave', 'mamifero', 'anfibio', 'otro'];
-const GROUP_LABEL = { flora: '🌿 Planta', ave: '🐦 Ave', mamifero: '🐾 Mamífero', anfibio: '🐸 Anfibio', otro: '❓ Otro' };
+// Vocabulario nuevo (orden de la estructura de información). 'flora' se mantiene
+// como opción heredada para no perder el grupo de especies aún sin reclasificar.
+const GROUPS = ['ave', 'anfibio', 'mamifero', 'arbol', 'flor', 'planta', 'fungi', 'otro'];
+const GROUP_LABEL = { ave: '🐦 Ave', anfibio: '🐸 Anfibio', mamifero: '🐾 Mamífero',
+  arbol: '🌳 Árbol', flor: '🌸 Flor', planta: '🌿 Planta', fungi: '🍄 Hongo', otro: '❓ Otro' };
+// Grupo por defecto en el editor cuando la especie trae un grupo heredado
+// ('flora') que ya no está en la lista: se sugiere 'planta' (fallback) o 'arbol'
+// si la especie está linkeada a un punto de árbol.
+function editorGroup(s) {
+  if (GROUPS.includes(s.group)) return s.group;
+  const isTree = (CTX && CTX.state.waypoints || []).some((w) => w.properties.tipo === 'arbol'
+    && (w.properties.species_ids || []).some((sid) => String(sid).trim().toLowerCase() === String(s.id).toLowerCase()
+      || String(sid).trim().toLowerCase() === String(s.scientific_name || '').toLowerCase()));
+  return isTree ? 'arbol' : 'planta';
+}
 // Errores técnicos → mensajes accionables en español (lo técnico va a console).
 function friendlyErr(e) {
   const m = (e && e.message) || String(e || '');
@@ -370,7 +383,7 @@ function editEspecie(id) {
       <label>Nombre científico</label><input id="s-sci" value="${esc(s.scientific_name)}">
       <label>Familia</label><input id="s-family" value="${esc(s.family)}">
       <label>Grupo</label>
-      <select id="s-group">${GROUPS.map((g) => `<option value="${g}" ${s.group === g ? 'selected' : ''}>${GROUP_LABEL[g] || g}</option>`).join('')}</select>
+      <select id="s-group">${GROUPS.map((g) => `<option value="${g}" ${editorGroup(s) === g ? 'selected' : ''}>${GROUP_LABEL[g] || g}</option>`).join('')}</select>
       <label>Estado</label>
       <select id="s-status">
         <option value="documented" ${s.status !== 'possible' ? 'selected' : ''}>documentada</option>
@@ -444,7 +457,7 @@ export function openSpeciesEditor(id, onSaved) {
       <label>Nombre científico</label><input id="se-sci" value="${esc(s.scientific_name)}">
       <label>Familia</label><input id="se-family" value="${esc(s.family)}">
       <label>Grupo</label>
-      <select id="se-group">${GROUPS.map((g) => `<option value="${g}" ${s.group === g ? 'selected' : ''}>${GROUP_LABEL[g] || g}</option>`).join('')}</select>
+      <select id="se-group">${GROUPS.map((g) => `<option value="${g}" ${editorGroup(s) === g ? 'selected' : ''}>${GROUP_LABEL[g] || g}</option>`).join('')}</select>
       <label>Estado</label>
       <select id="se-status">
         <option value="documented" ${s.status !== 'possible' ? 'selected' : ''}>documentada</option>

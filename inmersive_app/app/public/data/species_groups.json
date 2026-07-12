@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "note": "Orden y etiquetas canónicas de los grupos de especies. Fuente compartida por la app (página de Especies) y, cuando lo adopte, el Sistema de Información Cantares (SIC). El ORDEN del arreglo 'groups' define el orden de aparición y de las secciones. La app trae un respaldo idéntico en código por si el archivo falta.",
+    "deriva": "Las especies con group='flora' (heredado) se muestran como 'arbol' si están linkeadas a un punto tipo 'arbol' del inventario, y como 'planta' en caso contrario (plantas es el fallback). 'flor' requiere marcado explícito.",
+    "sic_pendiente": "Si el SIC (14_classify_photos.py, de la otra sesión) adopta esto, añadir una categoría 'hongos/' y usar este mismo orden. NO editado desde la sesión de la app para no pisar trabajo activo."
+  },
+  "groups": [
+    { "key": "ave",      "es": "Aves",      "en": "Birds",      "emoji": "🐦", "color": "#269ed9" },
+    { "key": "anfibio",  "es": "Anfibios",  "en": "Amphibians", "emoji": "🐸", "color": "#1098ad" },
+    { "key": "mamifero", "es": "Mamíferos", "en": "Mammals",    "emoji": "🐾", "color": "#8d6e63" },
+    { "key": "arbol",    "es": "Árboles",   "en": "Trees",      "emoji": "🌳", "color": "#1b7a3a" },
+    { "key": "flor",     "es": "Flores",    "en": "Flowers",    "emoji": "🌸", "color": "#c2255c" },
+    { "key": "planta",   "es": "Plantas",   "en": "Plants",     "emoji": "🌿", "color": "#5a8f2b" },
+    { "key": "fungi",    "es": "Hongos",    "en": "Fungi",      "emoji": "🍄", "color": "#6a4c93" }
+  ],
+  "fallback": "planta"
+}
