@@ -752,6 +752,83 @@ function endPick(keep) {
   openPanel(); editRecorrido(id);
 }
 
+// ---------------- elegir punto de inicio/fin (click) y intermedios (recuadro) ----------------
+let ptPickHandler = null, marquee = null;
+function ptHud(text, onCancel) {
+  let h = document.getElementById('admin-ptpick-hud');
+  if (!h) { h = document.createElement('div'); h.id = 'admin-ptpick-hud'; h.className = 'admin-draw-hud'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
+  h.innerHTML = `<span class="adh-n">${text}</span><button id="ptp-cancel">✕</button>`;
+  h.querySelector('#ptp-cancel').onclick = onCancel;
+}
+function pickRoutePoint(id, kind) {
+  const map = CTX.map;
+  closePanel();
+  map.getCanvas().style.cursor = 'crosshair';
+  ptHud(kind === 'start' ? '📍 Toca el punto de INICIO' : '🏁 Toca el punto de FIN', () => finishPtPick(id));
+  ptPickHandler = (e) => {
+    const layers = ['waypoints-pt', 'trees-pt'].filter((l) => map.getLayer(l));
+    const f = map.queryRenderedFeatures(e.point, { layers });
+    if (!f.length) return;   // hay que tocar un punto
+    const pid = f[0].properties.id;
+    if (_routeDraft) {
+      if (kind === 'start') _routeDraft.start_id = pid; else _routeDraft.end_id = pid;
+      _routeDraft.memberPoints = [...new Set([...(_routeDraft.memberPoints || []), pid])];
+    }
+    finishPtPick(id);
+  };
+  map.on('click', ptPickHandler);
+}
+function finishPtPick(id) {
+  const map = CTX.map;
+  if (ptPickHandler) { map.off('click', ptPickHandler); ptPickHandler = null; }
+  map.getCanvas().style.cursor = '';
+  const h = document.getElementById('admin-ptpick-hud'); if (h) h.remove();
+  openPanel(); editRecorrido(id);
+}
+// Selección por recuadro (marquee) de puntos intermedios — como seleccionar archivos.
+function marqueePoints(id) {
+  const map = CTX.map;
+  closePanel();
+  map.dragPan.disable();
+  const canvasEl = map.getCanvas();
+  const box = document.createElement('div'); box.className = 'marquee-box'; box.style.display = 'none'; document.body.appendChild(box);
+  ptHud('▦ Arrastra un recuadro sobre los puntos', () => endMarquee(id, null));
+  let start = null;
+  const pt = (e) => { const t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e; return { x: t.clientX, y: t.clientY }; };
+  const down = (e) => { start = pt(e); box.style.display = 'block'; if (e.cancelable) e.preventDefault(); };
+  const move = (e) => { if (!start) return; const p = pt(e); const x1 = Math.min(start.x, p.x), y1 = Math.min(start.y, p.y);
+    box.style.left = x1 + 'px'; box.style.top = y1 + 'px'; box.style.width = Math.abs(p.x - start.x) + 'px'; box.style.height = Math.abs(p.y - start.y) + 'px'; if (e.cancelable) e.preventDefault(); };
+  const up = (e) => {
+    if (!start) { endMarquee(id, null); return; }
+    const p = pt(e), r = canvasEl.getBoundingClientRect();
+    const a = [start.x - r.left, start.y - r.top], b = [p.x - r.left, p.y - r.top];
+    const bbox = [[Math.min(a[0], b[0]), Math.min(a[1], b[1])], [Math.max(a[0], b[0]), Math.max(a[1], b[1])]];
+    let ids = [];
+    const layers = ['waypoints-pt', 'trees-pt'].filter((l) => map.getLayer(l));
+    try { ids = [...new Set(map.queryRenderedFeatures(bbox, { layers }).map((f) => f.properties.id))]; } catch (er) { /* bbox degenerado */ }
+    endMarquee(id, ids);
+  };
+  marquee = { down, move, up, box, canvasEl };
+  canvasEl.addEventListener('mousedown', down); window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+  canvasEl.addEventListener('touchstart', down, { passive: false }); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up);
+}
+function endMarquee(id, ids) {
+  const map = CTX.map;
+  if (marquee) {
+    const m = marquee; marquee = null;
+    m.canvasEl.removeEventListener('mousedown', m.down); window.removeEventListener('mousemove', m.move); window.removeEventListener('mouseup', m.up);
+    m.canvasEl.removeEventListener('touchstart', m.down); window.removeEventListener('touchmove', m.move); window.removeEventListener('touchend', m.up);
+    m.box.remove();
+  }
+  map.dragPan.enable();
+  const h = document.getElementById('admin-ptpick-hud'); if (h) h.remove();
+  if (ids && ids.length && _routeDraft) {
+    _routeDraft.memberPoints = [...new Set([...(_routeDraft.memberPoints || []), ...ids])];
+    CTX.toast(`▦ ${ids.length} punto(s) añadidos al recorrido`);
+  }
+  openPanel(); editRecorrido(id);
+}
+
 // ---------------- arrastrar un punto en el mapa ----------------
 function startMovePoint(id, coords) {
   const map = CTX.map;
@@ -886,6 +963,13 @@ function editRecorrido(id) {
   _routeDraft = null;
   let segWork = (r.segments || []).slice();
   let color = r.color || PALETTE[0], emoji = r.emoji || EMOJIS[0];
+  // Puntos del recorrido: inicio, fin e intermedios (por membresía point.routes).
+  let startId = r.start_id || null, endId = r.end_id || null;
+  let memberWork = new Set(Array.isArray(r.memberPoints) ? r.memberPoints
+    : CTX.state.waypoints.filter((w) => (w.properties.routes || []).includes(r.id)).map((w) => w.properties.id));
+  if (startId) memberWork.add(startId);
+  if (endId) memberWork.add(endId);
+  const wpTitle = (pid) => { const w = CTX.state.waypoints.find((x) => x.properties.id === pid); return w ? (CTX.L(w.properties, 'title') || w.properties.title || pid) : pid; };
   const wpOpts = (sel) => '<option value="">—</option>' + CTX.state.waypoints.map((w) => `<option value="${w.properties.id}" ${sel === w.properties.id ? 'selected' : ''}>${esc(CTX.L(w.properties, 'title') || w.properties.id)}</option>`).join('');
   body.innerHTML = `
     <div class="admin-form">
@@ -896,10 +980,21 @@ function editRecorrido(id) {
       <label>Resumen (ES)</label><textarea id="rt-sum" rows="2">${esc(r.summary)}</textarea>
       <label>Summary (EN)</label><textarea id="rt-sum-en" rows="2">${esc(r.summary_en)}</textarea>
       <label>Senderos en orden (define la dirección)</label>
-      <button type="button" class="admin-pick map-pick" id="rt-pick">🗺️ Elegir en el mapa</button>
+      <button type="button" class="admin-pick map-pick" id="rt-pick">🗺️ Elegir senderos en el mapa</button>
       <div id="rt-segs"></div>
-      <label>Punto de inicio</label><select id="rt-start">${wpOpts(r.start_id)}</select>
-      <label>Punto de fin</label><select id="rt-end">${wpOpts(r.end_id)}</select>
+      <label>Punto de inicio</label>
+      <div class="admin-loc"><span id="rt-start-lbl">${startId ? esc(wpTitle(startId)) : 'sin fijar'}</span>
+        <button type="button" class="admin-pick" id="rt-start-pick">📍 Elegir en el mapa</button></div>
+      <label>Punto de fin</label>
+      <div class="admin-loc"><span id="rt-end-lbl">${endId ? esc(wpTitle(endId)) : 'sin fijar'}</span>
+        <button type="button" class="admin-pick" id="rt-end-pick">🏁 Elegir en el mapa</button></div>
+      <label>Puntos del recorrido</label>
+      <div class="admin-loc"><span id="rt-mem-lbl">${memberWork.size} punto(s)</span>
+        <div class="admin-loc-btns">
+          <button type="button" class="admin-pick" id="rt-mem-pick">▦ Recuadro en el mapa</button>
+          <button type="button" class="admin-pick" id="rt-mem-clear">Limpiar</button>
+        </div></div>
+      <div class="admin-note">Inicio y fin: toca un punto. Intermedios: arrastra un recuadro sobre el mapa. Se ordenan solos según el recorrido.</div>
       <div class="admin-err" id="rt-err"></div>
       <div class="admin-actions">
         <button class="admin-save" id="rt-save">Guardar</button>
@@ -924,9 +1019,13 @@ function editRecorrido(id) {
   const saveDraft = () => { _routeDraft = { id: r.id, _new: !id, sort: r.sort,
     name: body.querySelector('#rt-name').value, name_en: body.querySelector('#rt-name-en').value,
     emoji, color, summary: body.querySelector('#rt-sum').value, summary_en: body.querySelector('#rt-sum-en').value,
-    start_id: body.querySelector('#rt-start').value, end_id: body.querySelector('#rt-end').value,
+    start_id: startId, end_id: endId, memberPoints: [...memberWork],
     segments: segWork.slice() }; };
   body.querySelector('#rt-pick').onclick = () => { saveDraft(); startRoutePick(id); };
+  body.querySelector('#rt-start-pick').onclick = () => { saveDraft(); pickRoutePoint(id, 'start'); };
+  body.querySelector('#rt-end-pick').onclick = () => { saveDraft(); pickRoutePoint(id, 'end'); };
+  body.querySelector('#rt-mem-pick').onclick = () => { saveDraft(); marqueePoints(id); };
+  body.querySelector('#rt-mem-clear').onclick = () => { memberWork.clear(); if (startId) memberWork.add(startId); if (endId) memberWork.add(endId); document.getElementById('rt-mem-lbl').textContent = `${memberWork.size} punto(s)`; };
   body.querySelector('#rt-cancel').onclick = () => { clearHighlight(); renderRecorridos(); };
   if (id) body.querySelector('#rt-del').onclick = async () => {
     if (!confirm('¿Eliminar este recorrido?')) return;
@@ -939,13 +1038,36 @@ function editRecorrido(id) {
   body.querySelector('#rt-save').onclick = async () => {
     const row = { id: r.id, name: body.querySelector('#rt-name').value.trim() || null, name_en: body.querySelector('#rt-name-en').value.trim() || null,
       emoji, color, summary: body.querySelector('#rt-sum').value.trim() || null, summary_en: body.querySelector('#rt-sum-en').value.trim() || null,
-      start_id: body.querySelector('#rt-start').value || null, end_id: body.querySelector('#rt-end').value || null,
+      start_id: startId || null, end_id: endId || null,
       segments: segWork, sort: r.sort || 0 };
     body.querySelector('#rt-err').textContent = 'Guardando…';
     try {
       const res = await saveRow('routes', row);
-      CTX.applyLocalRow('routes', row); clearHighlight(); renderRecorridos();
+      CTX.applyLocalRow('routes', row);
+      await applyMembership(r.id, memberWork);   // añade/quita este recorrido en los puntos elegidos
+      clearHighlight(); renderRecorridos();
       CTX.toast(res.queued ? '💾 Recorrido guardado en el teléfono — se subirá con señal' : 'Recorrido guardado');
     } catch (e) { body.querySelector('#rt-err').textContent = friendlyErr(e); }
   };
+}
+
+// Aplica la membresía de un recorrido: pone/quita el recorrido en la lista
+// `routes` de los puntos elegidos (upsert por punto, offline incluido).
+const wpFullRow = (w) => { const p = w.properties, c = w.geometry.coordinates; return {
+  id: p.id, title: p.title || null, title_en: p.title_en || null, description: p.description || null,
+  description_en: p.description_en || null, tipo: p.tipo || 'punto', routes: (p.routes || []).slice(),
+  species_ids: (p.species_ids || []).slice(), lng: c[0], lat: c[1], photo: p.photo || null, photo_leaf: p.photo_leaf || null }; };
+async function applyMembership(routeId, memberSet) {
+  const changed = [];
+  for (const w of CTX.state.waypoints) {
+    const pid = w.properties.id, has = (w.properties.routes || []).includes(routeId), want = memberSet.has(pid);
+    if (has === want) continue;
+    const row = wpFullRow(w);
+    row.routes = want ? [...new Set([...row.routes, routeId])] : row.routes.filter((x) => x !== routeId);
+    changed.push(row);
+  }
+  for (const row of changed) {
+    try { const res = await saveRow('waypoints', row); CTX.applyLocalRow('waypoints', res.row); }
+    catch (e) { console.warn('[membership]', e && e.message); }
+  }
 }

@@ -674,16 +674,23 @@ function applyWaypointFilter() {
   if (!map || !map.getLayer('waypoints-pt')) return;
   const hidden = [...state.hiddenTypes];
   const hiddenClause = hidden.length ? [['!', ['in', ['get', 'tipo'], ['literal', hidden]]]] : [];
-  // Puntos curados (no árboles): con un recorrido activo, SÓLO los asociados a él
-  // (los que no pertenecen a ningún recorrido desaparecen).
-  const wpParts = [['!=', ['get', 'tipo'], 'arbol'], ...hiddenClause];
-  if (state.activeRoute) wpParts.push(['in', state.activeRoute, ['get', 'routes']]);
-  map.setFilter('waypoints-pt', ['all', ...wpParts]);
-  // Árboles: sin recorrido, todos; con recorrido activo, sólo los CERCA del camino.
+  // TODOS los puntos siguen visibles (los tipos ocultos por el usuario, no). El
+  // recorrido activo NO los oculta: sólo atenúa los NO asociados.
+  map.setFilter('waypoints-pt', ['all', ['!=', ['get', 'tipo'], 'arbol'], ...hiddenClause]);
+  if (map.getLayer('trees-pt')) map.setFilter('trees-pt', ['all', ['==', ['get', 'tipo'], 'arbol'], ...hiddenClause]);
+  // Opacidad: con un recorrido activo, los puntos asociados quedan sólidos y el
+  // resto tenue; de los árboles, los cercanos al camino resaltan sobre los lejanos.
+  const wpOpacity = state.activeRoute
+    ? ['case', ['in', state.activeRoute, ['get', 'routes']], 1, 0.3]
+    : 1;
+  map.setPaintProperty('waypoints-pt', 'circle-opacity', wpOpacity);
+  map.setPaintProperty('waypoints-pt', 'circle-stroke-opacity', wpOpacity);
   if (map.getLayer('trees-pt')) {
-    const trParts = [['==', ['get', 'tipo'], 'arbol'], ...hiddenClause];
-    if (state.activeRoute) trParts.push(['in', ['get', 'id'], ['literal', state.nearbyTrees || []]]);
-    map.setFilter('trees-pt', ['all', ...trParts]);
+    const trOpacity = state.activeRoute
+      ? ['case', ['in', ['get', 'id'], ['literal', state.nearbyTrees || []]], 0.85, 0.25]
+      : 1;
+    map.setPaintProperty('trees-pt', 'circle-opacity', trOpacity);
+    map.setPaintProperty('trees-pt', 'circle-stroke-opacity', trOpacity);
   }
 }
 // Árboles a menos de ~35 m del camino del recorrido (para mostrarlos con la ruta).
@@ -894,8 +901,9 @@ function showWaypoint(wp) {
   const ri = $('#route-info');
   state._riWasOpen = !ri.classList.contains('hidden');
   ri.classList.add('hidden');
-  const badges = (p.routes || []).map((rid) =>
-    `<span class="badge" style="background:${ROUTE_COLORS[rid] || '#5b6b60'}">${routeLabel(rid)}</span>`).join('');
+  // Badges de recorrido: son BOTONES que llevan al recorrido y cierran la ficha.
+  const badges = (p.routes || []).filter((rid) => state.routesById[rid]).map((rid) =>
+    `<button class="badge route-badge" data-route="${escapeHtml(rid)}" style="background:${ROUTE_COLORS[rid] || '#5b6b60'}">${routeLabel(rid)} ›</button>`).join('');
   const linked = linkedSpecies(p);
   const speciesChips = linked.map((s) => `<span class="chip" data-species="${s.id}">${L(s, 'common_name') || s.scientific_name}</span>`).join('');
   const photo = realPhoto(wp);
@@ -922,6 +930,8 @@ function showWaypoint(wp) {
     </div>`;
   $('#waypoint-card').classList.remove('hidden');
   const navBtn = $('#wp-nav'); if (navBtn) navBtn.onclick = () => navigateTo(wp);
+  $$('#wp-content .route-badge').forEach((b) =>
+    b.onclick = () => { const rid = b.dataset.route; closeWaypoint(); selectRoute(rid); });
   $$('#wp-content .chip').forEach((chip) =>
     chip.onclick = () => { switchView('especies'); highlightSpecies(chip.dataset.species); });
 }

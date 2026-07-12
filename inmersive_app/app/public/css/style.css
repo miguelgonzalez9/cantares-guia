@@ -314,6 +314,8 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .wp-theme-badges { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
 .badge { font-size: 11px; font-weight: 700; color: #fff; padding: 3px 9px; border-radius: 999px; }
+.route-badge { cursor: pointer; border: none; font-family: inherit; }
+.route-badge:active { filter: brightness(0.92); }
 .wp-title { font-size: 22px; margin: 4px 0 4px; color: var(--forest); line-height: 1.2; }
 .wp-sci { font-size: 13.5px; color: var(--muted); margin: 0 0 10px; }
 .wp-sci em { color: #2a3b30; }
@@ -723,6 +725,8 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-form { display: flex; flex-direction: column; gap: 4px; }
 .admin-form label { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 8px; }
 .admin-note { font-size: 11.5px; color: var(--muted); background: var(--mist); border-radius: 7px; padding: 6px 9px; margin-top: 4px; }
+.marquee-box { position: fixed; z-index: 12; border: 2px dashed var(--gold);
+  background: rgba(250,184,20,0.15); pointer-events: none; border-radius: 4px; }
 .admin-search { width: 100%; box-sizing: border-box; height: 40px; border: 1.5px solid var(--line);
   border-radius: 10px; padding: 0 12px; font-size: 15px; margin: 8px 0; background: var(--bg); color: var(--ink); }
 .admin-search:focus { outline: none; border-color: var(--sky); background: #fff; }
