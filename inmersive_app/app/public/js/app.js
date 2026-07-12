@@ -1157,14 +1157,16 @@ function toast(msg) {
 // ---------- grupos de especies (orden canónico de la estructura de información) ----------
 // Fuente compartida: data/species_groups.json (cargado en main con este respaldo
 // idéntico). El orden del arreglo define el orden de aparición y de las secciones.
+// Espejo 1:1 de las categorías del Sistema de Información (14_classify_photos.py:
+// CATEGORIES/CLIP → aves, anfibios, mamíferos, insectos, árboles, flores, plantas).
 const SPECIES_GROUPS_FALLBACK = [
   { key: 'ave',      es: 'Aves',      en: 'Birds',      emoji: '🐦', color: '#269ed9' },
   { key: 'anfibio',  es: 'Anfibios',  en: 'Amphibians', emoji: '🐸', color: '#1098ad' },
   { key: 'mamifero', es: 'Mamíferos', en: 'Mammals',    emoji: '🐾', color: '#8d6e63' },
+  { key: 'insecto',  es: 'Insectos',  en: 'Insects',    emoji: '🐞', color: '#e8760c' },
   { key: 'arbol',    es: 'Árboles',   en: 'Trees',      emoji: '🌳', color: '#1b7a3a' },
   { key: 'flor',     es: 'Flores',    en: 'Flowers',    emoji: '🌸', color: '#c2255c' },
   { key: 'planta',   es: 'Plantas',   en: 'Plants',     emoji: '🌿', color: '#5a8f2b' },
-  { key: 'fungi',    es: 'Hongos',    en: 'Fungi',      emoji: '🍄', color: '#6a4c93' },
 ];
 function speciesGroupsList() { return (state.speciesGroups && state.speciesGroups.length) ? state.speciesGroups : SPECIES_GROUPS_FALLBACK; }
 function groupMeta(key) {
@@ -1175,14 +1177,23 @@ function groupLabel(key) { const g = groupMeta(key); return LANG === 'en' ? g.en
 const groupOrderIndex = (key) => { const i = speciesGroupsList().findIndex((g) => g.key === key); return i < 0 ? 99 : i; };
 // ¿La especie es un árbol? (linkeada a un punto tipo 'arbol' del inventario).
 function isTreeSpecies(s) { return speciesWaypoints(s).some((w) => w.properties.tipo === 'arbol'); }
-// Grupo de VISUALIZACIÓN: respeta el vocabulario nuevo si ya está; deriva la
-// 'flora' heredada a árbol (si es un árbol del inventario) o planta (fallback).
+// Grupo de VISUALIZACIÓN, siguiendo el modelo del Sistema de Información:
+// group (ave/anfibio/mamifero/insecto/flora) + habit (arbol/flor/planta) para la
+// flora — misma lógica que 14_classify_photos.py. La flora sin hábito cae en
+// planta (fallback), salvo que esté linkeada a un punto tipo 'arbol'.
+const normGrp = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 function speciesGroup(s) {
-  const g = String(s.group || '').toLowerCase();
-  if (g === 'fungi' || g === 'hongo' || g === 'hongos') return 'fungi';
-  if (['ave', 'anfibio', 'mamifero', 'arbol', 'flor', 'planta'].includes(g)) return g;
-  if (g === 'flora' || g === 'vegetal' || g === '') return isTreeSpecies(s) ? 'arbol' : 'planta';
-  return 'planta';   // fallback general (incl. 'otro' → planta)
+  const g = normGrp(s.group), h = normGrp(s.habit);
+  if (g === 'ave') return 'ave';
+  if (g === 'anfibio') return 'anfibio';
+  if (g === 'mamifero') return 'mamifero';
+  if (g === 'insecto' || g === 'insectos') return 'insecto';
+  if (g === 'arbol' || g === 'flor' || g === 'planta') return g;   // valor fino explícito
+  // flora → hábito
+  if (h === 'arbol') return 'arbol';
+  if (h === 'flor' || h === 'orquidea') return 'flor';
+  if (h === 'arbusto' || h === 'hierba' || h === 'planta') return 'planta';
+  return isTreeSpecies(s) ? 'arbol' : 'planta';   // sin hábito: heurística, luego fallback
 }
 
 let speciesFilter = 'all';

@@ -12,16 +12,20 @@ let _pointDraft = null, moveMarker = null;
 const TIPOS = ['mirador', 'avistamiento', 'agua', 'flora', 'servicio', 'punto'];
 // Etiquetas humanas para los selects (los valores internos no cambian).
 const TIPO_LABEL = { mirador: '🔭 Mirador', avistamiento: '🐾 Avistamiento', agua: '💧 Agua', flora: '🌿 Flora', servicio: '🏠 Servicio (casa, cabaña…)', punto: '📍 Otro punto' };
-// Vocabulario nuevo (orden de la estructura de información). 'flora' se mantiene
-// como opción heredada para no perder el grupo de especies aún sin reclasificar.
-const GROUPS = ['ave', 'anfibio', 'mamifero', 'arbol', 'flor', 'planta', 'fungi', 'otro'];
+// Vocabulario 1:1 con el Sistema de Información (14_classify_photos.py): aves,
+// anfibios, mamíferos, insectos, árboles, flores, plantas.
+const GROUPS = ['ave', 'anfibio', 'mamifero', 'insecto', 'arbol', 'flor', 'planta', 'otro'];
 const GROUP_LABEL = { ave: '🐦 Ave', anfibio: '🐸 Anfibio', mamifero: '🐾 Mamífero',
-  arbol: '🌳 Árbol', flor: '🌸 Flor', planta: '🌿 Planta', fungi: '🍄 Hongo', otro: '❓ Otro' };
+  insecto: '🐞 Insecto', arbol: '🌳 Árbol', flor: '🌸 Flor', planta: '🌿 Planta', otro: '❓ Otro' };
 // Grupo por defecto en el editor cuando la especie trae un grupo heredado
-// ('flora') que ya no está en la lista: se sugiere 'planta' (fallback) o 'arbol'
-// si la especie está linkeada a un punto de árbol.
+// ('flora'): usa el campo 'habit' del SIC (arbol/flor), o el link a punto-árbol,
+// y cae en 'planta' (fallback).
 function editorGroup(s) {
   if (GROUPS.includes(s.group)) return s.group;
+  const h = String(s.habit || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (h === 'arbol') return 'arbol';
+  if (h === 'flor' || h === 'orquidea') return 'flor';
+  if (h === 'arbusto' || h === 'hierba' || h === 'planta') return 'planta';
   const isTree = (CTX && CTX.state.waypoints || []).some((w) => w.properties.tipo === 'arbol'
     && (w.properties.species_ids || []).some((sid) => String(sid).trim().toLowerCase() === String(s.id).toLowerCase()
       || String(sid).trim().toLowerCase() === String(s.scientific_name || '').toLowerCase()));
