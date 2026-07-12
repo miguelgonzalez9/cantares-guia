@@ -79,12 +79,6 @@
       </div>
 
       <div id="route-info" class="route-info hidden"></div>
-      <div id="waypoint-card" class="waypoint-card hidden" role="dialog" aria-live="polite">
-        <div class="wp-modal">
-          <button class="card-close" id="wp-close" aria-label="Cerrar">×</button>
-          <div id="wp-content"></div>
-        </div>
-      </div>
       <div id="proximity-toast" class="proximity-toast hidden" role="status" aria-live="polite"></div>
     </section>
 
@@ -153,6 +147,15 @@
         <div id="offline-status" class="offline-status" style="margin-top:14px"></div>
       </div>
     </section>
+
+    <!-- Ficha (punto o especie): overlay de nivel superior, fuera de las vistas,
+         para que se abra sobre la pestaña en la que uno esté (no solo Recorridos). -->
+    <div id="waypoint-card" class="waypoint-card hidden" role="dialog" aria-live="polite">
+      <div class="wp-modal">
+        <button class="card-close" id="wp-close" aria-label="Cerrar">×</button>
+        <div id="wp-content"></div>
+      </div>
+    </div>
   </main>
 
   <nav class="tabbar" role="tablist">

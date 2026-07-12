@@ -1409,6 +1409,9 @@ async function renderDashboard() {
 
 // ---------- navigation ----------
 function switchView(name) {
+  // La ficha es un overlay de nivel superior: al cambiar de pestaña, ciérrala
+  // (antes vivía dentro de Recorridos y se ocultaba sola con la vista).
+  if (state.openWaypointId || state.openSpeciesId) closeWaypoint();
   $$('.view').forEach((v) => v.classList.remove('is-active'));
   $(`#view-${name}`).classList.add('is-active');
   $$('.tab').forEach((tab) => tab.classList.toggle('is-active', tab.dataset.view === name));
