@@ -1,7 +1,7 @@
 {
  "type": "FeatureCollection",
  "_meta": {
-  "note": "Inventario georreferenciado de árboles de Cantares (censo 2021, Duque & Galeano). Generado por data_prep/11_trees_inventory_to_geojson.py. Capa de referencia (no editable por el CMS).",
+  "note": "Inventario georreferenciado de árboles de Cantares (censo 2021, Duque & Galeano). Generado por data_prep/11_trees_inventory_to_geojson.py. Puntos tipo \"arbol\", editables (se fusionan con la nube por id).",
   "n": 207
  },
  "features": [
@@ -27,7 +27,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Podocarpaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "retrophyllum rospigliosii"
+    ],
     "photo": null
    }
   },
@@ -53,7 +55,9 @@
     "description": "El árbol alcanza los 25 m de altura, tiene corteza lisa de color gris oscuro; su copa es irregular, normalmente tiene forma de piramide, sus ramas crecen de manera horizontal. Las hojas son simples, alternas, tienen forma elíptica, su borde es aserrado, su envés es de color verde grisáceo, su nerviación es pronunciadad, terminan en punta y su base tiene forma obtusa; presentan estípulas libres. Las flores estan agrupadas en inflorescencias masculinas y femeninas en el mismo árbol, las inflorescencias masculinas están dispuestas en forma de amentos y las femeninas están dispuestas en forma de piñas. Los frutos son las inflorescencias femeninas que, al ser fecundadas, se tornan color marrón; cuando están maduros se abren para liberar las semillas. Hábitat: borde de bosque y quebrada; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1900 y 3000 m de altitud. Usos: industrial, medicinal, doméstico, restaurador, protector.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "alnus acuminata"
+    ],
     "photo": null
    }
   },
@@ -79,7 +83,9 @@
     "description": "El árbol alcanza hasta los 20 m de altura y los 60 cm de diámetro en su tronco, de corteza estriada de color gris; sus ramas son de color verde rojizo. Las hojas son opuestas, decusadas, compuestas, imparipinnadas, foliolos aserrados, pubescentes, raquis con proyecciones foliares, rosado o granate, estípulas interpeciolares, enrolladas, caedizas. Inflorescencias en racimos largos densos, pubescentes. Flores pequeñas; cáliz con 4 sépalos, reducidos, triangulares, pubescentes; corola con 4 pétalos amarillo-crema, numerosos estambres exsertos. Fruto cápsula, bilocular, septicida, marrón, estilo persistente, semillas pequeñas. Hábitat: potreros en regeneración; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia pubescens"
+    ],
     "photo": null
    }
   },
@@ -105,7 +111,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Myrtaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "eucalyptus grandis"
+    ],
     "photo": null
    }
   },
@@ -131,7 +139,9 @@
     "description": "Árbol de hasta 20 m de altura y 50 cm de diámetro, tronco blanquecino, nudos prominentes, ramificación distal, cavidades en las ramas habitadas por insectos. Hojas alternas, digitadas con 9 lóbulos, peltadas, enteras, pubescentes, glaucas en el haz, venación palmeada, estípula cónica terminal, pubescente y morada. Flores unisexuales, reducidas y compactas, amarillas a marrón.Inflorescencia axilar, amentos dispuestos en racimos, las inflorescencias masculinas se diferencian de las femeninas por que las primeras tienen 10 amentos y las segundas solo 4. Los frutos están dentro del amento femenino y contienen una sustancia mucosa en su interior, son muy pequeños, de color café oscuro. las semillas son de consistencia dura, tienen forma de elipse y son de color café claro. Hábitat: bosque; Bosque muy húmedo montano bajo, (bmh-MB), y bosque secundario o en los claros. Nativo. entre 1800 y 2800 m de altitud. Usos: alimenticio, industrial, medicinal, ormamental, pionera en procesos de restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "cecropia telenitida"
+    ],
     "photo": null
    }
   },
@@ -157,7 +167,9 @@
     "description": "Árbol que alcanza hasta los 20 m de altura y 50 cm de diámetro en su tronco, su corteza es de color gris oscuro, sus ramas y hojas jóvenes con indumento arenoso, exudado transparente que oxida a rojo. Hojas simples, alternas, ovadas con la base cordada, enteras, con estípulas; envés con un par de glándulas prominentes en la base de la lámina. Inflorescencia en espigas axilares, raquis verde. Flores unisexuales; las femeninas se ubican en la parte basal del eje y las masculinas en la parte terminal; cáliz y corola verde. Fruto cápsular, trilocular con cáliz persistente marrón e indumento marrón. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2900 m de altitud. Usos: restauración, alimenticio, doméstico, industrial.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "croton magdalenensis"
+    ],
     "photo": null
    }
   },
@@ -209,7 +221,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Actinidiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "saurauia brachybotrys"
+    ],
     "photo": null
    }
   },
@@ -235,7 +249,9 @@
     "description": "Árbol hasta 8 m de altura, su tronco tiene forma torcida, es corto y su color es grisáceo; sus ramas son pubescentes, lenticeladas, comienzan su crecimiento a baja altura de su base. Hojas simples, alternas, estan dispuestas en forma de hélices, acuminadas, lanceoladas, aserradas, poseen ejes cortos y acanalados, coriáceas, envés densamente pubescente, haz con numerosas glándulas amarillas. Inflorescencias en amentos, axilares, unisexuales o bisexuales, erectos. Flores masculinas con 3-4 brácteas y las pistiladas con 5-6, rojizas-marrón, con puntuaciones y agrupadas densamente. Los frutos son drupas esféricas, de color marrón al madurar, pubescente, con cubierta cerosa, olorosa de color blanquecino y cada uno contiene una semilla esférica, su testa es de consistencia dura, su superficie es rugosa y son opacas. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1700 a 3400 m de altitud. Usos: alimenticio, industrial, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "morella pubescens"
+    ],
     "photo": null
    }
   },
@@ -261,7 +277,9 @@
     "description": "Árbol de hasta 20 m de altura y 50 cm de diámetro, tronco blanquecino, nudos prominentes, ramificación distal, cavidades en las ramas habitadas por insectos. Hojas alternas, digitadas con 9 lóbulos, peltadas, enteras, pubescentes, glaucas en el haz, venación palmeada, estípula cónica terminal, pubescente y morada. Flores unisexuales, reducidas y compactas, amarillas a marrón.Inflorescencia axilar, amentos dispuestos en racimos, las inflorescencias masculinas se diferencian de las femeninas por que las primeras tienen 10 amentos y las segundas solo 4. Los frutos están dentro del amento femenino y contienen una sustancia mucosa en su interior, son muy pequeños, de color café oscuro. las semillas son de consistencia dura, tienen forma de elipse y son de color café claro. Hábitat: bosque; Bosque muy húmedo montano bajo, (bmh-MB), y bosque secundario o en los claros. Nativo. entre 1800 y 2800 m de altitud. Usos: alimenticio, industrial, medicinal, ormamental, pionera en procesos de restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "cecropia telenitida"
+    ],
     "photo": null
    }
   },
@@ -287,7 +305,9 @@
     "description": "Árbol que alcanza los 25 m de altura y los 40 cm de diámetro, de tronco recto, tiene corteza de color gris pardusco, es ligeramente escamosa y agrietada; su copa es aparasolada. Las hojas son simples alternas, están dispuestas en forma helicoidal y en manojos terminales, su borde posee salientes aserradas parecidas a la palma de una mano, son glabras, sus pecíolos son de varios tamaños, poseen brácteas de color rojizo, que protejen las hojas juveniles. Las flores son muy abundantes de color crema, poco vistosas y están agrupadas en forma de cabezuelas sobre densas panículas terminales. Los frutos son drupas brillantes subglobosas que son de color pardo a violáceo y se tornan de color rojizo al madurar y cada una contiene entre 4 y 5 semillas, son de consistencia dura, poseen dos caras aplanadas y una curva, su color es amarillo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Nativo. entre 2000 y 2900 m de altitud. Usos: alimenticio, industrial, ormamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "oreopanax floribundus"
+    ],
     "photo": null
    }
   },
@@ -313,7 +333,9 @@
     "description": "Árbol pequeño hasta 7 m de altura y 10 cm de diámetro, tallos y ramas marrón. Hojas simples, opuestas o subopuestas, con pubescencia marrón, elíptica a oblonga, entera, papirácea, haz áspero al tacto, envés pubescente, verde brillante; pecíolo largo, pubescente. Inflorescencias en cimas, erectas, terminales, escorpioides, pubescentes. Flores pequeñas, numerosas, tubulares, sésiles; cáliz pentámero, pubescente, verde a blanco, con un sépalo más grande; corola gamopétala, blanca brillante. Fruto drupa esférica, blanca con cáliz persistente, cuatro semillas, ovoides a esféricas. Hábitat: borde de bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 2200 - 3600 m de altitud. Usos: alimenticio, ornamental, doméstico, protector.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "tournefortia fuliginosa"
+    ],
     "photo": null
    }
   },
@@ -365,7 +387,9 @@
     "description": "Árbol hasta 18 m de altura y 30 cm de diámetro, corteza interna aromática y de sabor amargo. Hojas simples, opuestas, agrupadas al final de las ramas, elípticas, crenadas, envés azulado y sin indumento. Inflorescencia en panícula, axilar. Botones florales verdes, flores agrupadas en capítulos verdes, corola blanca. Fruto múltiple, formado por bayas que se agrupan al final del pedúnculo, morado al madurar, semillas pequeñas, negras. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1800 y 3000 m de altitud. Usos: doméstico, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "lippia schlimii"
+    ],
     "photo": null
    }
   },
@@ -391,7 +415,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Myrtaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "eucalyptus grandis"
+    ],
     "photo": null
    }
   },
@@ -417,7 +443,9 @@
     "description": "El árbol alcanza hasta los 20 m de altura y los 60 cm de diámetro en su tronco, de corteza estriada de color gris; sus ramas son de color verde rojizo. Las hojas son opuestas, decusadas, compuestas, imparipinnadas, foliolos aserrados, pubescentes, raquis con proyecciones foliares, rosado o granate, estípulas interpeciolares, enrolladas, caedizas. Inflorescencias en racimos largos densos, pubescentes. Flores pequeñas; cáliz con 4 sépalos, reducidos, triangulares, pubescentes; corola con 4 pétalos amarillo-crema, numerosos estambres exsertos. Fruto cápsula, bilocular, septicida, marrón, estilo persistente, semillas pequeñas. Hábitat: potreros en regeneración; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia pubescens"
+    ],
     "photo": null
    }
   },
@@ -443,7 +471,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Brunelliaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "brunellia comocladifolia"
+    ],
     "photo": null
    }
   },
@@ -469,7 +499,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cyatheaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "sphaeropteris quinduiensis"
+    ],
     "photo": null
    }
   },
@@ -495,7 +527,9 @@
     "description": "El árbol alcanza los 25 m de altura, tiene corteza lisa de color gris oscuro; su copa es irregular, normalmente tiene forma de piramide, sus ramas crecen de manera horizontal. Las hojas son simples, alternas, tienen forma elíptica, su borde es aserrado, su envés es de color verde grisáceo, su nerviación es pronunciadad, terminan en punta y su base tiene forma obtusa; presentan estípulas libres. Las flores estan agrupadas en inflorescencias masculinas y femeninas en el mismo árbol, las inflorescencias masculinas están dispuestas en forma de amentos y las femeninas están dispuestas en forma de piñas. Los frutos son las inflorescencias femeninas que, al ser fecundadas, se tornan color marrón; cuando están maduros se abren para liberar las semillas. Hábitat: borde de bosque y quebrada; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1900 y 3000 m de altitud. Usos: industrial, medicinal, doméstico, restaurador, protector.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "alnus acuminata"
+    ],
     "photo": null
    }
   },
@@ -521,7 +555,9 @@
     "description": "Árbol de hasta 15 metros de altura, con la corteza agrietada y las ramas tomentosas de color castaño; hojas lanceoladas, ápice agudo, margen suavemente aserrada, base atenuada con las márgenes revolutas, 17-20 cm de longitud y 5.8 de ancho; estípula representada por una línea interpeciolar, pecíolo tomentoso, 1.5-2 cm de longitud, curvado en la base, haz glabra, opaca, nervios impresos, envés densamente cubierto por pelos ramificados color castaño; inflorescencias terminales cimosas, con brácteas y bracteolas lineares; flores en cabezuelas densas, blancoamarillentas, muy fragantes, tetrámeras; fruto, una cápsula pequeña. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 2800 m de altitud. Usos: doméstico, alimenticio, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "buddleja bullata"
+    ],
     "photo": null
    }
   },
@@ -547,7 +583,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Actinidiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "saurauia chiliantha"
+    ],
     "photo": null
    }
   },
@@ -573,7 +611,9 @@
     "description": "Árbol hasta los 15 m de altura y los 60 cm de diámetro en su tronco, que posee aguijones cortos. Hojas compuestas, alternas, trifoliadas, tienen forma triangular, con estípulas libres en la base del pecíolo, están dispuestas en forma helicoidal, terminan en punta, son glabras; su borde es entero y su textura es coriácea. Flores de forma zigomorfas, conformadas por 4 pétalos rojonaranja, su androceo se encuentra localizado dentro de la quilla o carina con 9 estambres que forman un grupo y otro separado, el conjunto de flores forma una inflorescencia en racimo cónico y denso. Fruto en legumbre, caracterizado por presentar articulaciones en cada semilla, son pendulares y cada una contiene varias semillas, son de color café rojizo, tienen forma de riñon y sus cotiledones poseen consistencia carnosa. Hábitat: sembrada; Bosque muy húmedo premontano (bmh-PM) y bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 1300 y 2800 m de altitud. Usos: alimenticio, ornamental, doméstico, restauración, recuperación de suelos.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "erythrina edulis"
+    ],
     "photo": null
    }
   },
@@ -599,7 +639,9 @@
     "description": "Árbol hasta 18 m de altura y 30 cm de diámetro, corteza interna aromática y de sabor amargo. Hojas simples, opuestas, agrupadas al final de las ramas, elípticas, crenadas, envés azulado y sin indumento. Inflorescencia en panícula, axilar. Botones florales verdes, flores agrupadas en capítulos verdes, corola blanca. Fruto múltiple, formado por bayas que se agrupan al final del pedúnculo, morado al madurar, semillas pequeñas, negras. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1800 y 3000 m de altitud. Usos: doméstico, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "lippia schlimii"
+    ],
     "photo": null
    }
   },
@@ -625,7 +667,9 @@
     "description": "Árbol hasta 15 m de altura y 25 cm de diámetro en su tronco, con corteza que se desprende en escamas y es de color rojizo. Hojas simples, opuestas, su borde es aserrado, decusadas, ciliado-denticuladas, 3 nervaduras principales marcadas y curvas que se extienden desde la base hasta el ápice, haz y envés provisto de escamas ciliadas, textura áspera al tacto. Inflorescencia dispuesta en dicasios axilares o terminales con 3-5 flores. Flores pentámeras, pétalos dispuestos de manera extendida y separados entre sí (dialipétalas), sus estambres son de color amarillo; filamentos y pistilo magenta a rosado. Fruto cápsula verde con forma de canastilla que liberan sus semillas por unos poros ubicados en su ápice, tornándose marrón al madurar, semillas numerosas muy pequeñas, parecidas a un caracol y de consistencia dura. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: ornamental, industrial, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "tibouchina lepidota"
+    ],
     "photo": null
    }
   },
@@ -651,7 +695,9 @@
     "description": "El árbol alcanza hasta los 20 m de altura y los 60 cm de diámetro en su tronco, de corteza estriada de color gris; sus ramas son de color verde rojizo. Las hojas son opuestas, decusadas, compuestas, imparipinnadas, foliolos aserrados, pubescentes, raquis con proyecciones foliares, rosado o granate, estípulas interpeciolares, enrolladas, caedizas. Inflorescencias en racimos largos densos, pubescentes. Flores pequeñas; cáliz con 4 sépalos, reducidos, triangulares, pubescentes; corola con 4 pétalos amarillo-crema, numerosos estambres exsertos. Fruto cápsula, bilocular, septicida, marrón, estilo persistente, semillas pequeñas. Hábitat: potreros en regeneración; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia pubescens"
+    ],
     "photo": null
    }
   },
@@ -677,7 +723,9 @@
     "description": "Árbol hasta 18 m de altura y 60 cm de diámetro, exudado acuoso blanco a crema, abundante en todas las estructuras de la planta, dioicos. Hojas simples, alternas, dísticas, pubescentes, elípticas a oblongas, ápice mucronado, base obtusa a redondeada, trinervadas, de textura cartácea, margen aserrada y tres nervios basales. Estípulas pareadas. Inflorescencias masculinas y femeninas en espigas, verdes. Flores unisexuales, apétalas, axilares solitarias, muy pequeñas. Fruto drupáceo incluído dentro del perianto, levemente suculento. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1900 y 3000 m de altitud. Usos: alimenticio, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "morus insignis"
+    ],
     "photo": null
    }
   },
@@ -703,7 +751,9 @@
     "description": "Árbol hasta 18 m de altura y 30 cm de diámetro, corteza interna aromática y de sabor amargo. Hojas simples, opuestas, agrupadas al final de las ramas, elípticas, crenadas, envés azulado y sin indumento. Inflorescencia en panícula, axilar. Botones florales verdes, flores agrupadas en capítulos verdes, corola blanca. Fruto múltiple, formado por bayas que se agrupan al final del pedúnculo, morado al madurar, semillas pequeñas, negras. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1800 y 3000 m de altitud. Usos: doméstico, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "lippia schlimii"
+    ],
     "photo": null
    }
   },
@@ -729,7 +779,9 @@
     "description": "Árbol que alcanza los 25 m de altura y los 40 cm de diámetro, de tronco recto, tiene corteza de color gris pardusco, es ligeramente escamosa y agrietada; su copa es aparasolada. Las hojas son simples alternas, están dispuestas en forma helicoidal y en manojos terminales, su borde posee salientes aserradas parecidas a la palma de una mano, son glabras, sus pecíolos son de varios tamaños, poseen brácteas de color rojizo, que protejen las hojas juveniles. Las flores son muy abundantes de color crema, poco vistosas y están agrupadas en forma de cabezuelas sobre densas panículas terminales. Los frutos son drupas brillantes subglobosas que son de color pardo a violáceo y se tornan de color rojizo al madurar y cada una contiene entre 4 y 5 semillas, son de consistencia dura, poseen dos caras aplanadas y una curva, su color es amarillo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Nativo. entre 2000 y 2900 m de altitud. Usos: alimenticio, industrial, ormamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "oreopanax floribundus"
+    ],
     "photo": null
    }
   },
@@ -755,7 +807,9 @@
     "description": "Árbol hasta 8 m de altura, su tronco tiene forma torcida, es corto y su color es grisáceo; sus ramas son pubescentes, lenticeladas, comienzan su crecimiento a baja altura de su base. Hojas simples, alternas, estan dispuestas en forma de hélices, acuminadas, lanceoladas, aserradas, poseen ejes cortos y acanalados, coriáceas, envés densamente pubescente, haz con numerosas glándulas amarillas. Inflorescencias en amentos, axilares, unisexuales o bisexuales, erectos. Flores masculinas con 3-4 brácteas y las pistiladas con 5-6, rojizas-marrón, con puntuaciones y agrupadas densamente. Los frutos son drupas esféricas, de color marrón al madurar, pubescente, con cubierta cerosa, olorosa de color blanquecino y cada uno contiene una semilla esférica, su testa es de consistencia dura, su superficie es rugosa y son opacas. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1700 a 3400 m de altitud. Usos: alimenticio, industrial, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "morella pubescens"
+    ],
     "photo": null
    }
   },
@@ -781,7 +835,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Brunelliaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "brunellia comocladifolia"
+    ],
     "photo": null
    }
   },
@@ -807,7 +863,9 @@
     "description": "Árbol hasta 18 m de altura y 30 cm de diámetro, corteza interna aromática y de sabor amargo. Hojas simples, opuestas, agrupadas al final de las ramas, elípticas, crenadas, envés azulado y sin indumento. Inflorescencia en panícula, axilar. Botones florales verdes, flores agrupadas en capítulos verdes, corola blanca. Fruto múltiple, formado por bayas que se agrupan al final del pedúnculo, morado al madurar, semillas pequeñas, negras. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1800 y 3000 m de altitud. Usos: doméstico, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "lippia schlimii"
+    ],
     "photo": null
    }
   },
@@ -833,7 +891,9 @@
     "description": "Árbol de hasta 15 metros de altura, con la corteza agrietada y las ramas tomentosas de color castaño; hojas lanceoladas, ápice agudo, margen suavemente aserrada, base atenuada con las márgenes revolutas, 17-20 cm de longitud y 5.8 de ancho; estípula representada por una línea interpeciolar, pecíolo tomentoso, 1.5-2 cm de longitud, curvado en la base, haz glabra, opaca, nervios impresos, envés densamente cubierto por pelos ramificados color castaño; inflorescencias terminales cimosas, con brácteas y bracteolas lineares; flores en cabezuelas densas, blancoamarillentas, muy fragantes, tetrámeras; fruto, una cápsula pequeña. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 2800 m de altitud. Usos: doméstico, alimenticio, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "buddleja bullata"
+    ],
     "photo": null
    }
   },
@@ -859,7 +919,9 @@
     "description": "Arbusto hasta de 5 m de altura, profusamente ramificado, frecuente en bosques enanos y especialmente en zona de páramo . Hojas simples, opuestas, decusadas, con pubescencia densa, firmemente membranácea, elíptico-ovada, con la base redondeada a ligeramente cordada, ápice agudo, margen entera a finamente crenulada, de 5-7 nervios primarios. Inflorescencias en panículas terminales de pocas flores. Flores pentámeras, actinomorfas, de partes libres, pedicelos teretes y bractéolas deciduas. Frutos en cápsulas rojizas, con remanentes del cáliz persistiendo. Hábitat: potreros en regeneración; Bosque andino, Bosque alto andino , Páramo. Nativa. entre 2500 y 4000 m de altitud. Usos: ornamental, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "tibouchina grossa"
+    ],
     "photo": null
    }
   },
@@ -885,7 +947,9 @@
     "description": "Arbusto hasta 2.5 m de altura. Hojas simples, opuestas, margen ciliadodentado, base levemente cordada, envez con pubescencia corta, 5-7 nervaduras, unas saliendo un poco por encima de la base y llegando hasta el ápice, tricomas ciliados en pecíolos y ramas terminales. Inflorescencias en panículas terminales. Flores pentámeras, con pétalos blancos, filamentos y anteras amarillas. Fruto baya, rosado tornándose morado-negro al madurar, semillas abundantes, diminutas. Hábitat: potreros en regeneración; Bosque muy húmedo montano bajo (bmh-MB), bosque humedo montano bajo (bh-MB) y (bmh-M). Nativo. entre 2400 y 3500 m de altitud. Usos: ornamental, doméstico, protectora.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "axinaea macrophylla"
+    ],
     "photo": null
    }
   },
@@ -911,7 +975,9 @@
     "description": "El árbol alcanza hasta los 20 m de altura y los 60 cm de diámetro en su tronco, de corteza estriada de color gris; sus ramas son de color verde rojizo. Las hojas son opuestas, decusadas, compuestas, imparipinnadas, foliolos aserrados, pubescentes, raquis con proyecciones foliares, rosado o granate, estípulas interpeciolares, enrolladas, caedizas. Inflorescencias en racimos largos densos, pubescentes. Flores pequeñas; cáliz con 4 sépalos, reducidos, triangulares, pubescentes; corola con 4 pétalos amarillo-crema, numerosos estambres exsertos. Fruto cápsula, bilocular, septicida, marrón, estilo persistente, semillas pequeñas. Hábitat: potreros en regeneración; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia pubescens"
+    ],
     "photo": null
    }
   },
@@ -937,7 +1003,9 @@
     "description": "Árbol hasta 8 m de altura, su tronco tiene forma torcida, es corto y su color es grisáceo; sus ramas son pubescentes, lenticeladas, comienzan su crecimiento a baja altura de su base. Hojas simples, alternas, estan dispuestas en forma de hélices, acuminadas, lanceoladas, aserradas, poseen ejes cortos y acanalados, coriáceas, envés densamente pubescente, haz con numerosas glándulas amarillas. Inflorescencias en amentos, axilares, unisexuales o bisexuales, erectos. Flores masculinas con 3-4 brácteas y las pistiladas con 5-6, rojizas-marrón, con puntuaciones y agrupadas densamente. Los frutos son drupas esféricas, de color marrón al madurar, pubescente, con cubierta cerosa, olorosa de color blanquecino y cada uno contiene una semilla esférica, su testa es de consistencia dura, su superficie es rugosa y son opacas. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1700 a 3400 m de altitud. Usos: alimenticio, industrial, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "morella pubescens"
+    ],
     "photo": null
    }
   },
@@ -963,7 +1031,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -1015,7 +1085,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Melastomataceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "leandra nervosa"
+    ],
     "photo": null
    }
   },
@@ -1067,7 +1139,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Melastomataceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "miconia smaragdina"
+    ],
     "photo": null
    }
   },
@@ -1119,7 +1193,9 @@
     "description": "Árbol hasta 8 m de altura, su tronco tiene forma torcida, es corto y su color es grisáceo; sus ramas son pubescentes, lenticeladas, comienzan su crecimiento a baja altura de su base. Hojas simples, alternas, estan dispuestas en forma de hélices, acuminadas, lanceoladas, aserradas, poseen ejes cortos y acanalados, coriáceas, envés densamente pubescente, haz con numerosas glándulas amarillas. Inflorescencias en amentos, axilares, unisexuales o bisexuales, erectos. Flores masculinas con 3-4 brácteas y las pistiladas con 5-6, rojizas-marrón, con puntuaciones y agrupadas densamente. Los frutos son drupas esféricas, de color marrón al madurar, pubescente, con cubierta cerosa, olorosa de color blanquecino y cada uno contiene una semilla esférica, su testa es de consistencia dura, su superficie es rugosa y son opacas. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1700 a 3400 m de altitud. Usos: alimenticio, industrial, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "morella pubescens"
+    ],
     "photo": null
    }
   },
@@ -1145,7 +1221,9 @@
     "description": "Arbusto hasta de 5 m de altura, profusamente ramificado, frecuente en bosques enanos y especialmente en zona de páramo . Hojas simples, opuestas, decusadas, con pubescencia densa, firmemente membranácea, elíptico-ovada, con la base redondeada a ligeramente cordada, ápice agudo, margen entera a finamente crenulada, de 5-7 nervios primarios. Inflorescencias en panículas terminales de pocas flores. Flores pentámeras, actinomorfas, de partes libres, pedicelos teretes y bractéolas deciduas. Frutos en cápsulas rojizas, con remanentes del cáliz persistiendo. Hábitat: potreros en regeneración; Bosque andino, Bosque alto andino , Páramo. Nativa. entre 2500 y 4000 m de altitud. Usos: ornamental, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "tibouchina grossa"
+    ],
     "photo": null
    }
   },
@@ -1171,7 +1249,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Actinidiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "saurauia chiliantha"
+    ],
     "photo": null
    }
   },
@@ -1197,7 +1277,9 @@
     "description": "Arbusto o árbol pequeño, hasta 10 m de altura y 15 cm de diámetro. Hojas simples, opuestas, decusadas, ciliado-denticuladas, 3 nervaduras principales que se extienden desde la base hasta el ápice. Inflorescencia en panículas, terminales. Flores pentámeras con cáliz y anteras crema, pétalos, filamentos y pistilo blanco. Fruto bayas verdes tornándose blancas al madurar, con vestigios de los verticilos florales en el ápice, semillas diminutas. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - (bmh-MA). Nativo. entre 1500 - 3000 m de altitud. Usos: alimenticio, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "miconia theaezans"
+    ],
     "photo": null
    }
   },
@@ -1223,7 +1305,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Melastomataceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "leandra nervosa"
+    ],
     "photo": null
    }
   },
@@ -1249,7 +1333,9 @@
     "description": "Árbol de hasta 30 metros de altura y 1 m o más de diámetro, corteza gruesa y grisácea, con fisuras longitudinales muy características; hojas de hasta 70 cm de longitud, pinnas alternas a subopuestas, de márgenes aserradas, base desigual, ápice acuminado, ovadas u oblongo-ovadas, vellosas; flores masculinas en amentos péndulos, de 10-15 cm de longitud, brácteas y flores verdes o verde-amarillentas, las femeninas en espigas cortas con pocas flores; Al acercarse la floración los árboles pierden completamente el follaje, hecho que sucede una vez al año y del cual resultan abundantes frutos de germinación lenta. Los frutos son drupas globosas de hasta 7 cm de diámetro y cubiertas con un indumento café claro, exocarpo suculento, endocarpo duro, leñoso y surcado longitudinalmente. Hábitat: sembrada; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1700 y 2800 m de altitud. Usos: industrial, artesanal, alimenticio, medicinal, doméstico, ornamental.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "juglans neotropica"
+    ],
     "photo": null
    }
   },
@@ -1301,7 +1387,9 @@
     "description": "Árbol hasta 18 m de altura y 30 cm de diámetro, corteza interna aromática y de sabor amargo. Hojas simples, opuestas, agrupadas al final de las ramas, elípticas, crenadas, envés azulado y sin indumento. Inflorescencia en panícula, axilar. Botones florales verdes, flores agrupadas en capítulos verdes, corola blanca. Fruto múltiple, formado por bayas que se agrupan al final del pedúnculo, morado al madurar, semillas pequeñas, negras. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1800 y 3000 m de altitud. Usos: doméstico, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "lippia schlimii"
+    ],
     "photo": null
    }
   },
@@ -1327,7 +1415,9 @@
     "description": "Árbol hasta 15 m de altura y 25 cm de diámetro en su tronco, con corteza que se desprende en escamas y es de color rojizo. Hojas simples, opuestas, su borde es aserrado, decusadas, ciliado-denticuladas, 3 nervaduras principales marcadas y curvas que se extienden desde la base hasta el ápice, haz y envés provisto de escamas ciliadas, textura áspera al tacto. Inflorescencia dispuesta en dicasios axilares o terminales con 3-5 flores. Flores pentámeras, pétalos dispuestos de manera extendida y separados entre sí (dialipétalas), sus estambres son de color amarillo; filamentos y pistilo magenta a rosado. Fruto cápsula verde con forma de canastilla que liberan sus semillas por unos poros ubicados en su ápice, tornándose marrón al madurar, semillas numerosas muy pequeñas, parecidas a un caracol y de consistencia dura. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: ornamental, industrial, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "tibouchina lepidota"
+    ],
     "photo": null
    }
   },
@@ -1379,7 +1469,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Brunelliaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "brunellia comocladifolia"
+    ],
     "photo": null
    }
   },
@@ -1405,7 +1497,9 @@
     "description": "Árbol que alcanza hasta los 20 m de altura y 50 cm de diámetro en su tronco, su corteza es de color gris oscuro, sus ramas y hojas jóvenes con indumento arenoso, exudado transparente que oxida a rojo. Hojas simples, alternas, ovadas con la base cordada, enteras, con estípulas; envés con un par de glándulas prominentes en la base de la lámina. Inflorescencia en espigas axilares, raquis verde. Flores unisexuales; las femeninas se ubican en la parte basal del eje y las masculinas en la parte terminal; cáliz y corola verde. Fruto cápsular, trilocular con cáliz persistente marrón e indumento marrón. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2900 m de altitud. Usos: restauración, alimenticio, doméstico, industrial.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "croton magdalenensis"
+    ],
     "photo": null
    }
   },
@@ -1431,7 +1525,9 @@
     "description": "Arbusto hasta 2.5 m de altura. Hojas simples, opuestas, margen ciliadodentado, base levemente cordada, envez con pubescencia corta, 5-7 nervaduras, unas saliendo un poco por encima de la base y llegando hasta el ápice, tricomas ciliados en pecíolos y ramas terminales. Inflorescencias en panículas terminales. Flores pentámeras, con pétalos blancos, filamentos y anteras amarillas. Fruto baya, rosado tornándose morado-negro al madurar, semillas abundantes, diminutas. Hábitat: potreros en regeneración; Bosque muy húmedo montano bajo (bmh-MB), bosque humedo montano bajo (bh-MB) y (bmh-M). Nativo. entre 2400 y 3500 m de altitud. Usos: ornamental, doméstico, protectora.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "axinaea macrophylla"
+    ],
     "photo": null
    }
   },
@@ -1457,7 +1553,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Rutaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "zanthoxylum quindiuense"
+    ],
     "photo": null
    }
   },
@@ -1483,7 +1581,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Myrtaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "myrcianthes rhopaloides"
+    ],
     "photo": null
    }
   },
@@ -1509,7 +1609,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Chloranthaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hedyosmum bonplandianum"
+    ],
     "photo": null
    }
   },
@@ -1535,7 +1637,9 @@
     "description": "Árbol que alcanza hasta los 20 m de altura y 50 cm de diámetro en su tronco, su corteza es de color gris oscuro, sus ramas y hojas jóvenes con indumento arenoso, exudado transparente que oxida a rojo. Hojas simples, alternas, ovadas con la base cordada, enteras, con estípulas; envés con un par de glándulas prominentes en la base de la lámina. Inflorescencia en espigas axilares, raquis verde. Flores unisexuales; las femeninas se ubican en la parte basal del eje y las masculinas en la parte terminal; cáliz y corola verde. Fruto cápsular, trilocular con cáliz persistente marrón e indumento marrón. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2900 m de altitud. Usos: restauración, alimenticio, doméstico, industrial.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "croton magdalenensis"
+    ],
     "photo": null
    }
   },
@@ -1613,7 +1717,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Araliaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "oreopanax glabrifolium"
+    ],
     "photo": null
    }
   },
@@ -1691,7 +1797,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -1717,7 +1825,9 @@
     "description": "Árbol pequeño hasta 7 m de altura y 10 cm de diámetro, tallos y ramas marrón. Hojas simples, opuestas o subopuestas, con pubescencia marrón, elíptica a oblonga, entera, papirácea, haz áspero al tacto, envés pubescente, verde brillante; pecíolo largo, pubescente. Inflorescencias en cimas, erectas, terminales, escorpioides, pubescentes. Flores pequeñas, numerosas, tubulares, sésiles; cáliz pentámero, pubescente, verde a blanco, con un sépalo más grande; corola gamopétala, blanca brillante. Fruto drupa esférica, blanca con cáliz persistente, cuatro semillas, ovoides a esféricas. Hábitat: borde de bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 2200 - 3600 m de altitud. Usos: alimenticio, ornamental, doméstico, protector.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "tournefortia fuliginosa"
+    ],
     "photo": null
    }
   },
@@ -1743,7 +1853,9 @@
     "description": "Árbol que alcanza los 25 m de altura y los 40 cm de diámetro, de tronco recto, tiene corteza de color gris pardusco, es ligeramente escamosa y agrietada; su copa es aparasolada. Las hojas son simples alternas, están dispuestas en forma helicoidal y en manojos terminales, su borde posee salientes aserradas parecidas a la palma de una mano, son glabras, sus pecíolos son de varios tamaños, poseen brácteas de color rojizo, que protejen las hojas juveniles. Las flores son muy abundantes de color crema, poco vistosas y están agrupadas en forma de cabezuelas sobre densas panículas terminales. Los frutos son drupas brillantes subglobosas que son de color pardo a violáceo y se tornan de color rojizo al madurar y cada una contiene entre 4 y 5 semillas, son de consistencia dura, poseen dos caras aplanadas y una curva, su color es amarillo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Nativo. entre 2000 y 2900 m de altitud. Usos: alimenticio, industrial, ormamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "oreopanax floribundus"
+    ],
     "photo": null
    }
   },
@@ -1769,7 +1881,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Araliaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "oreopanax glabrifolium"
+    ],
     "photo": null
    }
   },
@@ -1795,7 +1909,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Actinidiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "saurauia chiliantha"
+    ],
     "photo": null
    }
   },
@@ -1873,7 +1989,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Clusiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "chrysochlamys dependens"
+    ],
     "photo": null
    }
   },
@@ -1925,7 +2043,9 @@
     "description": "Árbol hasta de 25 m de altura y 50 cm de diámetro, parcialmente caducifolio, corteza de color negro rojizo desprendible, de ramificación abundante, follaje color verde oscuro. Hojas opuestas, decusadas, compuestas, trifoliadas, enteras, haz verde lustroso; las hojas nuevas y las más viejas rojizas, de textura coriácea, sus pecíolos son largos miden entre 2 y 4 cm. Inflorescencia en panículas cimosas, terminales. Flores vistosas pentámeras; sépalos verdes, marrón, unidos basalmente; corola blanca, con variegaciones amarillas y rojas, pistilo largo, rojo. Fruto cápsula trilocular, ovoide, con un lado aplanado, dehiscente, rojo–rosado al madurar; las semillas son carnosas, su tamaño es mediano, su sabor es amargo y tiene forma hemisférica o poligonal. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2700 m de altitud. Usos: industrial, alimenticio, ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "billia rosea"
+    ],
     "photo": null
    }
   },
@@ -1951,7 +2071,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -1977,7 +2099,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Melastomataceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "meriania tomentosa"
+    ],
     "photo": null
    }
   },
@@ -2003,7 +2127,9 @@
     "description": "Arbusto o árbol pequeño, hasta 10 m de altura y 15 cm de diámetro. Hojas simples, opuestas, decusadas, ciliado-denticuladas, 3 nervaduras principales que se extienden desde la base hasta el ápice. Inflorescencia en panículas, terminales. Flores pentámeras con cáliz y anteras crema, pétalos, filamentos y pistilo blanco. Fruto bayas verdes tornándose blancas al madurar, con vestigios de los verticilos florales en el ápice, semillas diminutas. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - (bmh-MA). Nativo. entre 1500 - 3000 m de altitud. Usos: alimenticio, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "miconia theaezans"
+    ],
     "photo": null
    }
   },
@@ -2029,7 +2155,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cyatheaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "sphaeropteris quinduiensis"
+    ],
     "photo": null
    }
   },
@@ -2055,7 +2183,9 @@
     "description": "El árbol alcanza los 20 m de altura y los 60 cm de diámetro, tiene corteza lisa de color gris, produce una sustancia (látex) escasa que es de color rojizo, sus ramas son gruesas y arqueadas. Las hojas son simples, nacen varias en un mismo nudo (verticiladas), su has es de color verde oscuro opaco y su envés es de color claro, su nervio central es prominente, su borde es entero, son lisas y terminan en punta. Flores con pétalos encorvados hacia afuera, de color blanco y dispuestas en inflorescencias terminales en forma de racimos. Los frutos son capsulares, tienen forma de globo, no se abren por sí solos, son de consistencia dura, su cáscara es gruesa y cada uno contiene una semilla, son de consistencia harinosa, su cubierta es delgada y de color café. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 3000 m de altitud. Usos: alimenticio, industrial, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "panopsis suaveolens"
+    ],
     "photo": null
    }
   },
@@ -2081,7 +2211,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cyatheaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "sphaeropteris quinduiensis"
+    ],
     "photo": null
    }
   },
@@ -2107,7 +2239,9 @@
     "description": "Árbol mediano de hasta 15 metros de altura, aromático, tiene corteza lisa y es de color grisáceo; su ramificación tiene nudos pronunciados, son gruesas y quebradizas. Hojas simples, opuestas y decusadas, elípticas, glabras, de ápice mucronado, base aguda, margen aserrada, su consistencia es carnosa, los pecíolos se unen y forman un tubo sobre el nudo de la rama donde se ubican 4 estípulas pequeñas. Las flores masculinas y femeninas están agrupadas es árboles diferentes de la misma especie, las masculinas tienen forma de amentos cónicos y las femeninas en panículas extendidas, en inflorescencias terminales. Los frutos son bayas de color blanco, jugosos, parecidas a una bola de granizo, son fragantes y acuosas, cada fruto contiene entre 4 y 8 semillas, son de color marrón, tienen forma elíptica y de consistencia dura y sabor amargo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: alimenticio, medicinal, ornamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hedyosmum bonplandianum"
+    ],
     "photo": null
    }
   },
@@ -2133,7 +2267,9 @@
     "description": "Árbol que alcanza hasta los 20 m de altura y 50 cm de diámetro en su tronco, su corteza es de color gris oscuro, sus ramas y hojas jóvenes con indumento arenoso, exudado transparente que oxida a rojo. Hojas simples, alternas, ovadas con la base cordada, enteras, con estípulas; envés con un par de glándulas prominentes en la base de la lámina. Inflorescencia en espigas axilares, raquis verde. Flores unisexuales; las femeninas se ubican en la parte basal del eje y las masculinas en la parte terminal; cáliz y corola verde. Fruto cápsular, trilocular con cáliz persistente marrón e indumento marrón. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2900 m de altitud. Usos: restauración, alimenticio, doméstico, industrial.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "croton magdalenensis"
+    ],
     "photo": null
    }
   },
@@ -2159,7 +2295,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -2211,7 +2349,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Melastomataceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "meriania tomentosa"
+    ],
     "photo": null
    }
   },
@@ -2237,7 +2377,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Euphorbiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "alchornea coelophylla"
+    ],
     "photo": null
    }
   },
@@ -2263,7 +2405,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia elliptica"
+    ],
     "photo": null
    }
   },
@@ -2289,7 +2433,9 @@
     "description": "Árbol hasta 20 m de altura y 50 cm de diámetro, posee corteza del tallo agrietada y escamosa de color oscura; su copa tiene forma de cono, su follaje es de color verde blancuzco. Hojas alternas, adultas transformadas en filodios elípticos o lanceolados, de 6-12 cm de longitud, 3-5 nervios longitudinales, prominentes, estípulas, pulvínulo; tienen forma de sable, macen recompuestas y posteriormente se convierten en simples. las flores están dispuestas en inflorescencias en cabezuelas redondas solitarias o agrupadas en racimos, axilares. Flores con numerosos estambres crema o blanquecinos. Fruto legumbre, linear hasta 14 cm de longitud, retorcido y enrollado y cada una contiene varias semillas, son de color pardo rojizo, semillas elipsoidales, negras brillantes. Hábitat: sembrada; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Australia. entre 1800 y 3000 m de altitud. Usos: ornamental, doméstico, restauración, recuperación de suelos.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "acacia melanoxylon"
+    ],
     "photo": null
    }
   },
@@ -2315,7 +2461,9 @@
     "description": "Árbol hasta 20 m de altura y 50 cm de diámetro, posee corteza del tallo agrietada y escamosa de color oscura; su copa tiene forma de cono, su follaje es de color verde blancuzco. Hojas alternas, adultas transformadas en filodios elípticos o lanceolados, de 6-12 cm de longitud, 3-5 nervios longitudinales, prominentes, estípulas, pulvínulo; tienen forma de sable, macen recompuestas y posteriormente se convierten en simples. las flores están dispuestas en inflorescencias en cabezuelas redondas solitarias o agrupadas en racimos, axilares. Flores con numerosos estambres crema o blanquecinos. Fruto legumbre, linear hasta 14 cm de longitud, retorcido y enrollado y cada una contiene varias semillas, son de color pardo rojizo, semillas elipsoidales, negras brillantes. Hábitat: sembrada; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Australia. entre 1800 y 3000 m de altitud. Usos: ornamental, doméstico, restauración, recuperación de suelos.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "acacia melanoxylon"
+    ],
     "photo": null
    }
   },
@@ -2341,7 +2489,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cyatheaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "sphaeropteris quinduiensis"
+    ],
     "photo": null
    }
   },
@@ -2367,7 +2517,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Lythraceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "lafoensia speciosa"
+    ],
     "photo": null
    }
   },
@@ -2419,7 +2571,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Asteraceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "verbesina arborea"
+    ],
     "photo": null
    }
   },
@@ -2471,7 +2625,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Chloranthaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hedyosmum bonplandianum"
+    ],
     "photo": null
    }
   },
@@ -2497,7 +2653,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cyatheaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "sphaeropteris quinduiensis"
+    ],
     "photo": null
    }
   },
@@ -2549,7 +2707,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -2575,7 +2735,9 @@
     "description": "El árbol alcanza los 25 m de altura, tiene corteza lisa de color gris oscuro; su copa es irregular, normalmente tiene forma de piramide, sus ramas crecen de manera horizontal. Las hojas son simples, alternas, tienen forma elíptica, su borde es aserrado, su envés es de color verde grisáceo, su nerviación es pronunciadad, terminan en punta y su base tiene forma obtusa; presentan estípulas libres. Las flores estan agrupadas en inflorescencias masculinas y femeninas en el mismo árbol, las inflorescencias masculinas están dispuestas en forma de amentos y las femeninas están dispuestas en forma de piñas. Los frutos son las inflorescencias femeninas que, al ser fecundadas, se tornan color marrón; cuando están maduros se abren para liberar las semillas. Hábitat: borde de bosque y quebrada; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1900 y 3000 m de altitud. Usos: industrial, medicinal, doméstico, restaurador, protector.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "alnus acuminata"
+    ],
     "photo": null
    }
   },
@@ -2601,7 +2763,9 @@
     "description": "Árbol corpulento mayor de 25 m de altura y un diámetro de 1 m, tronco recto y cilíndrico, corteza oscura desprendiéndose en placas irregulares y delgadas que le dejan cicatrices. Hojas distribuidas espiraladamente y dísticas, lineares, ápice agudo o mucronado, base obtusa y subsésil, márgenes revolutas, haz lustrosa, envés opaco, con el nervio central poco notorio y acanalado; Las flores masculinas y femeninas se encuentran en el mismo individuo separadas entre ellas, las masculinas se disponen en forma de estróbilos delgados y alargados, las femeninas se localizan al final de las ramas; frutos drupáceos solitarios en ramas especializadas, de color verde y al madurar se tornan de color rojizo y cada uno contiene una semilla, la semilla es globosa, terminan en una pequeña punta y son de color amarillo. Hábitat: sembrada; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 2500 y 3500 m de altitud. Usos: industrial, coméstible, ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "prumnopitys montana"
+    ],
     "photo": null
    }
   },
@@ -2627,7 +2791,9 @@
     "description": "Árbol hasta 8 m de altura, su tronco tiene forma torcida, es corto y su color es grisáceo; sus ramas son pubescentes, lenticeladas, comienzan su crecimiento a baja altura de su base. Hojas simples, alternas, estan dispuestas en forma de hélices, acuminadas, lanceoladas, aserradas, poseen ejes cortos y acanalados, coriáceas, envés densamente pubescente, haz con numerosas glándulas amarillas. Inflorescencias en amentos, axilares, unisexuales o bisexuales, erectos. Flores masculinas con 3-4 brácteas y las pistiladas con 5-6, rojizas-marrón, con puntuaciones y agrupadas densamente. Los frutos son drupas esféricas, de color marrón al madurar, pubescente, con cubierta cerosa, olorosa de color blanquecino y cada uno contiene una semilla esférica, su testa es de consistencia dura, su superficie es rugosa y son opacas. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1700 a 3400 m de altitud. Usos: alimenticio, industrial, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "morella pubescens"
+    ],
     "photo": null
    }
   },
@@ -2653,7 +2819,9 @@
     "description": "Árbol de hasta 15 metros de altura, con la corteza agrietada y las ramas tomentosas de color castaño; hojas lanceoladas, ápice agudo, margen suavemente aserrada, base atenuada con las márgenes revolutas, 17-20 cm de longitud y 5.8 de ancho; estípula representada por una línea interpeciolar, pecíolo tomentoso, 1.5-2 cm de longitud, curvado en la base, haz glabra, opaca, nervios impresos, envés densamente cubierto por pelos ramificados color castaño; inflorescencias terminales cimosas, con brácteas y bracteolas lineares; flores en cabezuelas densas, blancoamarillentas, muy fragantes, tetrámeras; fruto, una cápsula pequeña. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 2800 m de altitud. Usos: doméstico, alimenticio, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "buddleja bullata"
+    ],
     "photo": null
    }
   },
@@ -2679,7 +2847,9 @@
     "description": "Arbusto hasta 2.5 m de altura. Hojas simples, opuestas, margen ciliadodentado, base levemente cordada, envez con pubescencia corta, 5-7 nervaduras, unas saliendo un poco por encima de la base y llegando hasta el ápice, tricomas ciliados en pecíolos y ramas terminales. Inflorescencias en panículas terminales. Flores pentámeras, con pétalos blancos, filamentos y anteras amarillas. Fruto baya, rosado tornándose morado-negro al madurar, semillas abundantes, diminutas. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1800 y 2900 m de altitud. Usos: doméstico, alimenticio, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "leandra subseriata"
+    ],
     "photo": null
    }
   },
@@ -2705,7 +2875,9 @@
     "description": "Arbusto hasta 2.5 m de altura. Hojas simples, opuestas, margen ciliadodentado, base levemente cordada, envez con pubescencia corta, 5-7 nervaduras, unas saliendo un poco por encima de la base y llegando hasta el ápice, tricomas ciliados en pecíolos y ramas terminales. Inflorescencias en panículas terminales. Flores pentámeras, con pétalos blancos, filamentos y anteras amarillas. Fruto baya, rosado tornándose morado-negro al madurar, semillas abundantes, diminutas. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1800 y 2900 m de altitud. Usos: doméstico, alimenticio, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "leandra subseriata"
+    ],
     "photo": null
    }
   },
@@ -2757,7 +2929,9 @@
     "description": "Árbol hasta 20 m de altura y 50 cm de diámetro, de corteza amarillenta escamosa la cual se desprende en tiras largas; su copa es amplia y sus ramas son escasas, gruesas. las Hojas son simples, opuestas, elípticas, enteras, envés con pubescencia grisácea o amarillenta; tiene largos pecíolos que las unen al tallo, son acuminadas y su base tiene forma obtusa, no presenta estípulas. Las flores son pequeñas; están dispuestas en inflorescencia en espigas, axilares. su cáliz es de color verde; corola blanca con forma tubular y termina en 5 lóbulos separados entre sí, hacia el ápice. Fruto baya, rojo brillante parecida a una cereza, cuelgan de sus ramas y cada una contiene dos semillas, amarillo-marrón, las cuales poseen una cara plana y otra redonda, su base tiene una entrada con dos puntas, su consistencia de dura. Hábitat: sembrada; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Nativo. entre 1900 y 2900 m de altitud. Usos: alimenticio, doméstico, ornamental, industrial, melífera.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "citharexylum subflavescens"
+    ],
     "photo": null
    }
   },
@@ -2783,7 +2957,9 @@
     "description": "Árbol de hasta 15 metros de altura; de la parte baja del tronco, emergen varias ramificaciones basales, de ramas terminales cuadrangulares, verdes y pubescentes; tallos con médula corchosa blanca; hojas opuestas, ovadas, triangulares o pentagonales, margen entera a suavemente aserrada, ápice agudo a acuminado, base redondeada a cordada, haz glabra, envés pubescente, pecíolos delgados algunas veces cuadrangulares, redondo o acanalado, glabros; inflorescencias terminales paniculadas, 15-30 cm de longitud; las flores están dispuestas en una cabezuela o capítulo, en la cual se ubican hacia el centro las flores hermafroditas, tubulares de color amarillo, alrededor las ligulares blancas. Los frutos son aquenios, dispuestos en cabezuelas de color café crema y cada uno contiene una semilla, estas son triangulares y algo aplanadas. Hábitat: sembrada (bosques secundarios, rastrojos altos , riberas de corrientes hídricas); Bosque muy húmedo premontano (bmh-PM) y bosque húmedo montano bajo (bh-MB). Nativo. entre 1300 y 2800 m de altitud. Usos: restauración, doméstico, protección, industrial, medicinal.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "montanoa quadrangularis"
+    ],
     "photo": null
    }
   },
@@ -2809,7 +2985,9 @@
     "description": "Árbol hasta 15 m de altura y 25 cm de diámetro en su tronco, con corteza que se desprende en escamas y es de color rojizo. Hojas simples, opuestas, su borde es aserrado, decusadas, ciliado-denticuladas, 3 nervaduras principales marcadas y curvas que se extienden desde la base hasta el ápice, haz y envés provisto de escamas ciliadas, textura áspera al tacto. Inflorescencia dispuesta en dicasios axilares o terminales con 3-5 flores. Flores pentámeras, pétalos dispuestos de manera extendida y separados entre sí (dialipétalas), sus estambres son de color amarillo; filamentos y pistilo magenta a rosado. Fruto cápsula verde con forma de canastilla que liberan sus semillas por unos poros ubicados en su ápice, tornándose marrón al madurar, semillas numerosas muy pequeñas, parecidas a un caracol y de consistencia dura. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: ornamental, industrial, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "tibouchina lepidota"
+    ],
     "photo": null
    }
   },
@@ -2835,7 +3013,9 @@
     "description": "Arbusto o árbol pequeño, hasta 10 m de altura y 15 cm de diámetro. Hojas simples, opuestas, decusadas, ciliado-denticuladas, 3 nervaduras principales que se extienden desde la base hasta el ápice. Inflorescencia en panículas, terminales. Flores pentámeras con cáliz y anteras crema, pétalos, filamentos y pistilo blanco. Fruto bayas verdes tornándose blancas al madurar, con vestigios de los verticilos florales en el ápice, semillas diminutas. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - (bmh-MA). Nativo. entre 1500 - 3000 m de altitud. Usos: alimenticio, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "miconia theaezans"
+    ],
     "photo": null
    }
   },
@@ -2861,7 +3041,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Asteraceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "ageratina tinifolia"
+    ],
     "photo": null
    }
   },
@@ -2965,7 +3147,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -3017,7 +3201,9 @@
     "description": "Árbol que alcanza los 25 m de altura y los 40 cm de diámetro, de tronco recto, tiene corteza de color gris pardusco, es ligeramente escamosa y agrietada; su copa es aparasolada. Las hojas son simples alternas, están dispuestas en forma helicoidal y en manojos terminales, su borde posee salientes aserradas parecidas a la palma de una mano, son glabras, sus pecíolos son de varios tamaños, poseen brácteas de color rojizo, que protejen las hojas juveniles. Las flores son muy abundantes de color crema, poco vistosas y están agrupadas en forma de cabezuelas sobre densas panículas terminales. Los frutos son drupas brillantes subglobosas que son de color pardo a violáceo y se tornan de color rojizo al madurar y cada una contiene entre 4 y 5 semillas, son de consistencia dura, poseen dos caras aplanadas y una curva, su color es amarillo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Nativo. entre 2000 y 2900 m de altitud. Usos: alimenticio, industrial, ormamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "oreopanax floribundus"
+    ],
     "photo": null
    }
   },
@@ -3069,7 +3255,9 @@
     "description": "El árbol alcanza hasta los 20 m de altura y los 60 cm de diámetro en su tronco, de corteza estriada de color gris; sus ramas son de color verde rojizo. Las hojas son opuestas, decusadas, compuestas, imparipinnadas, foliolos aserrados, pubescentes, raquis con proyecciones foliares, rosado o granate, estípulas interpeciolares, enrolladas, caedizas. Inflorescencias en racimos largos densos, pubescentes. Flores pequeñas; cáliz con 4 sépalos, reducidos, triangulares, pubescentes; corola con 4 pétalos amarillo-crema, numerosos estambres exsertos. Fruto cápsula, bilocular, septicida, marrón, estilo persistente, semillas pequeñas. Hábitat: potreros en regeneración; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia pubescens"
+    ],
     "photo": null
    }
   },
@@ -3147,7 +3335,9 @@
     "description": "Árbol hasta 30 m de altura y 1 m de diámetro, fuste recto, corteza marrón a gris, fisurada y olorosa, caducifolio al fructificar, su copa tiene forma aparasolada, o irregular. Hojas alternas, compuestas, paripinnadas, hasta 22 pares de folíolos ovados-lanceolados, opuestos, glabros a tomentoso en el envés, su raquis es protuberante y abultado en su base, su ápice forma un ángulo recto. Las flores están dispuestas en inflorescencia panícular, terminal, muy ramificada, puberulenta; flores sésiles; cáliz cupuliforme, pentalobulado, pubérulos, blanco-verdoso; corola cinco pétalos, oblongos, cortamente pubescentes, blancos y se tornan de color amarillo al envejecer. Fruto cápsula, péndula, oblongo-elipsoide, grismarrón, lenticelada, se abren por sí solas de arriba hacia abajo dehiscente por 5 valvas cuyo interior es de color amarillo y parecen una flor abierta, semillas numerosas, aplanadas y lisas con alas, marrón claro. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 1700 y 3000 m de altitud. Usos: alimenticio, industrial, ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "cedrela montana"
+    ],
     "photo": null
    }
   },
@@ -3173,7 +3363,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Marcgraviaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "ruyschia pilophora"
+    ],
     "photo": null
    }
   },
@@ -3199,7 +3391,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Phyllanthaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hieronyma scabrida"
+    ],
     "photo": null
    }
   },
@@ -3225,7 +3419,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -3251,7 +3447,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Fagaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "quercus humboldtii"
+    ],
     "photo": null
    }
   },
@@ -3303,7 +3501,9 @@
     "description": "Arbusto o árbol pequeño, hasta 10 m de altura y 15 cm de diámetro. Hojas simples, opuestas, decusadas, ciliado-denticuladas, 3 nervaduras principales que se extienden desde la base hasta el ápice. Inflorescencia en panículas, terminales. Flores pentámeras con cáliz y anteras crema, pétalos, filamentos y pistilo blanco. Fruto bayas verdes tornándose blancas al madurar, con vestigios de los verticilos florales en el ápice, semillas diminutas. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - (bmh-MA). Nativo. entre 1500 - 3000 m de altitud. Usos: alimenticio, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "miconia theaezans"
+    ],
     "photo": null
    }
   },
@@ -3329,7 +3529,9 @@
     "description": "Árbol que alcanza los 25 m de altura y los 40 cm de diámetro, de tronco recto, tiene corteza de color gris pardusco, es ligeramente escamosa y agrietada; su copa es aparasolada. Las hojas son simples alternas, están dispuestas en forma helicoidal y en manojos terminales, su borde posee salientes aserradas parecidas a la palma de una mano, son glabras, sus pecíolos son de varios tamaños, poseen brácteas de color rojizo, que protejen las hojas juveniles. Las flores son muy abundantes de color crema, poco vistosas y están agrupadas en forma de cabezuelas sobre densas panículas terminales. Los frutos son drupas brillantes subglobosas que son de color pardo a violáceo y se tornan de color rojizo al madurar y cada una contiene entre 4 y 5 semillas, son de consistencia dura, poseen dos caras aplanadas y una curva, su color es amarillo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Nativo. entre 2000 y 2900 m de altitud. Usos: alimenticio, industrial, ormamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "oreopanax floribundus"
+    ],
     "photo": null
    }
   },
@@ -3355,7 +3557,9 @@
     "description": "Árbol hasta de 18 m de altura, su tronco es de color grisáceo y suavemente agrietado; sus ramas son gruesas, crecen de manera horizontal a oblicua y muy resistentes. Hojas simples, alternas y alargadas, ovadas a elípitcas, terminan en punta, su base es redonda, su borde es entero, broquidódromas, péndulas en las ramas, con un par de glándulas basales circulares, glabras y con estípulas de temprana caída. Inflorescencia en espigas axilares y terminales, erectas. Flores con pétalos separados entre sí (dialipétalas), pentameras; cáliz verde; corola blanca, estambres numerosos. Los fruto son drupas verdes redondas que al madurar, se tornan de color marrón y cada uno contiene una semilla, estás son de color crema, opacas de consistencia dura. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: industrial, alimenticio, doméstico, protector.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "prunus integrifolia"
+    ],
     "photo": null
    }
   },
@@ -3381,7 +3585,9 @@
     "description": "El árbol alcanza los 20 m de altura y los 60 cm de diámetro, tiene corteza lisa de color gris, produce una sustancia (látex) escasa que es de color rojizo, sus ramas son gruesas y arqueadas. Las hojas son simples, nacen varias en un mismo nudo (verticiladas), su has es de color verde oscuro opaco y su envés es de color claro, su nervio central es prominente, su borde es entero, son lisas y terminan en punta. Flores con pétalos encorvados hacia afuera, de color blanco y dispuestas en inflorescencias terminales en forma de racimos. Los frutos son capsulares, tienen forma de globo, no se abren por sí solos, son de consistencia dura, su cáscara es gruesa y cada uno contiene una semilla, son de consistencia harinosa, su cubierta es delgada y de color café. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 3000 m de altitud. Usos: alimenticio, industrial, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "panopsis suaveolens"
+    ],
     "photo": null
    }
   },
@@ -3407,7 +3613,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Lauraceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "ocotea sericea"
+    ],
     "photo": null
    }
   },
@@ -3433,7 +3641,9 @@
     "description": "Árbol hasta de 25 m de altura y 50 cm de diámetro, parcialmente caducifolio, corteza de color negro rojizo desprendible, de ramificación abundante, follaje color verde oscuro. Hojas opuestas, decusadas, compuestas, trifoliadas, enteras, haz verde lustroso; las hojas nuevas y las más viejas rojizas, de textura coriácea, sus pecíolos son largos miden entre 2 y 4 cm. Inflorescencia en panículas cimosas, terminales. Flores vistosas pentámeras; sépalos verdes, marrón, unidos basalmente; corola blanca, con variegaciones amarillas y rojas, pistilo largo, rojo. Fruto cápsula trilocular, ovoide, con un lado aplanado, dehiscente, rojo–rosado al madurar; las semillas son carnosas, su tamaño es mediano, su sabor es amargo y tiene forma hemisférica o poligonal. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2700 m de altitud. Usos: industrial, alimenticio, ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "billia rosea"
+    ],
     "photo": null
    }
   },
@@ -3459,7 +3669,9 @@
     "description": "Arbusto hasta 2.5 m de altura. Hojas simples, opuestas, margen ciliadodentado, base levemente cordada, envez con pubescencia corta, 5-7 nervaduras, unas saliendo un poco por encima de la base y llegando hasta el ápice, tricomas ciliados en pecíolos y ramas terminales. Inflorescencias en panículas terminales. Flores pentámeras, con pétalos blancos, filamentos y anteras amarillas. Fruto baya, rosado tornándose morado-negro al madurar, semillas abundantes, diminutas. Hábitat: potreros en regeneración; Bosque muy húmedo montano bajo (bmh-MB), bosque humedo montano bajo (bh-MB) y (bmh-M). Nativo. entre 2400 y 3500 m de altitud. Usos: ornamental, doméstico, protectora.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "axinaea macrophylla"
+    ],
     "photo": null
    }
   },
@@ -3485,7 +3697,9 @@
     "description": "Árbol hasta 18 m de altura y 60 cm de diámetro, exudado acuoso blanco a crema, abundante en todas las estructuras de la planta, dioicos. Hojas simples, alternas, dísticas, pubescentes, elípticas a oblongas, ápice mucronado, base obtusa a redondeada, trinervadas, de textura cartácea, margen aserrada y tres nervios basales. Estípulas pareadas. Inflorescencias masculinas y femeninas en espigas, verdes. Flores unisexuales, apétalas, axilares solitarias, muy pequeñas. Fruto drupáceo incluído dentro del perianto, levemente suculento. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1900 y 3000 m de altitud. Usos: alimenticio, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "morus insignis"
+    ],
     "photo": null
    }
   },
@@ -3511,7 +3725,9 @@
     "description": "El árbol alcanza los 20 m de altura y los 60 cm de diámetro, tiene corteza lisa de color gris, produce una sustancia (látex) escasa que es de color rojizo, sus ramas son gruesas y arqueadas. Las hojas son simples, nacen varias en un mismo nudo (verticiladas), su has es de color verde oscuro opaco y su envés es de color claro, su nervio central es prominente, su borde es entero, son lisas y terminan en punta. Flores con pétalos encorvados hacia afuera, de color blanco y dispuestas en inflorescencias terminales en forma de racimos. Los frutos son capsulares, tienen forma de globo, no se abren por sí solos, son de consistencia dura, su cáscara es gruesa y cada uno contiene una semilla, son de consistencia harinosa, su cubierta es delgada y de color café. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 3000 m de altitud. Usos: alimenticio, industrial, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "panopsis suaveolens"
+    ],
     "photo": null
    }
   },
@@ -3537,7 +3753,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -3563,7 +3781,9 @@
     "description": "Árbol hasta 18 m de altura y 30 cm de diámetro, corteza interna aromática y de sabor amargo. Hojas simples, opuestas, agrupadas al final de las ramas, elípticas, crenadas, envés azulado y sin indumento. Inflorescencia en panícula, axilar. Botones florales verdes, flores agrupadas en capítulos verdes, corola blanca. Fruto múltiple, formado por bayas que se agrupan al final del pedúnculo, morado al madurar, semillas pequeñas, negras. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1800 y 3000 m de altitud. Usos: doméstico, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "lippia schlimii"
+    ],
     "photo": null
    }
   },
@@ -3589,7 +3809,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Euphorbiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "alchornea coelophylla"
+    ],
     "photo": null
    }
   },
@@ -3615,7 +3837,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -3641,7 +3865,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -3667,7 +3893,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -3693,7 +3921,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -3719,7 +3949,9 @@
     "description": "Árbol hasta de 25 m de altura y 50 cm de diámetro, parcialmente caducifolio, corteza de color negro rojizo desprendible, de ramificación abundante, follaje color verde oscuro. Hojas opuestas, decusadas, compuestas, trifoliadas, enteras, haz verde lustroso; las hojas nuevas y las más viejas rojizas, de textura coriácea, sus pecíolos son largos miden entre 2 y 4 cm. Inflorescencia en panículas cimosas, terminales. Flores vistosas pentámeras; sépalos verdes, marrón, unidos basalmente; corola blanca, con variegaciones amarillas y rojas, pistilo largo, rojo. Fruto cápsula trilocular, ovoide, con un lado aplanado, dehiscente, rojo–rosado al madurar; las semillas son carnosas, su tamaño es mediano, su sabor es amargo y tiene forma hemisférica o poligonal. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2700 m de altitud. Usos: industrial, alimenticio, ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "billia rosea"
+    ],
     "photo": null
    }
   },
@@ -3745,7 +3977,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Brunelliaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "brunellia comocladifolia"
+    ],
     "photo": null
    }
   },
@@ -3771,7 +4005,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -3797,7 +4033,9 @@
     "description": "El árbol alcanza los 20 m de altura y los 60 cm de diámetro, tiene corteza lisa de color gris, produce una sustancia (látex) escasa que es de color rojizo, sus ramas son gruesas y arqueadas. Las hojas son simples, nacen varias en un mismo nudo (verticiladas), su has es de color verde oscuro opaco y su envés es de color claro, su nervio central es prominente, su borde es entero, son lisas y terminan en punta. Flores con pétalos encorvados hacia afuera, de color blanco y dispuestas en inflorescencias terminales en forma de racimos. Los frutos son capsulares, tienen forma de globo, no se abren por sí solos, son de consistencia dura, su cáscara es gruesa y cada uno contiene una semilla, son de consistencia harinosa, su cubierta es delgada y de color café. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 3000 m de altitud. Usos: alimenticio, industrial, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "panopsis suaveolens"
+    ],
     "photo": null
    }
   },
@@ -3823,7 +4061,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Euphorbiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "alchornea coelophylla"
+    ],
     "photo": null
    }
   },
@@ -3849,7 +4089,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -3875,7 +4117,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Rubiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hillia parasitica"
+    ],
     "photo": null
    }
   },
@@ -3927,7 +4171,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -3953,7 +4199,9 @@
     "description": "Árbol hasta de 25 m de altura y 50 cm de diámetro, parcialmente caducifolio, corteza de color negro rojizo desprendible, de ramificación abundante, follaje color verde oscuro. Hojas opuestas, decusadas, compuestas, trifoliadas, enteras, haz verde lustroso; las hojas nuevas y las más viejas rojizas, de textura coriácea, sus pecíolos son largos miden entre 2 y 4 cm. Inflorescencia en panículas cimosas, terminales. Flores vistosas pentámeras; sépalos verdes, marrón, unidos basalmente; corola blanca, con variegaciones amarillas y rojas, pistilo largo, rojo. Fruto cápsula trilocular, ovoide, con un lado aplanado, dehiscente, rojo–rosado al madurar; las semillas son carnosas, su tamaño es mediano, su sabor es amargo y tiene forma hemisférica o poligonal. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2700 m de altitud. Usos: industrial, alimenticio, ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "billia rosea"
+    ],
     "photo": null
    }
   },
@@ -3979,7 +4227,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -4031,7 +4281,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -4057,7 +4309,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Clusiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "chrysochlamys dependens"
+    ],
     "photo": null
    }
   },
@@ -4083,7 +4337,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Araliaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "oreopanax glabrifolium"
+    ],
     "photo": null
    }
   },
@@ -4109,7 +4365,9 @@
     "description": "Árbol que alcanza hasta los 20 m de altura y 50 cm de diámetro en su tronco, su corteza es de color gris oscuro, sus ramas y hojas jóvenes con indumento arenoso, exudado transparente que oxida a rojo. Hojas simples, alternas, ovadas con la base cordada, enteras, con estípulas; envés con un par de glándulas prominentes en la base de la lámina. Inflorescencia en espigas axilares, raquis verde. Flores unisexuales; las femeninas se ubican en la parte basal del eje y las masculinas en la parte terminal; cáliz y corola verde. Fruto cápsular, trilocular con cáliz persistente marrón e indumento marrón. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2900 m de altitud. Usos: restauración, alimenticio, doméstico, industrial.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "croton magdalenensis"
+    ],
     "photo": null
    }
   },
@@ -4161,7 +4419,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -4213,7 +4473,9 @@
     "description": "Árbol que alcanza hasta los 20 m de altura y 50 cm de diámetro en su tronco, su corteza es de color gris oscuro, sus ramas y hojas jóvenes con indumento arenoso, exudado transparente que oxida a rojo. Hojas simples, alternas, ovadas con la base cordada, enteras, con estípulas; envés con un par de glándulas prominentes en la base de la lámina. Inflorescencia en espigas axilares, raquis verde. Flores unisexuales; las femeninas se ubican en la parte basal del eje y las masculinas en la parte terminal; cáliz y corola verde. Fruto cápsular, trilocular con cáliz persistente marrón e indumento marrón. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2900 m de altitud. Usos: restauración, alimenticio, doméstico, industrial.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "croton magdalenensis"
+    ],
     "photo": null
    }
   },
@@ -4239,7 +4501,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -4265,7 +4529,9 @@
     "description": "Árbol hasta 15 m de altura y 25 cm de diámetro en su tronco, con corteza que se desprende en escamas y es de color rojizo. Hojas simples, opuestas, su borde es aserrado, decusadas, ciliado-denticuladas, 3 nervaduras principales marcadas y curvas que se extienden desde la base hasta el ápice, haz y envés provisto de escamas ciliadas, textura áspera al tacto. Inflorescencia dispuesta en dicasios axilares o terminales con 3-5 flores. Flores pentámeras, pétalos dispuestos de manera extendida y separados entre sí (dialipétalas), sus estambres son de color amarillo; filamentos y pistilo magenta a rosado. Fruto cápsula verde con forma de canastilla que liberan sus semillas por unos poros ubicados en su ápice, tornándose marrón al madurar, semillas numerosas muy pequeñas, parecidas a un caracol y de consistencia dura. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: ornamental, industrial, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "tibouchina lepidota"
+    ],
     "photo": null
    }
   },
@@ -4291,7 +4557,9 @@
     "description": "Árbol mediano de hasta 15 metros de altura, aromático, tiene corteza lisa y es de color grisáceo; su ramificación tiene nudos pronunciados, son gruesas y quebradizas. Hojas simples, opuestas y decusadas, elípticas, glabras, de ápice mucronado, base aguda, margen aserrada, su consistencia es carnosa, los pecíolos se unen y forman un tubo sobre el nudo de la rama donde se ubican 4 estípulas pequeñas. Las flores masculinas y femeninas están agrupadas es árboles diferentes de la misma especie, las masculinas tienen forma de amentos cónicos y las femeninas en panículas extendidas, en inflorescencias terminales. Los frutos son bayas de color blanco, jugosos, parecidas a una bola de granizo, son fragantes y acuosas, cada fruto contiene entre 4 y 8 semillas, son de color marrón, tienen forma elíptica y de consistencia dura y sabor amargo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: alimenticio, medicinal, ornamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hedyosmum bonplandianum"
+    ],
     "photo": null
    }
   },
@@ -4369,7 +4637,9 @@
     "description": "Arbusto o árbol pequeño, hasta 10 m de altura y 15 cm de diámetro. Hojas simples, opuestas, decusadas, ciliado-denticuladas, 3 nervaduras principales que se extienden desde la base hasta el ápice. Inflorescencia en panículas, terminales. Flores pentámeras con cáliz y anteras crema, pétalos, filamentos y pistilo blanco. Fruto bayas verdes tornándose blancas al madurar, con vestigios de los verticilos florales en el ápice, semillas diminutas. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - (bmh-MA). Nativo. entre 1500 - 3000 m de altitud. Usos: alimenticio, doméstico, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "miconia theaezans"
+    ],
     "photo": null
    }
   },
@@ -4395,7 +4665,9 @@
     "description": "Árbol hasta 18 m de altura y 30 cm de diámetro, corteza interna aromática y de sabor amargo. Hojas simples, opuestas, agrupadas al final de las ramas, elípticas, crenadas, envés azulado y sin indumento. Inflorescencia en panícula, axilar. Botones florales verdes, flores agrupadas en capítulos verdes, corola blanca. Fruto múltiple, formado por bayas que se agrupan al final del pedúnculo, morado al madurar, semillas pequeñas, negras. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1800 y 3000 m de altitud. Usos: doméstico, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "lippia schlimii"
+    ],
     "photo": null
    }
   },
@@ -4421,7 +4693,9 @@
     "description": "Árbol que alcanza hasta los 20 m de altura y 50 cm de diámetro en su tronco, su corteza es de color gris oscuro, sus ramas y hojas jóvenes con indumento arenoso, exudado transparente que oxida a rojo. Hojas simples, alternas, ovadas con la base cordada, enteras, con estípulas; envés con un par de glándulas prominentes en la base de la lámina. Inflorescencia en espigas axilares, raquis verde. Flores unisexuales; las femeninas se ubican en la parte basal del eje y las masculinas en la parte terminal; cáliz y corola verde. Fruto cápsular, trilocular con cáliz persistente marrón e indumento marrón. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2900 m de altitud. Usos: restauración, alimenticio, doméstico, industrial.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "croton magdalenensis"
+    ],
     "photo": null
    }
   },
@@ -4447,7 +4721,9 @@
     "description": "Árbol mediano de hasta 15 metros de altura, aromático, tiene corteza lisa y es de color grisáceo; su ramificación tiene nudos pronunciados, son gruesas y quebradizas. Hojas simples, opuestas y decusadas, elípticas, glabras, de ápice mucronado, base aguda, margen aserrada, su consistencia es carnosa, los pecíolos se unen y forman un tubo sobre el nudo de la rama donde se ubican 4 estípulas pequeñas. Las flores masculinas y femeninas están agrupadas es árboles diferentes de la misma especie, las masculinas tienen forma de amentos cónicos y las femeninas en panículas extendidas, en inflorescencias terminales. Los frutos son bayas de color blanco, jugosos, parecidas a una bola de granizo, son fragantes y acuosas, cada fruto contiene entre 4 y 8 semillas, son de color marrón, tienen forma elíptica y de consistencia dura y sabor amargo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: alimenticio, medicinal, ornamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hedyosmum bonplandianum"
+    ],
     "photo": null
    }
   },
@@ -4473,7 +4749,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -4499,7 +4777,9 @@
     "description": "Árbol hasta 15 m de altura y 20 cm de diámetro, corteza de color gris, fisurada y delgada; glabros, con las ramitas teretes. Hojas compuestas, imparipinadas, con una línea interpeciolar notoria, opuestas con estípulas carnosas, cortas y deciduas, lámina elíptico-lanceolados, 5 - 11folíolos de margen aserrada, base redondeada y ápice agudo a redondeado, haz lustroso, envés verde claro. Inflorescencia en panícula terminal, hasta 30 cm de largo, verde claro, pubescente a glabra. Flores pequeñas, perianto blanco-verdoso, aromáticas. Frutos en bayas moradas al madurar, globoso, con varias espinitas en el ápice formando una pequeña corona. Semillas comprimidas y angulosas en su cara interna, de color café lechoso y superficie brillante y lisa. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Nativo. entre 2000 y 2600 m de altitud. Usos: doméstico, industrial, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "turpinia occidentalis"
+    ],
     "photo": null
    }
   },
@@ -4525,7 +4805,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cyatheaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "sphaeropteris quinduiensis"
+    ],
     "photo": null
    }
   },
@@ -4551,7 +4833,9 @@
     "description": "Árbol hasta 18 m de altura y 60 cm de diámetro, exudado acuoso blanco a crema, abundante en todas las estructuras de la planta, dioicos. Hojas simples, alternas, dísticas, pubescentes, elípticas a oblongas, ápice mucronado, base obtusa a redondeada, trinervadas, de textura cartácea, margen aserrada y tres nervios basales. Estípulas pareadas. Inflorescencias masculinas y femeninas en espigas, verdes. Flores unisexuales, apétalas, axilares solitarias, muy pequeñas. Fruto drupáceo incluído dentro del perianto, levemente suculento. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1900 y 3000 m de altitud. Usos: alimenticio, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "morus insignis"
+    ],
     "photo": null
    }
   },
@@ -4577,7 +4861,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Actinidiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "saurauia chiliantha"
+    ],
     "photo": null
    }
   },
@@ -4603,7 +4889,9 @@
     "description": "Árbol mediano de hasta 15 metros de altura, aromático, tiene corteza lisa y es de color grisáceo; su ramificación tiene nudos pronunciados, son gruesas y quebradizas. Hojas simples, opuestas y decusadas, elípticas, glabras, de ápice mucronado, base aguda, margen aserrada, su consistencia es carnosa, los pecíolos se unen y forman un tubo sobre el nudo de la rama donde se ubican 4 estípulas pequeñas. Las flores masculinas y femeninas están agrupadas es árboles diferentes de la misma especie, las masculinas tienen forma de amentos cónicos y las femeninas en panículas extendidas, en inflorescencias terminales. Los frutos son bayas de color blanco, jugosos, parecidas a una bola de granizo, son fragantes y acuosas, cada fruto contiene entre 4 y 8 semillas, son de color marrón, tienen forma elíptica y de consistencia dura y sabor amargo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: alimenticio, medicinal, ornamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hedyosmum bonplandianum"
+    ],
     "photo": null
    }
   },
@@ -4629,7 +4917,9 @@
     "description": "Árbol hasta 15 m de altura y 25 cm de diámetro en su tronco, con corteza que se desprende en escamas y es de color rojizo. Hojas simples, opuestas, su borde es aserrado, decusadas, ciliado-denticuladas, 3 nervaduras principales marcadas y curvas que se extienden desde la base hasta el ápice, haz y envés provisto de escamas ciliadas, textura áspera al tacto. Inflorescencia dispuesta en dicasios axilares o terminales con 3-5 flores. Flores pentámeras, pétalos dispuestos de manera extendida y separados entre sí (dialipétalas), sus estambres son de color amarillo; filamentos y pistilo magenta a rosado. Fruto cápsula verde con forma de canastilla que liberan sus semillas por unos poros ubicados en su ápice, tornándose marrón al madurar, semillas numerosas muy pequeñas, parecidas a un caracol y de consistencia dura. Hábitat: potreros en regeneración; Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: ornamental, industrial, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "tibouchina lepidota"
+    ],
     "photo": null
    }
   },
@@ -4655,7 +4945,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Arecaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "camaedorea linearis"
+    ],
     "photo": null
    }
   },
@@ -4681,7 +4973,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Euphorbiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "alchornea coelophylla"
+    ],
     "photo": null
    }
   },
@@ -4707,7 +5001,9 @@
     "description": "El árbol alcanza los 20 m de altura, tronco erecto y circular, de corteza amarilla, sus ramas son gruesas y terminan en ramitas angulosas de cuatro lados. Las hojas son simples, opuestas, estan dispuestas en forma de cruz (decusadas), su borde es entero, su pecíolo cae un poquito dentro del limbo, tienen forma ovoide, terminan en una corta punta, su pecíolo es largo y sus yemas son de color rojizo. Flores de tamaño mediano su color es morado y se encuentran dispuestas en inflorescencias terminales en forma de panículas muy abundantes. Los frutos son cápsulas que se abren por sí solas (dehiscentes) mediante sus poros localizados en su ápice. Sus semillas son diminutas y de color marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 2800 m de altitud. Usos: industrial, doméstico, ornamental.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "meriania peltata"
+    ],
     "photo": null
    }
   },
@@ -4733,7 +5029,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Clusiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "chrysochlamys dependens"
+    ],
     "photo": null
    }
   },
@@ -4759,7 +5057,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Rubiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "palicourea acetosoides"
+    ],
     "photo": null
    }
   },
@@ -4785,7 +5085,9 @@
     "description": "Árbol de hasta 20 metros de altura, de corteza gruesa y apariencia corchosa, con la cara interna amarillenta, ramitas pubescentes; su corteza viva posee sabor amargo.Hojas ovadas u orbiculares, su nerviación es de color rojo, pubescentes en el envés, rojas al madurar, ápice agudo, base aguda a cortada, margen entera, 15-30 cm de longitud, estípulas grandes, ovadas, con el ápice obtuso a agudo, glabras; inflorescencias paniculadas terminales o subterminales, con pubescencia suave; flores fragantes, conspicuas, subsésiles, cáliz tomentoso, 5-dentado, corola rojiza a rosado claro, serícea; fruto capsular, cilindrico rojizo, se abren por sí solos (dehiscentes), contiene muchas semillas, son de color negro al madurar por fuera y de color amarillo al interior, las semillas son aladas y cafés. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: industrial, medicinal, ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "cinchona pubescens"
+    ],
     "photo": null
    }
   },
@@ -4837,7 +5139,9 @@
     "description": "Árbol mediano de hasta 15 metros de altura, aromático, tiene corteza lisa y es de color grisáceo; su ramificación tiene nudos pronunciados, son gruesas y quebradizas. Hojas simples, opuestas y decusadas, elípticas, glabras, de ápice mucronado, base aguda, margen aserrada, su consistencia es carnosa, los pecíolos se unen y forman un tubo sobre el nudo de la rama donde se ubican 4 estípulas pequeñas. Las flores masculinas y femeninas están agrupadas es árboles diferentes de la misma especie, las masculinas tienen forma de amentos cónicos y las femeninas en panículas extendidas, en inflorescencias terminales. Los frutos son bayas de color blanco, jugosos, parecidas a una bola de granizo, son fragantes y acuosas, cada fruto contiene entre 4 y 8 semillas, son de color marrón, tienen forma elíptica y de consistencia dura y sabor amargo. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Nativo. entre 2000 y 3200 m de altitud. Usos: alimenticio, medicinal, ornamental, doméstico, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hedyosmum bonplandianum"
+    ],
     "photo": null
    }
   },
@@ -4863,7 +5167,9 @@
     "description": "Árbol de hasta 15 metros de altura, con la corteza agrietada y las ramas tomentosas de color castaño; hojas lanceoladas, ápice agudo, margen suavemente aserrada, base atenuada con las márgenes revolutas, 17-20 cm de longitud y 5.8 de ancho; estípula representada por una línea interpeciolar, pecíolo tomentoso, 1.5-2 cm de longitud, curvado en la base, haz glabra, opaca, nervios impresos, envés densamente cubierto por pelos ramificados color castaño; inflorescencias terminales cimosas, con brácteas y bracteolas lineares; flores en cabezuelas densas, blancoamarillentas, muy fragantes, tetrámeras; fruto, una cápsula pequeña. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 2800 m de altitud. Usos: doméstico, alimenticio, protector, restaurador.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "buddleja bullata"
+    ],
     "photo": null
    }
   },
@@ -4889,7 +5195,9 @@
     "description": "Árbol hasta 15 m de altura y 20 cm de diámetro, corteza de color gris, fisurada y delgada; glabros, con las ramitas teretes. Hojas compuestas, imparipinadas, con una línea interpeciolar notoria, opuestas con estípulas carnosas, cortas y deciduas, lámina elíptico-lanceolados, 5 - 11folíolos de margen aserrada, base redondeada y ápice agudo a redondeado, haz lustroso, envés verde claro. Inflorescencia en panícula terminal, hasta 30 cm de largo, verde claro, pubescente a glabra. Flores pequeñas, perianto blanco-verdoso, aromáticas. Frutos en bayas moradas al madurar, globoso, con varias espinitas en el ápice formando una pequeña corona. Semillas comprimidas y angulosas en su cara interna, de color café lechoso y superficie brillante y lisa. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Nativo. entre 2000 y 2600 m de altitud. Usos: doméstico, industrial, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "turpinia occidentalis"
+    ],
     "photo": null
    }
   },
@@ -4915,7 +5223,9 @@
     "description": "Árbol que alcanza hasta los 20 m de altura y 50 cm de diámetro en su tronco, su corteza es de color gris oscuro, sus ramas y hojas jóvenes con indumento arenoso, exudado transparente que oxida a rojo. Hojas simples, alternas, ovadas con la base cordada, enteras, con estípulas; envés con un par de glándulas prominentes en la base de la lámina. Inflorescencia en espigas axilares, raquis verde. Flores unisexuales; las femeninas se ubican en la parte basal del eje y las masculinas en la parte terminal; cáliz y corola verde. Fruto cápsular, trilocular con cáliz persistente marrón e indumento marrón. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2900 m de altitud. Usos: restauración, alimenticio, doméstico, industrial.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "croton magdalenensis"
+    ],
     "photo": null
    }
   },
@@ -4941,7 +5251,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Cunnoniaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia ellipticifolia"
+    ],
     "photo": null
    }
   },
@@ -4993,7 +5305,9 @@
     "description": "Árbol hasta 15 m de altura y 20 cm de diámetro, corteza de color gris, fisurada y delgada; glabros, con las ramitas teretes. Hojas compuestas, imparipinadas, con una línea interpeciolar notoria, opuestas con estípulas carnosas, cortas y deciduas, lámina elíptico-lanceolados, 5 - 11folíolos de margen aserrada, base redondeada y ápice agudo a redondeado, haz lustroso, envés verde claro. Inflorescencia en panícula terminal, hasta 30 cm de largo, verde claro, pubescente a glabra. Flores pequeñas, perianto blanco-verdoso, aromáticas. Frutos en bayas moradas al madurar, globoso, con varias espinitas en el ápice formando una pequeña corona. Semillas comprimidas y angulosas en su cara interna, de color café lechoso y superficie brillante y lisa. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Nativo. entre 2000 y 2600 m de altitud. Usos: doméstico, industrial, restauración.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "turpinia occidentalis"
+    ],
     "photo": null
    }
   },
@@ -5019,7 +5333,9 @@
     "description": "El árbol alcanza hasta los 20 m de altura y los 60 cm de diámetro en su tronco, de corteza estriada de color gris; sus ramas son de color verde rojizo. Las hojas son opuestas, decusadas, compuestas, imparipinnadas, foliolos aserrados, pubescentes, raquis con proyecciones foliares, rosado o granate, estípulas interpeciolares, enrolladas, caedizas. Inflorescencias en racimos largos densos, pubescentes. Flores pequeñas; cáliz con 4 sépalos, reducidos, triangulares, pubescentes; corola con 4 pétalos amarillo-crema, numerosos estambres exsertos. Fruto cápsula, bilocular, septicida, marrón, estilo persistente, semillas pequeñas. Hábitat: potreros en regeneración; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "weinmannia pubescens"
+    ],
     "photo": null
    }
   },
@@ -5045,7 +5361,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Phyllanthaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hieronyma scabrida"
+    ],
     "photo": null
    }
   },
@@ -5071,7 +5389,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Brunelliaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "brunellia comocladifolia"
+    ],
     "photo": null
    }
   },
@@ -5097,7 +5417,9 @@
     "description": "Árbol de hasta 20 metros de altura, de corteza gruesa y apariencia corchosa, con la cara interna amarillenta, ramitas pubescentes; su corteza viva posee sabor amargo.Hojas ovadas u orbiculares, su nerviación es de color rojo, pubescentes en el envés, rojas al madurar, ápice agudo, base aguda a cortada, margen entera, 15-30 cm de longitud, estípulas grandes, ovadas, con el ápice obtuso a agudo, glabras; inflorescencias paniculadas terminales o subterminales, con pubescencia suave; flores fragantes, conspicuas, subsésiles, cáliz tomentoso, 5-dentado, corola rojiza a rosado claro, serícea; fruto capsular, cilindrico rojizo, se abren por sí solos (dehiscentes), contiene muchas semillas, son de color negro al madurar por fuera y de color amarillo al interior, las semillas son aladas y cafés. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: industrial, medicinal, ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "cinchona pubescens"
+    ],
     "photo": null
    }
   },
@@ -5149,7 +5471,9 @@
     "description": "Árbol hasta 8 m de altura, ramas muy cortas, verticales, ramificado en la base y a menudo con múltiples tallos, pubescentes en estadios juveniles, eventualmente glabros, verde ocres, nudos muy prominentes. Hojas simples, alternas, ovadas, casi 3.5 veces más largas que anchas, rugulosas en el haz, envés pubescente, basalmente lobuladas y equiláteras sobre los tallos principales pero corto lobuladas sobre un lado y profundamente inequilátera en las ramas, pinnatinervias entre la base y el tercio superior, largo pecioladas, el pecíolo con márgenes prominentes que se extienden casi hasta la base de la hoja. Inflorescencias largas, blancas y erectas cuando inmaduras, eventualmente péndulas, verde ocre en fruto. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativa. entre 2000 y 2800 m de altitud. Usos: ornamental, protectora.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "piper archeri"
+    ],
     "photo": null
    }
   },
@@ -5175,7 +5499,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Melastomataceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "meriania tomentosa"
+    ],
     "photo": null
    }
   },
@@ -5201,7 +5527,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Sabiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "meliosma violacea"
+    ],
     "photo": null
    }
   },
@@ -5227,7 +5555,9 @@
     "description": "Árbol hasta de 18 m de altura, su tronco es de color grisáceo y suavemente agrietado; sus ramas son gruesas, crecen de manera horizontal a oblicua y muy resistentes. Hojas simples, alternas y alargadas, ovadas a elípitcas, terminan en punta, su base es redonda, su borde es entero, broquidódromas, péndulas en las ramas, con un par de glándulas basales circulares, glabras y con estípulas de temprana caída. Inflorescencia en espigas axilares y terminales, erectas. Flores con pétalos separados entre sí (dialipétalas), pentameras; cáliz verde; corola blanca, estambres numerosos. Los fruto son drupas verdes redondas que al madurar, se tornan de color marrón y cada uno contiene una semilla, estás son de color crema, opacas de consistencia dura. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 2000 y 3000 m de altitud. Usos: industrial, alimenticio, doméstico, protector.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "prunus integrifolia"
+    ],
     "photo": null
    }
   },
@@ -5253,7 +5583,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Phyllanthaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "hieronyma scabrida"
+    ],
     "photo": null
    }
   },
@@ -5279,7 +5611,9 @@
     "description": "Árbol hasta 18 m de altura y 60 cm de diámetro, exudado acuoso blanco a crema, abundante en todas las estructuras de la planta, dioicos. Hojas simples, alternas, dísticas, pubescentes, elípticas a oblongas, ápice mucronado, base obtusa a redondeada, trinervadas, de textura cartácea, margen aserrada y tres nervios basales. Estípulas pareadas. Inflorescencias masculinas y femeninas en espigas, verdes. Flores unisexuales, apétalas, axilares solitarias, muy pequeñas. Fruto drupáceo incluído dentro del perianto, levemente suculento. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1900 y 3000 m de altitud. Usos: alimenticio, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "morus insignis"
+    ],
     "photo": null
    }
   },
@@ -5305,7 +5639,9 @@
     "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón. Hábitat: bosque; Bosque muy húmedo montano bajo (bmh-MB). Nativo. entre 2200 y 2900 m de altitud. Usos: industrial, coméstible, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "beilschmiedia tovarensis"
+    ],
     "photo": null
    }
   },
@@ -5357,7 +5693,9 @@
     "description": "Árbol hasta de 25 m de altura y 50 cm de diámetro, parcialmente caducifolio, corteza de color negro rojizo desprendible, de ramificación abundante, follaje color verde oscuro. Hojas opuestas, decusadas, compuestas, trifoliadas, enteras, haz verde lustroso; las hojas nuevas y las más viejas rojizas, de textura coriácea, sus pecíolos son largos miden entre 2 y 4 cm. Inflorescencia en panículas cimosas, terminales. Flores vistosas pentámeras; sépalos verdes, marrón, unidos basalmente; corola blanca, con variegaciones amarillas y rojas, pistilo largo, rojo. Fruto cápsula trilocular, ovoide, con un lado aplanado, dehiscente, rojo–rosado al madurar; las semillas son carnosas, su tamaño es mediano, su sabor es amargo y tiene forma hemisférica o poligonal. Hábitat: bosque; Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Nativo. entre 1000 y 2700 m de altitud. Usos: industrial, alimenticio, ornamental, doméstico.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "billia rosea"
+    ],
     "photo": null
    }
   },
@@ -5383,7 +5721,9 @@
     "description": "Árbol nativo del bosque de Cantares, familia Clusiaceae.",
     "description_en": null,
     "routes": [],
-    "species_ids": [],
+    "species_ids": [
+     "chrysochlamys colombiana"
+    ],
     "photo": null
    }
   }

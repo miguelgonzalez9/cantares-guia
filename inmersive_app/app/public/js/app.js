@@ -37,8 +37,8 @@ function wayback(rel) { return `https://wayback.maptiles.arcgis.com/arcgis/rest/
 
 const state = {
   map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
-  treesInv: [], treesVisible: false,   // inventario de árboles (capa de referencia, off por defecto)
-  activeRoute: null, userPos: null, watchId: null, firstFix: false,
+  staticWaypoints: [], staticSpecies: [],   // respaldos para el merge con la nube
+  activeRoute: null, userPos: null, watchId: null, userAccuracy: null, firstFix: false,
   lastTriggered: {}, openWaypointId: null, baseIndex: 2, zonesVisible: false,
   reserveInfo: null, media: { bySubject: {} }, boundary: null,
   hiddenTypes: new Set(),   // tipos de punto ocultados por el usuario
@@ -350,19 +350,12 @@ async function initMap() {
   const [boundary, zones] = await Promise.all([
     loadJSON(CONFIG.data.boundary), loadJSON(CONFIG.data.zones),
   ]);
-  // Inventario de árboles georreferenciado (capa de referencia; no editable por
-  // el CMS, así que se carga siempre del archivo estático).
-  if (!state.treesInv.length) {
-    try { const tf = await loadJSON(CONFIG.data.trees); normalizeFeatures(tf); state.treesInv = tf.features; }
-    catch (e) { state.treesInv = []; }
-  }
-  // Trails/waypoints pueden venir ya cargados desde la nube (ediciones del admin);
-  // si no, se cargan de los archivos estáticos (offline / sin nube).
-  let trails, waypointsFC;
+  // Trails: de la nube si ya vinieron (ediciones del admin), si no del estático.
+  let trails;
   if (state.trails.length) { trails = { type: 'FeatureCollection', features: state.trails }; }
   else { trails = await loadJSON(CONFIG.data.trails); normalizeFeatures(trails); state.trails = trails.features; }
-  if (state.waypoints.length) { waypointsFC = { type: 'FeatureCollection', features: state.waypoints }; }
-  else { waypointsFC = await loadJSON(CONFIG.data.waypoints); normalizeFeatures(waypointsFC); state.waypoints = waypointsFC.features; }
+  // Waypoints (curados + árboles) ya se cargaron en main() y se fusionaron con la nube.
+  const waypointsFC = { type: 'FeatureCollection', features: state.waypoints };
   state.boundary = boundary;   // para la imagen descargable del historial de recorridos
 
   const map = new maplibregl.Map({
@@ -417,38 +410,56 @@ async function initMap() {
         paint: { 'circle-radius': 7,
           'circle-color': ['match', ['get', 'kind'], 'start', '#2f9e44', 'end', '#e03131', '#888'],
           'circle-stroke-color': '#fff', 'circle-stroke-width': 2.5 } });
-      // Inventario de árboles: capa propia, dots verdes pequeños, sólo desde
-      // zoom 16 (evita amontonar 207 puntos) y oculta hasta que se active en la
-      // leyenda. Va DEBAJO de los waypoints curados para no taparlos.
-      map.addSource('trees', { type: 'geojson', data: { type: 'FeatureCollection', features: state.treesInv } });
-      map.addLayer({ id: 'trees-pt', type: 'circle', source: 'trees', minzoom: 16,
-        layout: { visibility: state.treesVisible ? 'visible' : 'none' },
-        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 2.6, 18, 4.5, 20, 6],
-          'circle-color': TYPE_META.arbol.color, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
-      // waypoints — colored by tipo so they match the legend's type toggles (small dots)
+      // Un SOLO source para todos los puntos (curados + árboles del inventario);
+      // los árboles son waypoints tipo 'arbol' (editables, con foto, linkeables).
       map.addSource('waypoints', { type: 'geojson', data: waypointsFC });
+      // Puntos curados (todo lo que NO es árbol): visibles a cualquier zoom.
       map.addLayer({ id: 'waypoints-pt', type: 'circle', source: 'waypoints',
-        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 3.5, 17, 5, 19, 6.5],
+        filter: ['!=', ['get', 'tipo'], 'arbol'],
+        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 4.5, 17, 6.5, 19, 8.5],
           'circle-color': typeColorMatch(), 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
-      // user
+      // Árboles del inventario: mismo source, sólo desde zoom 15.5 (evita amontonar
+      // ~200 puntos) y ocultables con el toggle 'arbol' de la leyenda.
+      map.addLayer({ id: 'trees-pt', type: 'circle', source: 'waypoints', minzoom: 15.5,
+        filter: ['==', ['get', 'tipo'], 'arbol'],
+        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 15.5, 3, 18, 5.5, 20, 7],
+          'circle-color': TYPE_META.arbol.color, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2 } });
+      // user — el halo representa la PRECISIÓN del GPS (radio real en metros),
+      // como Google Maps; su radio en píxeles se recalcula al moverse/hacer zoom.
       map.addSource('user', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-      map.addLayer({ id: 'user-halo', type: 'circle', source: 'user',
-        paint: { 'circle-radius': 16, 'circle-color': '#2b8cbe', 'circle-opacity': 0.18 } });
+      map.addLayer({ id: 'user-acc', type: 'circle', source: 'user',
+        paint: { 'circle-radius': 0, 'circle-color': '#2b8cbe', 'circle-opacity': 0.15,
+          'circle-stroke-color': '#2b8cbe', 'circle-stroke-width': 1, 'circle-stroke-opacity': 0.35 } });
       map.addLayer({ id: 'user-dot', type: 'circle', source: 'user',
         paint: { 'circle-radius': 7, 'circle-color': '#2b8cbe', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
+      map.on('zoom', updateAccuracyCircle);
 
-      const wpAt = (e) => state.waypoints.find((w) => w.properties.id === e.features[0].properties.id);
-      const treeAt = (e) => state.treesInv.find((w) => w.properties.id === e.features[0].properties.id);
-      // Hover (desktop) and tap (mobile) both open the anchored mini-popup.
-      map.on('mouseenter', 'waypoints-pt', (e) => { map.getCanvas().style.cursor = 'pointer'; cancelClosePopup(); miniPopup(wpAt(e)); });
-      map.on('mouseleave', 'waypoints-pt', () => { map.getCanvas().style.cursor = ''; scheduleClosePopup(); });
-      map.on('click', 'waypoints-pt', (e) => { state._wpClick = true; miniPopup(wpAt(e)); });
-      // Árboles del inventario: misma interacción (popup → ficha).
-      map.on('mouseenter', 'trees-pt', (e) => { map.getCanvas().style.cursor = 'pointer'; cancelClosePopup(); miniPopup(treeAt(e)); });
-      map.on('mouseleave', 'trees-pt', () => { map.getCanvas().style.cursor = ''; scheduleClosePopup(); });
-      map.on('click', 'trees-pt', (e) => { state._wpClick = true; miniPopup(treeAt(e)); });
-      // Click on empty map closes the mini-popup.
-      map.on('click', () => { if (state._wpClick) { state._wpClick = false; return; } removePopup(); });
+      // Tap/hover: en móvil los puntos son pequeños y densos, así que en vez de
+      // depender del hit exacto del círculo, buscamos en un RECUADRO alrededor del
+      // toque (±14 px) y abrimos el más cercano. Esto arregla el "toca muchas veces".
+      const HIT = 14;
+      const wpById2 = (id) => state.waypoints.find((w) => w.properties.id === id);
+      const nearestAt = (pt) => {
+        const box = [[pt.x - HIT, pt.y - HIT], [pt.x + HIT, pt.y + HIT]];
+        const layers = ['waypoints-pt', 'trees-pt'].filter((l) => map.getLayer(l));
+        const feats = map.queryRenderedFeatures(box, { layers });
+        if (!feats.length) return null;
+        let best = null, bestD = Infinity;
+        for (const f of feats) {
+          const p = map.project(f.geometry.coordinates);
+          const d = (p.x - pt.x) ** 2 + (p.y - pt.y) ** 2;
+          if (d < bestD) { bestD = d; best = f; }
+        }
+        return best ? wpById2(best.properties.id) : null;
+      };
+      const setCursor = (e) => { map.getCanvas().style.cursor = nearestAt(e.point) ? 'pointer' : ''; };
+      map.on('mousemove', (e) => { if (canHover) setCursor(e); });
+      map.on('click', (e) => {
+        const wp = nearestAt(e.point);
+        if (wp) { state._wpClick = true; miniPopup(wp); }
+        else if (state._wpClick) { state._wpClick = false; }
+        else removePopup();
+      });
       finish();
     });
   });
@@ -613,12 +624,15 @@ function startFlow() {
 function applyWaypointFilter() {
   const map = state.map;
   if (!map || !map.getLayer('waypoints-pt')) return;
-  const parts = ['all'];
+  // Filtros comunes (recorrido activo + tipos ocultos). Se combinan con el
+  // constraint de tipo de cada capa (curados vs árboles) para no mezclarlas.
+  const common = [];
   if (state.activeRoute)
-    parts.push(['any', ['in', state.activeRoute, ['get', 'routes']], ['==', ['length', ['get', 'routes']], 0]]);
+    common.push(['any', ['in', state.activeRoute, ['get', 'routes']], ['==', ['length', ['get', 'routes']], 0]]);
   const hidden = [...state.hiddenTypes];
-  if (hidden.length) parts.push(['!', ['in', ['get', 'tipo'], ['literal', hidden]]]);
-  map.setFilter('waypoints-pt', parts.length > 1 ? parts : null);
+  if (hidden.length) common.push(['!', ['in', ['get', 'tipo'], ['literal', hidden]]]);
+  map.setFilter('waypoints-pt', ['all', ['!=', ['get', 'tipo'], 'arbol'], ...common]);
+  if (map.getLayer('trees-pt')) map.setFilter('trees-pt', ['all', ['==', ['get', 'tipo'], 'arbol'], ...common]);
 }
 function waypointVisible(wp) {
   const p = wp.properties;
@@ -755,6 +769,15 @@ function realPhoto(wp) {
   const mp = primaryPhoto('waypoint', wp.properties.id);   // foto curada real (media.json)
   return mp ? (mp.jpg || mp.file) : null;                  // jpg: universal en background-image
 }
+// Especies linkeadas a un punto (por id de especie o por nombre científico).
+// Guarda contra scientific_name nulo. Devuelve los objetos-especie encontrados.
+function linkedSpecies(p) {
+  return (p.species_ids || []).map((sid) => {
+    const key = String(sid).trim().toLowerCase();
+    return state.species.find((x) => (x.id && x.id.toLowerCase() === key)
+      || (x.scientific_name && x.scientific_name.toLowerCase() === key));
+  }).filter(Boolean);
+}
 
 // Sticky-hover close: on hover devices the popup closes when the pointer leaves
 // the point AND the popup (small grace period so the user can reach the button).
@@ -781,7 +804,7 @@ function miniPopup(wp) {
     ${photo ? `<div class="mp-photo" style="background-image:url('${photo}')"></div>` : ''}
     <div class="mp-body">${badge}
       <strong>${escapeHtml(L(p, 'title') || p.title)}</strong>
-      ${p.sci ? `<em class="mp-sci">${escapeHtml(p.sci)}</em>` : ''}
+      ${(() => { const s = p.sci || (linkedSpecies(p)[0] && linkedSpecies(p)[0].scientific_name); return s ? `<em class="mp-sci">${escapeHtml(s)}</em>` : ''; })()}
       ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
       ${hasMore ? `<button class="mp-more" type="button">${t('more_info')} ›</button>` : ''}
     </div></div>`;
@@ -808,14 +831,15 @@ function showWaypoint(wp) {
   ri.classList.add('hidden');
   const badges = (p.routes || []).map((rid) =>
     `<span class="badge" style="background:${ROUTE_COLORS[rid] || '#5b6b60'}">${routeLabel(rid)}</span>`).join('');
-  const speciesChips = (p.species_ids || []).map((sid) => {
-    const key = String(sid).trim().toLowerCase();   // waypoints may use id OR scientific name
-    const s = state.species.find((x) => x.id === key || x.scientific_name.toLowerCase() === key);
-    return s ? `<span class="chip" data-species="${s.id}">${L(s, 'common_name')}</span>` : '';
-  }).join('');
+  const linked = linkedSpecies(p);
+  const speciesChips = linked.map((s) => `<span class="chip" data-species="${s.id}">${L(s, 'common_name') || s.scientific_name}</span>`).join('');
   const photo = realPhoto(wp);
   const tm = typeMeta(p.tipo);
   const desc = L(p, 'description');
+  // Nombre científico/familia: del waypoint (árboles estáticos) o, si no, de la
+  // especie linkeada (para árboles editados en la nube que ya no cargan sci/family).
+  const sci = p.sci || (linked[0] && linked[0].scientific_name) || null;
+  const family = p.family || (linked[0] && linked[0].family) || null;
   $('#wp-content').innerHTML = `
     ${photo
       ? `<div class="wp-photo-hdr" style="background-image:url('${photo}')"></div>`
@@ -823,7 +847,7 @@ function showWaypoint(wp) {
     <div class="wp-inner">
       <div class="wp-theme-badges">${badges}</div>
       <h2 class="wp-title">${escapeHtml(L(p, 'title') || p.title)}</h2>
-      ${p.sci ? `<p class="wp-sci"><em>${escapeHtml(p.sci)}</em>${p.family ? ` · ${escapeHtml(p.family)}` : ''}</p>` : ''}
+      ${sci ? `<p class="wp-sci"><em>${escapeHtml(sci)}</em>${family ? ` · ${escapeHtml(family)}` : ''}</p>` : ''}
       ${desc ? `<p class="wp-desc">${escapeHtml(desc)}</p>` : ''}
       ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
       ${p.tipo === 'arbol' ? `<p class="tiny muted" style="margin-top:10px">${t('tree_note')}${p.tag ? ` · ${t('tree_tag')} ${escapeHtml(p.tag)}` : ''}${p.altitude ? ` · ${escapeHtml(p.altitude)}` : ''}</p>` : ''}
@@ -876,9 +900,11 @@ function stopTracking() {
 function onPosition(pos) {
   const { longitude, latitude, accuracy } = pos.coords;
   state.userPos = [longitude, latitude];
+  state.userAccuracy = accuracy;   // metros — para el círculo de precisión
   setGps('on', `±${Math.round(accuracy)} m`);
   const src = state.map && state.map.getSource('user');
   if (src) src.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: state.userPos }, properties: {} }] });
+  updateAccuracyCircle();
   if (state.map) {
     if (!state.firstFix) { state.map.flyTo({ center: state.userPos, zoom: 17, duration: 900 }); state.firstFix = true; }
     // Recentrar sólo en modo seguimiento: si el usuario paneó para mirar más
@@ -886,6 +912,23 @@ function onPosition(pos) {
     else if (state.following) state.map.easeTo({ center: state.userPos, duration: 600 });
   }
   checkProximity();
+}
+// Radio del halo de precisión = accuracy (m) en píxeles al zoom actual.
+// Se proyecta un punto `accuracy` metros al norte del usuario y se mide la
+// distancia en píxeles (exacto y sin fórmulas de mercator a mano).
+function updateAccuracyCircle() {
+  const map = state.map;
+  if (!map || !map.getLayer('user-acc')) return;
+  const acc = state.userAccuracy;
+  if (!state.userPos || !acc) { map.setPaintProperty('user-acc', 'circle-radius', 0); return; }
+  try {
+    const [lng, lat] = state.userPos;
+    const dLat = acc / 111320;   // metros → grados de latitud
+    const p0 = map.project([lng, lat]);
+    const p1 = map.project([lng, lat + dLat]);
+    const px = Math.abs(p0.y - p1.y);
+    map.setPaintProperty('user-acc', 'circle-radius', Math.min(px, 600));   // tope por si el GPS reporta ±km
+  } catch (e) { /* estilo transitorio */ }
 }
 function onGeoError(err) {
   const msg = err.code === 1 ? t('gps_denied') : err.code === 2 ? t('gps_unavailable') : t('gps_timeout');
@@ -1155,9 +1198,7 @@ function renderLegend() {
           <span class="lg-dot" style="background:${m.color}"></span>${m.emoji} ${typeLabel(tp)}</button>`;
       }).join('')}
     </div>
-    ${state.treesInv.length ? `<div class="lg-sep lg-zones-head">${TYPE_META.arbol.emoji} ${t('lg_trees_layer')} <span class="lg-count">${state.treesInv.length}</span>
-      <button id="trees-toggle" class="lg-eye" title="${t('lg_trees_toggle')}">${state.treesVisible ? '👁' : '🚫'}</button></div>
-    <div class="lg-row lg-dim" style="font-size:11px">${t('lg_trees_hint')}</div>` : ''}
+    ${state.waypoints.some((w) => w.properties.tipo === 'arbol') ? `<div class="lg-row lg-dim" style="font-size:11px">${t('lg_trees_hint')}</div>` : ''}
     <div class="lg-sep lg-zones-head">${t('lg_zones')}
       <button id="zones-toggle" class="lg-eye" title="${t('lg_zones_toggle')}">${off ? '🚫' : '👁'}</button></div>
     <div id="lg-zone-rows" class="${off ? 'lg-dim' : ''}">
@@ -1165,8 +1206,6 @@ function renderLegend() {
     </div>`;
   const zt = $('#zones-toggle');
   if (zt) zt.onclick = toggleZones;
-  const tt = $('#trees-toggle');
-  if (tt) tt.onclick = toggleTrees;
   $$('#legend-body .lg-type').forEach((b) => b.onclick = () => toggleType(b.dataset.type));
 }
 function toggleType(tp) {
@@ -1183,13 +1222,6 @@ function toggleZones() {
     map.setLayoutProperty('zones-fill', 'visibility', vis);
     map.setLayoutProperty('zones-line', 'visibility', vis);
   }
-  renderLegend();
-}
-function toggleTrees() {
-  state.treesVisible = !state.treesVisible;
-  const map = state.map;
-  if (map && map.getLayer('trees-pt')) map.setLayoutProperty('trees-pt', 'visibility', state.treesVisible ? 'visible' : 'none');
-  if (state.treesVisible && map && map.getZoom() < 16) map.easeTo({ zoom: 16.5, duration: 700 });   // los árboles salen desde z16
   renderLegend();
 }
 
@@ -1305,8 +1337,20 @@ async function main() {
   state.staticRoutes = routesDoc.routes;   // respaldo para el merge con la nube
   state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
   state.species = speciesDoc.species;
+  state.staticSpecies = speciesDoc.species;   // respaldo para el merge con la nube
   state.reserveInfo = reserveInfo;
   state.media = indexMedia(mediaDoc);
+
+  // Waypoints base = puntos curados + inventario de árboles (tipo 'arbol').
+  // La nube se combina ENCIMA de esta base (los árboles editados/con foto la
+  // sobrescriben por id; los demás rellenan). Así los árboles son editables y
+  // nunca "desaparecen" si la tabla de la nube está incompleta.
+  const [wpDoc, treeDoc] = await Promise.all([
+    loadJSON(CONFIG.data.waypoints), loadJSON(CONFIG.data.trees).catch(() => ({ features: [] })),
+  ]);
+  normalizeFeatures(wpDoc); normalizeFeatures(treeDoc);
+  state.staticWaypoints = [...wpDoc.features, ...treeDoc.features];
+  state.waypoints = state.staticWaypoints.slice();
 
   applyStaticI18n();
   renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend(); renderVisitInfo();
@@ -1375,6 +1419,38 @@ function applyCloudRoutes(cr) {
   state.routes = Object.values(byId).sort((a, b) => (a.sort || 0) - (b.sort || 0));
   state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
 }
+// Combina waypoints de la nube SOBRE los estáticos (por id): la nube manda donde
+// existe (ediciones, fotos), el estático (curados + árboles) rellena el resto.
+function applyCloudWaypoints(cw) {
+  const fc = { type: 'FeatureCollection', features: (cw || []).map(cloudWaypointToFeature) };
+  normalizeFeatures(fc);
+  const byId = {};
+  (state.staticWaypoints || []).forEach((w) => { byId[w.properties.id] = w; });
+  fc.features.forEach((w) => {
+    // Conserva atributos ricos del estático (sci, family, tag, altitud) que la
+    // tabla de la nube no guarda, salvo que la nube traiga algo mejor.
+    const base = byId[w.properties.id];
+    if (base) w.properties = { ...base.properties, ...cleanProps(w.properties) };
+    byId[w.properties.id] = w;
+  });
+  state.waypoints = Object.values(byId);
+}
+// Quita null/'' del registro de la nube para no borrar datos del estático al fusionar.
+function cleanProps(p) {
+  const o = {};
+  for (const k in p) { const v = p[k]; if (v != null && v !== '' && !(Array.isArray(v) && !v.length)) o[k] = v; }
+  return o;
+}
+// Igual para especies, pero deduplicando por NOMBRE CIENTÍFICO (no por id): así
+// las especies-árbol del estático y las de la nube (con distinto slug de id) no
+// se duplican en la grilla; la nube manda donde exista.
+function applyCloudSpecies(cs) {
+  const keyOf = (s) => (s.scientific_name && s.scientific_name.trim().toLowerCase()) || ('id:' + s.id);
+  const byKey = {};
+  (state.staticSpecies || []).forEach((s) => { byKey[keyOf(s)] = s; });
+  (cs || []).forEach((s) => { const k = keyOf(s); byKey[k] = { ...(byKey[k] || {}), ...cleanProps(s) }; });
+  state.species = Object.values(byKey);
+}
 async function loadCloudData() {
   if (!Cloud.cloudConfigured()) return;
   try {
@@ -1382,8 +1458,8 @@ async function loadCloudData() {
       Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null),
       Cloud.listRoutes().catch(() => null), Cloud.listTrails().catch(() => null),
     ]);
-    if (cw && cw.length) { const fc = { type: 'FeatureCollection', features: cw.map(cloudWaypointToFeature) }; normalizeFeatures(fc); state.waypoints = fc.features; }
-    if (cs && cs.length) state.species = cs;
+    if (cw && cw.length) applyCloudWaypoints(cw);
+    if (cs && cs.length) applyCloudSpecies(cs);
     if (cr && cr.length) applyCloudRoutes(cr);
     if (ct && ct.length) { const fc = { type: 'FeatureCollection', features: ct.map(cloudTrailToFeature) }; normalizeFeatures(fc); state.trails = fc.features; }
   } catch (e) { console.warn('[cloud] datos', e && e.message); }
@@ -1411,10 +1487,9 @@ async function refreshTrails() {
 async function refreshWaypoints() {
   if (!Cloud.cloudConfigured() || !navigator.onLine) return;
   try {
-    const cw = await Cloud.listWaypoints();
-    const fc = { type: 'FeatureCollection', features: cw.map(cloudWaypointToFeature) };
-    normalizeFeatures(fc); state.waypoints = fc.features;
-    const src = state.map && state.map.getSource('waypoints'); if (src) src.setData(fc);
+    applyCloudWaypoints(await Cloud.listWaypoints());
+    const src = state.map && state.map.getSource('waypoints');
+    if (src) src.setData({ type: 'FeatureCollection', features: state.waypoints });
     renderLegend(); applyWaypointFilter();
     if (state.activeRoute) selectRoute(state.activeRoute);
   } catch (e) { console.warn('[cloud] refreshWaypoints', e && e.message); }
@@ -1422,7 +1497,7 @@ async function refreshWaypoints() {
 async function refreshSpecies() {
   if (!Cloud.cloudConfigured() || !navigator.onLine) return;
   try {
-    state.species = await Cloud.listSpecies();
+    applyCloudSpecies(await Cloud.listSpecies());
     renderSpeciesFilters(); renderSpeciesGrid();
   } catch (e) { console.warn('[cloud] refreshSpecies', e && e.message); }
 }

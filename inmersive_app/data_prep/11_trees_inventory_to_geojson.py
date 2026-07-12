@@ -101,6 +101,7 @@ def compose(t, det):
     return ' '.join(parts).strip()
 
 feats, seen = [], set()
+tree_species = {}   # nombre científico normalizado → datos de especie (para species.json)
 for t in trees:
     tag = t['tag']
     if not tag or tag in seen: continue
@@ -109,17 +110,45 @@ for t in trees:
     sci = sci_display(t['especie'])
     comun = t['comun']
     title = (comun or sci or 'Árbol').split(' - ')[0].split('/')[0].strip()
+    binom = is_binomial(t['especie'])
+    # Link con la especie POR NOMBRE CIENTÍFICO (sólo binomios reales; las
+    # morfoespecies "sp." no se linkean). La app resuelve el chip por sci name.
+    sci_key = norm(sci) if binom else ''
+    species_ids = [sci_key] if sci_key else []
+    if binom:
+        fam = (det.get('familia') if det else '') or t.get('familia')
+        tree_species.setdefault(sci_key, {'scientific_name': sci, 'common_name': title,
+            'family': fam or None, 'description': compose(t, det)})
     feats.append({'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [t['lng'], t['lat']]},
         'properties': {'id': 'arbol_%s' % tag, 'tipo': 'arbol', 'title': title, 'title_en': None,
-            'sci': sci if (is_binomial(t['especie']) or (sci and 'sp' not in sci.lower())) else None,
+            'sci': sci if (binom or (sci and 'sp' not in sci.lower())) else None,
             'family': (det.get('familia') if det else '') or t.get('familia') or None,
             'comun_full': comun or None, 'tag': tag, 'altitude': t.get('altitude') or None,
             'description': compose(t, det), 'description_en': None,
-            'routes': [], 'species_ids': [], 'photo': None}})
+            'routes': [], 'species_ids': species_ids, 'photo': None}})
 
 fc = {'type': 'FeatureCollection',
-    '_meta': {'note': 'Inventario georreferenciado de árboles de Cantares (censo 2021, Duque & Galeano). Generado por data_prep/11_trees_inventory_to_geojson.py. Capa de referencia (no editable por el CMS).', 'n': len(feats)},
+    '_meta': {'note': 'Inventario georreferenciado de árboles de Cantares (censo 2021, Duque & Galeano). Generado por data_prep/11_trees_inventory_to_geojson.py. Puntos tipo "arbol", editables (se fusionan con la nube por id).', 'n': len(feats)},
     'features': feats}
 json.dump(fc, open(os.path.normpath(OUT), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+
+# --- Añadir a species.json las especies-árbol que aún no estén (por sci name) ---
+SP = os.path.join(os.path.dirname(__file__), '..', 'app', 'public', 'data', 'species.json')
+sp_doc = json.load(open(os.path.normpath(SP), encoding='utf-8'))
+existing = {norm(s.get('scientific_name')) for s in sp_doc['species'] if s.get('scientific_name')}
+def slug(sci):
+    return re.sub(r'[^a-z0-9]+', '-', norm(sci)).strip('-')
+added = 0
+for k, s in sorted(tree_species.items()):
+    if k in existing: continue
+    sp_doc['species'].append({'id': slug(s['scientific_name']), 'group': 'flora', 'status': 'documented',
+        'scientific_name': s['scientific_name'], 'common_name': s['common_name'], 'family': s['family'],
+        'flagship': False, 'zones': [], 'photo': None,
+        'notes': s['description'][:400] if s.get('description') else None, 'source': 'censo_arboles_2021'})
+    existing.add(k); added += 1
+json.dump(sp_doc, open(os.path.normpath(SP), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+
 print('árboles:', len(feats), '| con nombre científico:', sum(1 for f in feats if f['properties']['sci']),
-      '| con ficha técnica:', sum(1 for f in feats if len(f['properties']['description']) > 80))
+      '| linkeados a especie:', sum(1 for f in feats if f['properties']['species_ids']))
+print('especies-árbol únicas (binomios):', len(tree_species), '| añadidas a species.json:', added,
+      '| total especies:', len(sp_doc['species']))
