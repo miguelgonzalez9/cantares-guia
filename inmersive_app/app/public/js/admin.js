@@ -270,25 +270,31 @@ function editPunto(id) {
   body.querySelector('#f-gps').onclick = () => {
     if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
     const btn = body.querySelector('#f-gps'); const orig = btn.textContent; btn.disabled = true;
-    // El primer fijo del GPS suele ser malo: observar hasta 10 s y quedarse con
-    // el más preciso (o cortar antes si ya baja de ±8 m).
+    // Exigir ±10 m: observar hasta 16 s y quedarse con el fijo MÁS preciso;
+    // cortar en cuanto se logre ≤10 m. Si no se logra, se usa el mejor (fallback)
+    // avisando la precisión real — no dejamos precisión sobre la mesa.
+    const TARGET = 10, MAX_WAIT = 16000;
     let best = null, done = false;
     const finish = () => {
       if (done) return; done = true;
       clearTimeout(timer); navigator.geolocation.clearWatch(wid);
       btn.textContent = orig; btn.disabled = false;
-      if (best) { setLoc(best.coords.longitude, best.coords.latitude); CTX.toast(`📡 Ubicación fijada (±${Math.round(best.coords.accuracy)} m)`); }
-      else CTX.toast('No se pudo obtener ubicación');
+      if (best) {
+        setLoc(best.coords.longitude, best.coords.latitude);
+        const a = Math.round(best.coords.accuracy);
+        CTX.toast(a <= TARGET ? `📡 Ubicación fijada (±${a} m)`
+          : `📡 Fijada con ±${a} m (no se logró ±${TARGET} m; a cielo abierto mejora)`);
+      } else CTX.toast('No se pudo obtener ubicación');
     };
     const wid = navigator.geolocation.watchPosition(
       (pos) => {
         if (!best || pos.coords.accuracy < best.coords.accuracy) best = pos;
         btn.textContent = `📡 ±${Math.round(pos.coords.accuracy)} m…`;
-        if (pos.coords.accuracy <= 8) finish();
+        if (pos.coords.accuracy <= TARGET) finish();
       },
       (e) => { if (!best) { done = true; clearTimeout(timer); navigator.geolocation.clearWatch(wid); btn.textContent = orig; btn.disabled = false; CTX.toast(e.code === 1 ? 'Permiso de ubicación denegado' : 'No se pudo obtener ubicación'); } },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-    const timer = setTimeout(finish, 10000);
+      { enableHighAccuracy: true, timeout: MAX_WAIT, maximumAge: 0 });
+    const timer = setTimeout(finish, MAX_WAIT);
   };
   const v = (sel) => body.querySelector(sel).value;
   // Buscador de especies: filtra la lista por nombre común o científico.
@@ -859,9 +865,9 @@ function endDraw(keep) {
   let coords = draw.coords.slice();
   drawClear();
   const h = document.getElementById('admin-draw-hud'); if (h) h.remove();
-  // El trazo GPS conserva algo de zigzag aun filtrado: simplificar (2 m de
-  // tolerancia) deja la forma del sendero y quita el ruido.
-  if (keep && mode === 'gps' && coords.length > 2) coords = simplifyDP(coords, 2);
+  // Simplificar con tolerancia BAJA (1.2 m): quita el ruido colineal pero
+  // conserva los vértices de los zig-zags (que se desvían más que eso).
+  if (keep && mode === 'gps' && coords.length > 2) coords = simplifyDP(coords, 1.2);
   openPanel();
   onDone(keep && coords.length > 1 ? coords : null);
 }
@@ -898,31 +904,141 @@ function startVertexDraw(onDone) {
 function startGpsDraw(onDone) {
   if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
   if (!drawInit()) { CTX.toast('Espera a que cargue el mapa'); onDone(null); return; }
-  draw = { coords: [], onDone, mode: 'gps', ema: null, acc: null, warm: 0, paused: false };
+  draw = { coords: [], onDone, mode: 'gps', ema: null, acc: null, warm: 0, paused: false, startTs: null, lastGoodTs: null };
   closePanel();
   // Con la pantalla apagada el navegador corta el GPS: mantenerla encendida.
   keepAwake().then((ok) => {
-    CTX.toast(ok ? '⏺ Grabando… la pantalla quedará encendida. Camina el sendero.'
-                 : '⏺ Grabando… ⚠️ NO apagues la pantalla (el GPS se corta). Camina el sendero.');
+    CTX.toast(ok ? '⏺ Grabando (objetivo ±10 m)… la pantalla quedará encendida. Camina el sendero.'
+                 : '⏺ Grabando (objetivo ±10 m)… ⚠️ NO apagues la pantalla (el GPS se corta). Camina el sendero.');
   });
+  // Umbral de precisión: exigimos ±10 m; si el GPS no lo logra por un rato,
+  // relajamos hasta ±FALLBACK para no dejar un HUECO en el trazo (fallback).
+  const TARGET = 10, FALLBACK = 20, STALL_MS = 8000;
   draw.watchId = navigator.geolocation.watchPosition((p) => {
     if (!draw) return;
-    draw.acc = p.coords.accuracy;
+    const acc = p.coords.accuracy;
+    draw.acc = acc;
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (draw.startTs == null) draw.startTs = now;
+    if (acc != null && acc <= TARGET) draw.lastGoodTs = now;
     const c = [p.coords.longitude, p.coords.latitude];
-    // 1) Sólo fijos precisos (≤25 m) y descartando el arranque en frío del GPS.
-    const okAcc = p.coords.accuracy == null || p.coords.accuracy <= 25;
+    // ¿Cuánto lleva el GPS sin dar un fijo ≤ TARGET? Si supera STALL_MS, se
+    // acepta hasta FALLBACK (con menos confianza) para no cortar el sendero.
+    const sinceGood = now - (draw.lastGoodTs != null ? draw.lastGoodTs : draw.startTs);
+    const threshold = (draw.coords.length && sinceGood > STALL_MS) ? FALLBACK : TARGET;
+    const okAcc = acc == null || acc <= threshold;
     if (!draw.paused && okAcc && draw.warm++ >= 2) {
-      // 2) Suavizado exponencial: amortigua el zigzag entre fijos.
-      draw.ema = draw.ema ? [draw.ema[0] + (c[0] - draw.ema[0]) * 0.45, draw.ema[1] + (c[1] - draw.ema[1]) * 0.45] : c;
-      // 3) Añadir punto sólo si avanzó más que el ruido esperado del GPS
-      //    (parado en un sitio NO se acumulan puntos falsos).
+      // Suavizado exponencial más responsivo (0.6): sigue mejor los cambios de
+      // dirección → conserva la forma de los zig-zags en vez de aplanarlos.
+      draw.ema = draw.ema ? [draw.ema[0] + (c[0] - draw.ema[0]) * 0.6, draw.ema[1] + (c[1] - draw.ema[1]) * 0.6] : c;
+      // Piso de distancia PEQUEÑO (~2.5 m, cerca de la resolución del GPS): así un
+      // zig-zag con pasos cortos SÍ se guarda. Parado en un sitio el EMA converge
+      // y hav(last,ema) queda < piso, así que no se acumulan puntos falsos.
       const last = draw.coords[draw.coords.length - 1];
-      const gate = Math.max(4, (p.coords.accuracy || 10) * 0.5);
+      const gate = Math.max(2.5, (acc || 10) * 0.35);
       if (!last || hav(last, draw.ema) > gate) { draw.coords.push(draw.ema.slice()); drawUpdate(); }
     }
     updateDrawHud();
   }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
   showDrawHud();
+}
+
+// ---------------- editar vértices + conectar (snap) senderos ----------------
+// Arrastra cada vértice; la línea se mueve con él. Al soltar cerca de un vértice
+// de OTRO sendero, se engancha (comparte coordenada) → la red queda conectada.
+// Tocar la línea inserta un vértice; el modo 🗑️ borra al tocar un vértice.
+let vedit = null;
+const VX_SNAP_M = 12, VX_INSERT_M = 14;
+function otherTrailVertices(exceptId) {
+  const out = [];
+  (CTX.state.trails || []).forEach((t) => { if (t.properties.id === exceptId) return; (t.geometry.coordinates || []).forEach((c) => out.push(c)); });
+  return out;
+}
+function nearestVertexSnap(c, targets) {
+  let best = null, bd = VX_SNAP_M;
+  for (const tc of targets) { const d = hav(c, tc); if (d < bd) { bd = d; best = tc; } }
+  return best;
+}
+// Distancia (m) de p al segmento a-b (proyección local plana).
+function segDistM(a, b, p) {
+  const lat0 = a[1] * Math.PI / 180, kx = 111320 * Math.cos(lat0), ky = 110540;
+  const bx = (b[0] - a[0]) * kx, by = (b[1] - a[1]) * ky, px = (p[0] - a[0]) * kx, py = (p[1] - a[1]) * ky;
+  const len2 = bx * bx + by * by || 1;
+  let t = (px * bx + py * by) / len2; t = Math.max(0, Math.min(1, t));
+  return Math.hypot(t * bx - px, t * by - py);
+}
+function nearestSegmentInsert(cs, p, maxM) {
+  let best = -1, bd = maxM;
+  for (let i = 1; i < cs.length; i++) { const d = segDistM(cs[i - 1], cs[i], p); if (d < bd) { bd = d; best = i; } }
+  return best;   // índice donde insertar (después de cs[best-1])
+}
+function vxRedraw() {
+  const map = CTX.map, cs = vedit.coords;
+  if (map.getSource('admin-draw')) map.getSource('admin-draw').setData({ type: 'FeatureCollection', features: cs.length > 1 ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: cs } }] : [] });
+}
+function vxRebuildMarkers() {
+  const map = CTX.map;
+  vedit.markers.forEach((m) => m.remove());
+  vedit.markers = vedit.coords.map((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'vx-handle' + (i === 0 ? ' vx-start' : i === vedit.coords.length - 1 ? ' vx-end' : '') + (vedit.delMode ? ' vx-del' : '');
+    const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(c).addTo(map);
+    m.on('drag', () => { const ll = m.getLngLat(); vedit.coords[i] = [ll.lng, ll.lat]; vxRedraw(); });
+    m.on('dragend', () => {
+      const ll = m.getLngLat(); let cc = [ll.lng, ll.lat];
+      const snap = nearestVertexSnap(cc, otherTrailVertices(vedit.id));
+      if (snap) { cc = [snap[0], snap[1]]; m.setLngLat(cc); CTX.toast('🔗 Conectado a otro sendero'); }
+      vedit.coords[i] = cc; vxRedraw();
+    });
+    el.addEventListener('click', (ev) => { if (vedit.delMode) { ev.stopPropagation(); vxRemoveVertex(i); } });
+    el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); ev.preventDefault(); vxRemoveVertex(i); });
+    return m;
+  });
+}
+function vxRemoveVertex(i) {
+  if (vedit.coords.length <= 2) { CTX.toast('El sendero necesita al menos 2 puntos'); return; }
+  vedit.coords.splice(i, 1); vxRedraw(); vxRebuildMarkers(); updateVertexHud();
+}
+function startVertexEdit(id, coordsIn, onDone) {
+  const map = CTX.map;
+  if (!coordsIn || coordsIn.length < 2) { CTX.toast('Traza el sendero primero'); onDone(null); return; }
+  if (!drawInit()) { CTX.toast('Espera a que cargue el mapa'); onDone(null); return; }
+  closePanel();
+  vedit = { id, coords: coordsIn.map((c) => c.slice()), markers: [], onDone, delMode: false };
+  vedit.clickH = (e) => {
+    if (vedit.delMode) return;
+    const p = [e.lngLat.lng, e.lngLat.lat];
+    const ins = nearestSegmentInsert(vedit.coords, p, VX_INSERT_M);
+    if (ins >= 0) { vedit.coords.splice(ins, 0, p); vxRedraw(); vxRebuildMarkers(); updateVertexHud(); CTX.toast('➕ Vértice insertado'); }
+  };
+  map.on('click', vedit.clickH);
+  vxRebuildMarkers(); vxRedraw();
+  showVertexHud();
+  CTX.toast('Arrastra los vértices; suéltalos junto a otro sendero para conectar. Toca la línea para insertar.');
+}
+function showVertexHud() {
+  let h = document.getElementById('admin-vedit-hud');
+  if (!h) { h = document.createElement('div'); h.id = 'admin-vedit-hud'; h.className = 'admin-draw-hud'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
+  updateVertexHud();
+}
+function updateVertexHud() {
+  const h = document.getElementById('admin-vedit-hud'); if (!h || !vedit) return;
+  h.innerHTML = `<span class="adh-n">${vedit.coords.length} vértices</span>
+    <button id="ave-del" class="${vedit.delMode ? 'adh-on' : ''}">🗑️ Borrar</button>
+    <button id="ave-done" class="adh-done">✓ Terminar</button><button id="ave-cancel">✕</button>`;
+  h.querySelector('#ave-del').onclick = () => { vedit.delMode = !vedit.delMode; vxRebuildMarkers(); updateVertexHud(); CTX.toast(vedit.delMode ? '🗑️ Modo borrar: toca un vértice para quitarlo' : 'Modo mover'); };
+  h.querySelector('#ave-done').onclick = () => endVertexEdit(true);
+  h.querySelector('#ave-cancel').onclick = () => endVertexEdit(false);
+}
+function endVertexEdit(keep) {
+  const map = CTX.map, onDone = vedit.onDone, coords = vedit.coords.slice();
+  vedit.markers.forEach((m) => m.remove());
+  if (vedit.clickH) map.off('click', vedit.clickH);
+  const h = document.getElementById('admin-vedit-hud'); if (h) h.remove();
+  if (map.getSource('admin-draw')) map.getSource('admin-draw').setData({ type: 'FeatureCollection', features: [] });
+  vedit = null;
+  openPanel();
+  onDone(keep && coords.length > 1 ? coords : null);
 }
 
 // ---------------- resaltar senderos en el mapa ----------------
@@ -1159,8 +1275,10 @@ function editSendero(id) {
         <div class="admin-loc-btns">
           <button type="button" class="admin-pick" id="tr-draw">✏️ Dibujar</button>
           <button type="button" class="admin-pick gps" id="tr-gps">📡 Grabar</button>
+          ${coords && coords.length > 1 ? '<button type="button" class="admin-pick" id="tr-vedit">✎ Editar vértices</button>' : ''}
         </div>
       </div>
+      ${coords && coords.length > 1 ? '<div class="admin-note">Editar vértices: arrastra un punto para moverlo; suéltalo junto a otro sendero para conectarlos. Toca la línea para insertar un vértice; usa 🗑️ para borrar.</div>' : ''}
       <div class="admin-err" id="tr-err"></div>
       <div class="admin-actions">
         <button class="admin-save" id="tr-save">Guardar</button>
@@ -1171,6 +1289,8 @@ function editSendero(id) {
   const saveDraft = () => { CTX._draftTrail = { id: p.id, name: body.querySelector('#tr-name').value, routes: [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value) }; };
   body.querySelector('#tr-draw').onclick = () => { saveDraft(); startVertexDraw((c) => { if (c) CTX._draftLine = c; editSendero(id); }); };
   body.querySelector('#tr-gps').onclick = () => { saveDraft(); startGpsDraw((c) => { if (c) CTX._draftLine = c; editSendero(id); }); };
+  const tve = body.querySelector('#tr-vedit');
+  if (tve) tve.onclick = () => { saveDraft(); startVertexEdit(p.id, coords, (c) => { if (c) CTX._draftLine = c; editSendero(id); }); };
   body.querySelector('#tr-cancel').onclick = renderSenderos;
   if (id) body.querySelector('#tr-del').onclick = async () => {
     // Avisar si el sendero es parte de recorridos: quedarían con un hueco.

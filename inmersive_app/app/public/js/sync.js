@@ -93,25 +93,39 @@ async function uploadBlobs(r, map, table, key) {
 }
 export async function saveRow(table, row, blobs = null) {
   const map = toBlobMap(blobs);
+  let uploaded = null;          // fila con las URLs ya subidas (si la subida pasó)
+  let softError = null;         // error del servidor (esquema/permiso) — se encola igual
   if (cloudConfigured() && navigator.onLine) {
     try {
       const r = { ...row };
       if (map) await uploadBlobs(r, map, table, rowKey(row));
+      uploaded = r;             // subida OK; si el upsert falla, encolamos r sin blobs
       await withTimeout(UPSERT[table](r), WRITE_TIMEOUT);
       return { queued: false, row: r };
-    } catch (e) { if (!isNetErr(e)) throw e; }
+    } catch (e) {
+      // NUNCA descartar el trabajo de campo. Error de red O real (columna faltante,
+      // permiso, dato inválido): se encola y se reintenta. Si es un error real y
+      // persistente, flushOutbox avisa por onStuck tras varios intentos; al
+      // corregir el esquema/sesión, sincroniza solo. Antes, un error real se
+      // lanzaba y el cambio se perdía (así se perdió una especie).
+      if (!isNetErr(e)) softError = (e && e.message) || String(e);
+    }
   }
-  await idbPut({ key: `${table}:${rowKey(row)}`, table, op: 'upsert', id: rowKey(row), row, blobs: map, ts: Date.now(), tries: 0 });
-  notifyPending(); scheduleFlush(20000);
+  // Si la subida del blob ya pasó pero falló el upsert, encola la fila con URLs
+  // (sin blobs) para no re-subir la foto/video en cada reintento.
+  const enqueueRow = uploaded || row;
+  const enqueueBlobs = uploaded ? null : map;
+  await idbPut({ key: `${table}:${rowKey(row)}`, table, op: 'upsert', id: rowKey(row), row: enqueueRow, blobs: enqueueBlobs, ts: Date.now(), tries: 0 });
+  notifyPending(); scheduleFlush(softError ? 4000 : 20000);
   // Vista previa local mientras espera subirse:
-  const preview = { ...row };
-  if (map) for (const f in map) preview[f] = URL.createObjectURL(map[f]);
-  return { queued: true, row: preview };
+  const preview = { ...enqueueRow };
+  if (enqueueBlobs) for (const f in enqueueBlobs) preview[f] = URL.createObjectURL(enqueueBlobs[f]);
+  return { queued: true, row: preview, softError };
 }
 export async function deleteRow(table, id) {
   if (cloudConfigured() && navigator.onLine) {
     try { await withTimeout(REMOVE[table](id), WRITE_TIMEOUT); return { queued: false }; }
-    catch (e) { if (!isNetErr(e)) throw e; }
+    catch (e) { /* red o servidor: se encola igual, no se pierde la operación */ }
   }
   await idbPut({ key: `${table}:${id}`, table, op: 'delete', id, ts: Date.now(), tries: 0 });
   notifyPending(); scheduleFlush(20000);
