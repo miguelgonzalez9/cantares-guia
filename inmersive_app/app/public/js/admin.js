@@ -2,7 +2,7 @@
 // cambiar puntos del mapa, textos, imágenes y especies del inventario, escribiendo
 // directo a Supabase. Sólo se activa para cuentas con rol 'admin'.
 import { isAdmin } from './cloud.js';
-import { saveRow, deleteRow, compressImage } from './sync.js';
+import { saveRow, deleteRow, compressImage, patchRow } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 import { doLogout } from './auth-ui.js';
 import { exportFieldBackup } from './field-export.js';   // respaldo de fotos del juego → SIC (Dropbox)
@@ -238,6 +238,8 @@ function editPunto(id) {
         </div>
       </div>
       <input id="f-coords" placeholder="o escribe coordenadas: lat, lng (ej: 5.08181, -75.45031)" value="${coords ? `${coords[1]}, ${coords[0]}` : ''}">
+      <button type="button" class="admin-save gps-here" id="f-here">📍 Guardar aquí y seguir</button>
+      <div class="admin-note">Guarda el punto con tu ubicación actual y sigue caminando: afina la precisión sola mientras estés cerca y la congela al alejarte. No tienes que esperar en pantalla.</div>
       <div class="admin-err" id="f-err"></div>
       <div class="admin-actions">
         <button class="admin-save" id="f-save">Guardar</button>
@@ -345,10 +347,9 @@ function editPunto(id) {
       CTX.toast(res.queued ? '💾 Eliminado — se sincronizará con señal' : 'Punto eliminado');
     } catch (err) { body.querySelector('#f-err').textContent = friendlyErr(err); }
   };
-  body.querySelector('#f-save').onclick = async () => {
-    if (!loc) { body.querySelector('#f-err').textContent = 'Fija la ubicación en el mapa.'; return; }
-    const routes = pickedRoutes();
-    const species_ids = pickedSpecies();
+  // Construye y guarda la fila con la ubicación `loc` actual. Reutilizado por
+  // «Guardar» y «Guardar aquí y seguir».
+  const persist = async () => {
     const row = {
       id: p.id,
       title: body.querySelector('#f-title').value.trim() || null,
@@ -356,12 +357,32 @@ function editPunto(id) {
       description: body.querySelector('#f-desc').value.trim() || null,
       description_en: body.querySelector('#f-desc-en').value.trim() || null,
       tipo: body.querySelector('#f-tipo').value,
-      routes, species_ids, lng: loc[0], lat: loc[1], photo: photoUrl, photo_leaf: photoLeafUrl,
+      routes: pickedRoutes(), species_ids: pickedSpecies(), lng: loc[0], lat: loc[1], photo: photoUrl, photo_leaf: photoLeafUrl,
     };
+    const res = await saveRow('waypoints', row, { photo: photoBlob, photo_leaf: photoLeafBlob });
+    CTX.applyLocalRow('waypoints', res.row);
+    return res;
+  };
+  // «Marca y sigue»: guarda YA con el fijo actual y afina en segundo plano.
+  fieldGpsOn();   // enciende el GPS al abrir el editor para que ya esté caliente
+  body.querySelector('#f-here').onclick = async () => {
+    fieldGpsOn();
+    const fix = currentFix();
+    if (!fix) { body.querySelector('#f-err').textContent = 'Encendiendo GPS… espera unos segundos al primer fijo y toca de nuevo.'; return; }
+    loc = fix.pos;
     body.querySelector('#f-err').textContent = 'Guardando…';
     try {
-      const res = await saveRow('waypoints', row, { photo: photoBlob, photo_leaf: photoLeafBlob });
-      CTX.applyLocalRow('waypoints', res.row); renderPuntos();
+      await persist();
+      registerGeoRefine(p.id, fix.pos, fix.acc);
+      renderPuntos();
+      CTX.toast(`💾 Punto guardado (±${Math.round(fix.acc)} m). Puedes seguir; afino la ubicación sola.`);
+    } catch (err) { body.querySelector('#f-err').textContent = friendlyErr(err); }
+  };
+  body.querySelector('#f-save').onclick = async () => {
+    if (!loc) { body.querySelector('#f-err').textContent = 'Fija la ubicación en el mapa.'; return; }
+    body.querySelector('#f-err').textContent = 'Guardando…';
+    try {
+      const res = await persist(); renderPuntos();
       CTX.toast(res.queued ? '💾 Guardado en el teléfono — se subirá con señal' : 'Punto guardado');
     } catch (err) { body.querySelector('#f-err').textContent = friendlyErr(err); }
   };
@@ -543,6 +564,56 @@ export async function downloadPhoto(url, name) {
   }
 }
 export function isAdminUser() { return isAdmin() || localStorage.getItem('cantares_role') === 'admin'; }
+
+// ============ georreferenciación en segundo plano («marca y sigue») ============
+// El usuario guarda el punto YA con el mejor fijo del momento y sigue caminando;
+// la ubicación se AFINA sola mientras siga cerca (estacionario), y se CONGELA en
+// cuanto se aleja. Requiere el GPS caliente (watch continuo) — por eso se enciende
+// al abrir el editor de puntos. Ojo: un punto es «donde estás al marcarlo»; por
+// eso no se puede afinar mientras caminas (se afina sólo si te quedas cerca).
+let geoQueue = [], geoListening = false;
+const GEO_TARGET = 10, GEO_FREEZE_R = 25, GEO_MAX_MS = 90000;
+const nowMs = () => (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+function fieldGpsOn() { if (CTX && CTX.ensureGps) { try { CTX.ensureGps(); } catch (e) { /* sin GPS */ } } }
+function currentFix() {
+  const s = CTX && CTX.state; if (!s || !s.userPos) return null;
+  return { pos: s.userPos.slice(), acc: s.userAccuracy != null ? s.userAccuracy : 999 };
+}
+function registerGeoRefine(id, pos, acc) {
+  geoQueue = geoQueue.filter((g) => g.id !== id);
+  geoQueue.push({ id, anchor: pos.slice(), pos: pos.slice(), acc, startTs: nowMs() });
+  if (!geoListening) { window.addEventListener('cantares:position', onFieldPos); geoListening = true; }
+  updateGeoHud();
+}
+function onFieldPos(e) {
+  if (!geoQueue.length) return;
+  const d = e.detail, fix = [d.lng, d.lat], acc = d.accuracy != null ? d.accuracy : 999;
+  for (const g of geoQueue.slice()) {
+    if (hav(fix, g.anchor) > GEO_FREEZE_R) { finalizeGeo(g); continue; }   // se alejó → congelar
+    if (acc < g.acc) { g.pos = fix; g.acc = acc; }                          // mejor fijo cerca → afinar
+    if (g.acc <= GEO_TARGET || nowMs() - g.startTs > GEO_MAX_MS) finalizeGeo(g);
+  }
+  updateGeoHud();
+}
+function finalizeGeo(g) {
+  geoQueue = geoQueue.filter((x) => x.id !== g.id);
+  if (geoListening && !geoQueue.length) { window.removeEventListener('cantares:position', onFieldPos); geoListening = false; }
+  const w = CTX.state.waypoints.find((x) => x.properties.id === g.id);
+  if (w) {
+    const row = wpFullRow(w); row.lng = g.pos[0]; row.lat = g.pos[1];
+    CTX.applyLocalRow('waypoints', row);   // mueve el punto a la posición afinada
+    patchRow('waypoints', g.id, { lng: g.pos[0], lat: g.pos[1] }, () => row).catch((err) => console.warn('[geo] patch', err && err.message));
+  }
+  CTX.toast(`📍 Ubicación afinada a ±${Math.round(g.acc)} m`);
+  updateGeoHud();
+}
+function updateGeoHud() {
+  let h = document.getElementById('geo-hud');
+  if (!geoQueue.length) { if (h) h.remove(); return; }
+  if (!h) { h = document.createElement('div'); h.id = 'geo-hud'; h.className = 'geo-hud'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
+  const worst = Math.round(Math.max(...geoQueue.map((g) => g.acc)));
+  h.textContent = `📍 Afinando ${geoQueue.length} punto(s)… ±${worst} m`;
+}
 
 // ================= FOTOS / MEDIOS (clasificador manual) =================
 // Bandeja de fotos y videos: clasificar las que llegan sin sujeto (o mal

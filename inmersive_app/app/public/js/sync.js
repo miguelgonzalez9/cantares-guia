@@ -43,6 +43,10 @@ export async function pendingOps() {
     rq.onerror = () => rej(rq.error);
   });
 }
+async function idbGet(key) {
+  const d = await db();
+  return new Promise((res) => { const rq = d.transaction(STORE).objectStore(STORE).get(key); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => res(null); });
+}
 
 // ---------- helpers ----------
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout: sin respuesta de la red')), ms))]);
@@ -121,6 +125,20 @@ export async function saveRow(table, row, blobs = null) {
   const preview = { ...enqueueRow };
   if (enqueueBlobs) for (const f in enqueueBlobs) preview[f] = URL.createObjectURL(enqueueBlobs[f]);
   return { queued: true, row: preview, softError };
+}
+// Actualiza sólo algunos campos de una fila (p. ej. lng/lat al afinar el GPS en
+// segundo plano). Si la fila aún está en la cola (offline, con blobs esperando),
+// parchea esa operación SIN tocar los blobs; si ya se subió, guarda la fila
+// completa (fullRowFn). Así afinar la ubicación nunca pisa una foto pendiente.
+export async function patchRow(table, id, fields, fullRowFn = null) {
+  const key = `${table}:${id}`;
+  const existing = await idbGet(key);
+  if (existing && existing.op === 'upsert') {
+    existing.row = { ...existing.row, ...fields };
+    await idbPut(existing); notifyPending(); scheduleFlush(3000);
+    return { queued: true, row: existing.row };
+  }
+  return saveRow(table, fullRowFn ? fullRowFn() : { id, ...fields });
 }
 export async function deleteRow(table, id) {
   if (cloudConfigured() && navigator.onLine) {
