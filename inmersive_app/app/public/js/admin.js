@@ -270,10 +270,11 @@ function editPunto(id) {
   body.querySelector('#f-gps').onclick = () => {
     if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
     const btn = body.querySelector('#f-gps'); const orig = btn.textContent; btn.disabled = true;
-    // Exigir ±10 m: observar hasta 16 s y quedarse con el fijo MÁS preciso;
-    // cortar en cuanto se logre ≤10 m. Si no se logra, se usa el mejor (fallback)
-    // avisando la precisión real — no dejamos precisión sobre la mesa.
-    const TARGET = 10, MAX_WAIT = 16000;
+    // Exigir ±10 m: observar hasta 45 s (bajo dosel el GPS tarda en converger,
+    // pero llega) y quedarse con el fijo MÁS preciso; cortar en cuanto se logre
+    // ≤10 m. Si no se logra, se usa el mejor (fallback) avisando la precisión
+    // real — no dejamos precisión sobre la mesa.
+    const TARGET = 10, MAX_WAIT = 45000;
     let best = null, done = false;
     const finish = () => {
       if (done) return; done = true;
@@ -293,7 +294,7 @@ function editPunto(id) {
         if (pos.coords.accuracy <= TARGET) finish();
       },
       (e) => { if (!best) { done = true; clearTimeout(timer); navigator.geolocation.clearWatch(wid); btn.textContent = orig; btn.disabled = false; CTX.toast(e.code === 1 ? 'Permiso de ubicación denegado' : 'No se pudo obtener ubicación'); } },
-      { enableHighAccuracy: true, timeout: MAX_WAIT, maximumAge: 0 });
+      { enableHighAccuracy: true, timeout: 60000, maximumAge: 0 });
     const timer = setTimeout(finish, MAX_WAIT);
   };
   const v = (sel) => body.querySelector(sel).value;
@@ -911,9 +912,10 @@ function startGpsDraw(onDone) {
     CTX.toast(ok ? '⏺ Grabando (objetivo ±10 m)… la pantalla quedará encendida. Camina el sendero.'
                  : '⏺ Grabando (objetivo ±10 m)… ⚠️ NO apagues la pantalla (el GPS se corta). Camina el sendero.');
   });
-  // Umbral de precisión: exigimos ±10 m; si el GPS no lo logra por un rato,
-  // relajamos hasta ±FALLBACK para no dejar un HUECO en el trazo (fallback).
-  const TARGET = 10, FALLBACK = 20, STALL_MS = 8000;
+  // Umbral de precisión: exigimos ±10 m; si el GPS no lo logra por un buen rato
+  // (30 s — bajo dosel tarda pero llega), relajamos hasta ±FALLBACK para no dejar
+  // un HUECO en el trazo (fallback).
+  const TARGET = 10, FALLBACK = 20, STALL_MS = 30000;
   draw.watchId = navigator.geolocation.watchPosition((p) => {
     if (!draw) return;
     const acc = p.coords.accuracy;
@@ -925,7 +927,9 @@ function startGpsDraw(onDone) {
     // ¿Cuánto lleva el GPS sin dar un fijo ≤ TARGET? Si supera STALL_MS, se
     // acepta hasta FALLBACK (con menos confianza) para no cortar el sendero.
     const sinceGood = now - (draw.lastGoodTs != null ? draw.lastGoodTs : draw.startTs);
-    const threshold = (draw.coords.length && sinceGood > STALL_MS) ? FALLBACK : TARGET;
+    // El fallback aplica también al PRIMER punto: si tras 30 s no hay un fijo
+    // ≤10 m, empezar a grabar con ±20 m para no perder el sendero entero.
+    const threshold = (sinceGood > STALL_MS) ? FALLBACK : TARGET;
     const okAcc = acc == null || acc <= threshold;
     if (!draw.paused && okAcc && draw.warm++ >= 2) {
       // Suavizado exponencial más responsivo (0.6): sigue mejor los cambios de
@@ -939,7 +943,7 @@ function startGpsDraw(onDone) {
       if (!last || hav(last, draw.ema) > gate) { draw.coords.push(draw.ema.slice()); drawUpdate(); }
     }
     updateDrawHud();
-  }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 });
   showDrawHud();
 }
 
