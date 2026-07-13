@@ -815,8 +815,12 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .adh-acc.bad { color: #e03131; }
 .admin-draw-hud .adh-on { background: var(--red, #d31320); color: #fff; }
 /* Manejadores de vértice (editor de senderos): arrastrables, con snap a otros senderos */
-.vx-handle { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 3px solid #e07a1f;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.45); cursor: grab; box-sizing: border-box; }
+.vx-handle { position: relative; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid #e07a1f;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.45); cursor: grab; box-sizing: border-box;
+  /* Sin recuadro gris de tap/foco del navegador al tocar la manija */
+  outline: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: none; }
+/* Área de toque invisible más grande (12 px extra por lado): fácil de agarrar con el dedo */
+.vx-handle::before { content: ''; position: absolute; inset: -12px; border-radius: 50%; }
 .vx-handle:active { cursor: grabbing; }
 .vx-handle.vx-start { border-color: #2f9e44; }
 .vx-handle.vx-end { border-color: #d31320; }
