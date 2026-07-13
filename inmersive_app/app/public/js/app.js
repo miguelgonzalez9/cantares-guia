@@ -529,6 +529,8 @@ async function initMap() {
       const setCursor = (e) => { map.getCanvas().style.cursor = nearestAt(e.point) ? 'pointer' : ''; };
       map.on('mousemove', (e) => { if (canHover) setCursor(e); });
       map.on('click', (e) => {
+        // En modo edición manda el admin (selección + manijas): no abrir el popup.
+        if (document.body.classList.contains('edit-mode')) return;
         const wp = nearestAt(e.point);
         if (wp) { state._wpClick = true; miniPopup(wp); try { adminFocusFromMap(wp.properties.id); } catch (er) { /* no admin */ } }
         else if (state._wpClick) { state._wpClick = false; }

@@ -95,10 +95,17 @@ function renderPanel() {
     <div class="admin-head">
       <strong>🛠️ Administración</strong>
       <div class="admin-head-r">
+        <button class="admin-edit-toggle ${editMode ? 'on' : ''}" id="admin-edit">${editMode ? '✏️ Editando' : '✏️ Editar mapa'}</button>
         <button class="admin-logout" id="admin-logout">Salir</button>
         <button class="admin-x" id="admin-x" aria-label="Cerrar">×</button>
       </div>
     </div>
+    ${editMode ? `<div class="edit-toolbar">
+      <span class="edit-hint">Toca en el mapa para seleccionar y editar. O crea:</span>
+      <button class="edit-new" data-new="punto">📍＋ Punto</button>
+      <button class="edit-new" data-new="sendero">✎＋ Sendero</button>
+      <button class="edit-new" data-new="recorrido">🧭＋ Recorrido</button>
+    </div>` : ''}
     <div class="admin-tabs">
       <button class="admin-tab ${tab === 'puntos' ? 'sel' : ''}" data-t="puntos">Puntos</button>
       <button class="admin-tab ${tab === 'senderos' ? 'sel' : ''}" data-t="senderos">Senderos</button>
@@ -110,8 +117,16 @@ function renderPanel() {
   if (tab === 'especies') tab = 'puntos';   // las especies ya no viven en el panel
   el.querySelector('#admin-x').onclick = closePanel;
   el.querySelector('#admin-logout').onclick = doLogout;
+  el.querySelector('#admin-edit').onclick = () => toggleEditMode();
+  el.querySelectorAll('.edit-new').forEach((b) => b.onclick = () => {
+    const kind = b.dataset.new;
+    if (kind === 'punto') { editAddMode = 'punto'; CTX.toast('📍 Toca el mapa donde va el punto.'); }
+    else if (kind === 'sendero') editSendero(null);
+    else editRecorrido(null);
+  });
   el.querySelectorAll('.admin-tab').forEach((b) => b.onclick = () => { tab = b.dataset.t; renderPanel(); });
   ({ puntos: renderPuntos, senderos: renderSenderos, recorridos: renderRecorridos, fotos: renderFotos }[tab] || renderPuntos)();
+  if (editMode && editSel) { markSelectedRow(editSel.id); updateEditBar(); }
 }
 
 // ---------------- selección lista ↔ mapa (buscar / resaltar) ----------------
@@ -156,7 +171,9 @@ function wireList(kind) {
   };
   body.querySelectorAll('.admin-row').forEach((r) => {
     const t = r.querySelector('.admin-row-t');
-    if (t) t.onclick = () => selectOnMap(kind, r.dataset.id);
+    // En modo edición, tocar una fila SELECCIONA la feature (manijas en el mapa);
+    // fuera del modo, solo la resalta y lleva el mapa ahí.
+    if (t) t.onclick = () => editMode ? editSelect(kind, r.dataset.id) : selectOnMap(kind, r.dataset.id);
   });
 }
 // Sentido inverso: al tocar un punto en el MAPA con el panel abierto, lleva la
@@ -1114,6 +1131,185 @@ function endVertexEdit(keep) {
   vedit = null;
   openPanel();
   onDone(keep && coords.length > 1 ? coords : null);
+}
+
+// ============================ MODO EDICIÓN (mapa ↔ menú) ============================
+// Un modo persistente: seleccionas una feature en el mapa (o en la lista) y la
+// editas espacialmente sin cerrar el panel. Punto → arrastrar/conectar; sendero →
+// vértices (mover/añadir-desde-vértice/insertar/borrar/snap); recorrido → tocar
+// senderos para componer. La lista de la derecha refleja la selección.
+let editMode = false, editSel = null, editHandles = [], editActiveVx = -1, editAddMode = null;
+const tabForKind = (k) => ({ punto: 'puntos', sendero: 'senderos', recorrido: 'recorridos' }[k] || 'puntos');
+const allWaypointCoords = () => (CTX.state.waypoints || []).map((w) => w.geometry.coordinates);
+const allTrailVertices = () => { const o = []; (CTX.state.trails || []).forEach((t) => (t.geometry.coordinates || []).forEach((c) => o.push(c))); return o; };
+function clearHandleMarkers() { editHandles.forEach((m) => m.remove()); editHandles = []; }
+function clearEditHandles() { clearHandleMarkers(); editActiveVx = -1; try { clearHighlight(); } catch (e) { /* estilo */ } }
+
+export function isEditMode() { return editMode; }
+function toggleEditMode(on) {
+  editMode = on != null ? on : !editMode;
+  document.body.classList.toggle('edit-mode', editMode);
+  panelEl().classList.toggle('as-sheet', editMode);
+  const map = CTX.map;
+  if (editMode) {
+    if (map) map.on('click', editMapClick);
+    CTX.toast('✏️ Modo edición: toca un punto o sendero para seleccionarlo y editarlo.');
+  } else {
+    if (map) map.off('click', editMapClick);
+    clearEditHandles(); editSel = null; editAddMode = null; hideEditBar();
+  }
+  renderPanel();
+}
+function editDeselect() { editSel = null; editActiveVx = -1; clearEditHandles(); markSelectedRow(null); hideEditBar(); }
+
+function editMapClick(e) {
+  const map = CTX.map, p = [e.lngLat.lng, e.lngLat.lat];
+  if (editAddMode === 'punto') { editAddMode = null; startNewPointAt(p); return; }
+  if (editSel && editSel.kind === 'recorrido') {   // componer recorrido tocando senderos
+    const tf = map.getLayer('trails-all') ? map.queryRenderedFeatures(e.point, { layers: ['trails-all'] }) : [];
+    if (tf.length) { editRouteToggleTrail(editSel.id, tf[0].properties.id); return; }
+    editDeselect(); return;
+  }
+  // puntos primero
+  const wpL = ['waypoints-pt', 'trees-pt'].filter((l) => map.getLayer(l));
+  const pf = wpL.length ? map.queryRenderedFeatures(e.point, { layers: wpL }) : [];
+  if (pf.length) { editSelect('punto', pf[0].properties.id); return; }
+  // senderos: si es el ya seleccionado y tocas su línea → insertar vértice
+  const tf = map.getLayer('trails-all') ? map.queryRenderedFeatures(e.point, { layers: ['trails-all'] }) : [];
+  if (tf.length) {
+    const tid = tf[0].properties.id;
+    if (editSel && editSel.kind === 'sendero' && tid === editSel.id) {
+      const tr = trailFeat(tid), ins = tr ? nearestSegmentInsert(tr.geometry.coordinates, p, 40) : -1;
+      if (ins >= 0) { editTrailSplice(tid, ins, p); CTX.toast('➕ Vértice insertado'); return; }
+    }
+    editSelect('sendero', tid); return;
+  }
+  // mapa vacío con un vértice activo → añadir un vértice nuevo DESPUÉS del activo
+  if (editSel && editSel.kind === 'sendero' && editActiveVx >= 0) { editTrailAddFromActive(p); return; }
+  editDeselect();
+}
+
+function editSelect(kind, id) {
+  editSel = { kind, id }; editActiveVx = -1; _selId = id;
+  if (tab !== tabForKind(kind)) { tab = tabForKind(kind); renderPanel(); }   // lleva la lista al tipo correcto
+  renderEditSelection();
+  markSelectedRow(id); scrollRowIntoView(id); updateEditBar();
+}
+function scrollRowIntoView(id) {
+  const row = [...document.querySelectorAll('#admin-body .admin-row')].find((r) => r.dataset.id === id);
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function renderEditSelection() {
+  clearEditHandles();
+  if (!editSel) return;
+  if (editSel.kind === 'punto') renderPointHandle(editSel.id);
+  else if (editSel.kind === 'sendero') renderTrailHandles(editSel.id);
+  else if (editSel.kind === 'recorrido') renderRouteHandles(editSel.id);
+}
+
+// ---- PUNTO: arrastrar para mover + snap a sendero (conectar) ----
+function renderPointHandle(id) {
+  clearHandleMarkers();
+  const map = CTX.map, w = CTX.state.waypoints.find((x) => x.properties.id === id); if (!w) return;
+  const el = document.createElement('div'); el.className = 'vx-handle vx-point';
+  const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(w.geometry.coordinates).addTo(map);
+  m.on('dragend', () => {
+    const ll = m.getLngLat(); let c = [ll.lng, ll.lat];
+    const snap = nearestVertexSnap(c, allTrailVertices());   // conectar el punto a un sendero
+    if (snap) { c = [snap[0], snap[1]]; m.setLngLat(c); CTX.toast('🔗 Punto conectado a un sendero'); }
+    persistPointCoords(id, c);
+  });
+  editHandles.push(m);
+  map.easeTo({ center: w.geometry.coordinates, zoom: Math.max(map.getZoom(), 17.5), duration: 500 });
+}
+function persistPointCoords(id, c) {
+  const w = CTX.state.waypoints.find((x) => x.properties.id === id); if (!w) return;
+  const row = wpFullRow(w); row.lng = c[0]; row.lat = c[1];
+  CTX.applyLocalRow('waypoints', row);
+  patchRow('waypoints', id, { lng: c[0], lat: c[1] }, () => row).catch((e) => CTX.toast(friendlyErr(e)));
+}
+
+// ---- SENDERO: manijas de vértice (mover/añadir/insertar/borrar/snap) ----
+function renderTrailHandles(id) {
+  clearHandleMarkers();
+  const map = CTX.map, tr = trailFeat(id); if (!tr) return;
+  const coords = tr.geometry.coordinates;
+  setHl([{ type: 'Feature', properties: { _c: '#fab814' }, geometry: { type: 'LineString', coordinates: coords } }]);
+  editHandles = coords.map((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'vx-handle vx-big' + (i === 0 ? ' vx-start' : i === coords.length - 1 ? ' vx-end' : '') + (i === editActiveVx ? ' vx-active' : '');
+    const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(c).addTo(map);
+    m.on('drag', () => { const ll = m.getLngLat(); coords[i] = [ll.lng, ll.lat]; setHl([{ type: 'Feature', properties: { _c: '#fab814' }, geometry: { type: 'LineString', coordinates: coords } }]); });
+    m.on('dragend', () => {
+      const ll = m.getLngLat(); let c2 = [ll.lng, ll.lat];
+      const snap = nearestVertexSnap(c2, otherTrailVertices(id).concat(allWaypointCoords()));
+      if (snap) { c2 = [snap[0], snap[1]]; m.setLngLat(c2); CTX.toast('🔗 Conectado'); }
+      coords[i] = c2; persistTrailGeom(id, coords);
+    });
+    el.addEventListener('click', (ev) => { ev.stopPropagation(); editActiveVx = (editActiveVx === i ? -1 : i); renderTrailHandles(id); updateEditBar(); });
+    el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); ev.preventDefault(); editTrailDeleteVertex(id, i); });
+    return m;
+  });
+}
+function persistTrailGeom(id, coords) {
+  const tr = trailFeat(id); if (!tr) return;
+  const row = { id, name: tr.properties.name || null, routes: (tr.properties.routes || []).slice(), geometry: coords.slice() };
+  CTX.applyLocalRow('trails', row);
+  saveRow('trails', row).catch((e) => CTX.toast(friendlyErr(e)));
+  renderTrailHandles(id);
+}
+function editTrailSplice(id, at, p) { const tr = trailFeat(id); if (!tr) return; const c = tr.geometry.coordinates.slice(); c.splice(at, 0, p); editActiveVx = at; persistTrailGeom(id, c); }
+function editTrailAddFromActive(p) { const id = editSel.id, tr = trailFeat(id); if (!tr) return; editTrailSplice(id, editActiveVx + 1, p); CTX.toast('➕ Vértice añadido'); }
+function editTrailDeleteVertex(id, i) {
+  const tr = trailFeat(id); if (!tr) return; const c = tr.geometry.coordinates.slice();
+  if (c.length <= 2) { CTX.toast('El sendero necesita al menos 2 puntos'); return; }
+  c.splice(i, 1); if (editActiveVx >= c.length) editActiveVx = -1; persistTrailGeom(id, c);
+}
+
+// ---- RECORRIDO: tocar senderos para agregar/quitar (orden = toques) ----
+function renderRouteHandles(id) {
+  const r = CTX.state.routesById[id]; if (!r) return;
+  highlightSegments((r.segments || []), r.color || '#fab814');
+}
+function routeFullRow(r) {
+  return { id: r.id, name: r.name || null, name_en: r.name_en || null, emoji: r.emoji || null, color: r.color || null,
+    summary: r.summary || null, summary_en: r.summary_en || null, start_id: r.start_id || null, end_id: r.end_id || null,
+    segments: (r.segments || []).slice(), sort: r.sort || 0 };
+}
+function editRouteToggleTrail(routeId, trailId) {
+  const r = CTX.state.routesById[routeId]; if (!r) return;
+  const segs = (r.segments || []).slice(), i = segs.indexOf(trailId);
+  if (i >= 0) segs.splice(i, 1); else segs.push(trailId);
+  const row = routeFullRow({ ...r, segments: segs });
+  CTX.applyLocalRow('routes', row);
+  saveRow('routes', row).catch((e) => CTX.toast(friendlyErr(e)));
+  renderRouteHandles(routeId); updateEditBar();
+}
+
+// ---- crear un punto tocando el mapa ----
+function startNewPointAt(p) {
+  _pointDraft = { id: rid('punto'), _new: true, loc: p, photoBlob: null, leafBlob: null,
+    props: { id: rid('punto'), routes: [], species_ids: [], tipo: 'punto' } };
+  tab = 'puntos'; renderPanel(); editPunto(null);
+  CTX.toast('Punto ubicado. Ponle nombre y guarda.');
+}
+
+// ---- barra de acción contextual (abajo) ----
+function hideEditBar() { const h = document.getElementById('edit-bar'); if (h) h.remove(); }
+function updateEditBar() {
+  if (!editMode || !editSel) { hideEditBar(); return; }
+  let h = document.getElementById('edit-bar');
+  if (!h) { h = document.createElement('div'); h.id = 'edit-bar'; h.className = 'admin-draw-hud edit-bar'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
+  const k = editSel.kind;
+  const label = k === 'punto' ? '📍 Punto' : k === 'sendero' ? `✎ Sendero${editActiveVx >= 0 ? ` · vértice ${editActiveVx + 1} activo` : ''}` : '🧭 Recorrido';
+  h.innerHTML = `<span class="adh-n">${label}</span>
+    <button id="eb-data">Editar datos</button>
+    ${k === 'sendero' && editActiveVx >= 0 ? '<button id="eb-del">🗑️ Vértice</button>' : ''}
+    <button id="eb-close">✕</button>`;
+  const dataBtn = h.querySelector('#eb-data');
+  if (dataBtn) dataBtn.onclick = () => { const id = editSel.id; if (k === 'punto') editPunto(id); else if (k === 'sendero') editSendero(id); else editRecorrido(id); };
+  const del = h.querySelector('#eb-del'); if (del) del.onclick = () => editTrailDeleteVertex(editSel.id, editActiveVx);
+  h.querySelector('#eb-close').onclick = editDeselect;
 }
 
 // ---------------- resaltar senderos en el mapa ----------------
