@@ -788,6 +788,9 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-loc-btns { display: flex; gap: 6px; }
 .admin-pick.gps { background: var(--moss); }
 .admin-pick.map-pick { width: 100%; background: var(--water); margin: 2px 0 6px; padding: 11px; }
+/* Encabezado de grupo dentro de un formulario (Puntos / Senderos del recorrido) */
+.admin-group-h { font-size: 13.5px; font-weight: 800; color: var(--forest); margin: 14px 0 2px;
+  padding-top: 10px; border-top: 1.5px solid var(--line); }
 /* editor de recorridos: emoji + paleta + senderos ordenados */
 .admin-emojis, .admin-palette { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .admin-emoji { width: 34px; height: 34px; border: 1.5px solid var(--line); background: var(--card);
@@ -843,6 +846,12 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
   .edit-bar { bottom: calc(46vh + 10px) !important; z-index: 45 !important; }
 }
 .edit-bar .adh-n { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Escritorio: con el panel lateral (min(420px)) abierto, centra la barra de
+   edición sobre el MAPA visible (viewport − panel), no debajo del panel. */
+@media (min-width: 561px) {
+  body.admin-open .edit-bar { left: calc(50% - min(210px, 25vw)); max-width: calc(100vw - 440px); }
+  body.admin-open .edit-bar .adh-n { max-width: 30vw; }
+}
 /* Manijas de vértice más grandes (dedo) + activa + punto */
 .vx-handle.vx-big .vxd { width: 22px; height: 22px; border-width: 4px; }
 .vx-handle.vx-active .vxd { border-color: var(--sun, #fab814); background: #fff6d6; box-shadow: 0 0 0 4px rgba(250,184,20,.45); }

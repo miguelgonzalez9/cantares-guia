@@ -1840,6 +1840,7 @@ async function main() {
         typeColor: (tp) => typeMeta(tp).color,
         refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails,
         applyLocalRow, removeLocalRow,
+        showWaypoint: (id) => { const w = wpById(id); if (w) showWaypoint(w); },   // ficha normal del punto (modo edición, panel cerrado)
         ensureGps: () => { if (state.watchId == null) locate(); },   // GPS caliente para marcar sin esperar
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
       initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); } });

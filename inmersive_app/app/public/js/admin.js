@@ -84,9 +84,9 @@ function panelEl() {
   return el;
 }
 let tab = 'puntos';
-function openPanel() { renderPanel(); panelEl().classList.remove('hidden'); }
+function openPanel() { renderPanel(); panelEl().classList.remove('hidden'); document.body.classList.add('admin-open'); }
 function closePanel() {
-  panelEl().classList.add('hidden');
+  panelEl().classList.add('hidden'); document.body.classList.remove('admin-open');
   if (selMarker) { selMarker.remove(); selMarker = null; }   // limpia el resaltado de selección
   _selId = null; try { clearHighlight(); } catch (e) { /* estilo transitorio */ }
 }
@@ -1043,16 +1043,28 @@ function startGpsDraw(onDone) {
 // de OTRO sendero, se engancha (comparte coordenada) → la red queda conectada.
 // Tocar la línea inserta un vértice; el modo 🗑️ borra al tocar un vértice.
 let vedit = null;
-const VX_SNAP_M = 12, VX_INSERT_M = 14;
+// Radio de pegue a vértices de OTROS senderos (imán normal) vs. a PUNTOS del mapa
+// (WP_SNAP_M, más pequeño: el punto ya no actúa como imán grande y es más fácil
+// dejar el sendero cerca de un punto SIN quedar pegado).
+const VX_SNAP_M = 12, VX_INSERT_M = 14, WP_SNAP_M = 4;
 function otherTrailVertices(exceptId) {
   const out = [];
   (CTX.state.trails || []).forEach((t) => { if (t.properties.id === exceptId) return; (t.geometry.coordinates || []).forEach((c) => out.push(c)); });
   return out;
 }
-function nearestVertexSnap(c, targets) {
-  let best = null, bd = VX_SNAP_M;
+function nearestVertexSnap(c, targets, rad = VX_SNAP_M) {
+  let best = null, bd = rad;
   for (const tc of targets) { const d = hav(c, tc); if (d < bd) { bd = d; best = tc; } }
   return best;
+}
+// Pegue de un vértice/extremo de SENDERO: a otros senderos (radio grande) y a
+// PUNTOS del mapa (radio pequeño). Devuelve la mejor coord de pegue dentro de su
+// propio radio, o null.
+function snapTrailPoint(c, exceptTrailId) {
+  const a = nearestVertexSnap(c, otherTrailVertices(exceptTrailId), VX_SNAP_M);
+  const b = nearestVertexSnap(c, allWaypointCoords(), WP_SNAP_M);
+  if (a && b) return hav(c, a) <= hav(c, b) ? a : b;
+  return a || b;
 }
 // Distancia (m) de p al segmento a-b (proyección local plana).
 function segDistM(a, b, p) {
@@ -1140,7 +1152,7 @@ function endVertexEdit(keep) {
 // editas espacialmente sin cerrar el panel. Punto → arrastrar/conectar; sendero →
 // vértices (mover/añadir-desde-vértice/insertar/borrar/snap); recorrido → tocar
 // senderos para componer. La lista de la derecha refleja la selección.
-let editMode = false, editSel = null, editHandles = [], editActiveVx = -1, editAddMode = null, editCutMode = false, editExtendMode = false;
+let editMode = false, editSel = null, editHandles = [], editActiveVx = -1, editAddMode = null, editCutMode = false, editExtendMode = false, editMovePt = false;
 // Consulta senderos con TOLERANCIA (bbox de ~11 px): la línea es delgada y así es
 // mucho más fácil tocarla/seleccionarla y resaltarla al pasar el cursor.
 function queryTrailsAt(pt) {
@@ -1182,7 +1194,7 @@ function editMapMove(e) {
   map.getCanvas().style.cursor = tid ? 'pointer' : (editCutMode || editExtendMode ? 'crosshair' : '');
   try { setHover(tid); } catch (er) { /* fuente transitoria */ }
 }
-function editDeselect() { editSel = null; editActiveVx = -1; editCutMode = false; editExtendMode = false; clearEditHandles(); markSelectedRow(null); hideEditBar(); }
+function editDeselect() { editSel = null; editActiveVx = -1; editCutMode = false; editExtendMode = false; editMovePt = false; clearEditHandles(); markSelectedRow(null); hideEditBar(); }
 
 function editMapClick(e) {
   const map = CTX.map, p = [e.lngLat.lng, e.lngLat.lat];
@@ -1219,7 +1231,7 @@ function editMapClick(e) {
 function editExtendAppend(p) {
   const id = editSel.id, tr = trailFeat(id); if (!tr) return;
   const c = tr.geometry.coordinates.slice();
-  let q = p; const snap = nearestVertexSnap(p, otherTrailVertices(id).concat(allWaypointCoords()));
+  let q = p; const snap = snapTrailPoint(p, id);
   if (snap) q = [snap[0], snap[1]];
   let i = editActiveVx; if (i < 0) i = c.length - 1;   // sin vértice activo → desde el último
   if (i === c.length - 1) { c.push(q); editActiveVx = c.length - 1; persistTrailGeom(id, c); if (snap) CTX.toast('🔗 Conectado'); }
@@ -1234,10 +1246,14 @@ function editExtendAppend(p) {
 }
 
 function editSelect(kind, id) {
-  editSel = { kind, id }; editActiveVx = -1; editCutMode = false; editExtendMode = false; _selId = id;
+  editSel = { kind, id }; editActiveVx = -1; editCutMode = false; editExtendMode = false; editMovePt = false; _selId = id;
   if (tab !== tabForKind(kind)) { tab = tabForKind(kind); renderPanel(); }   // lleva la lista al tipo correcto
   renderEditSelection();
   markSelectedRow(id); scrollRowIntoView(id); updateEditBar();
+  // Punto: el panel abierto ya se desplazó a su fila (nada en el mapa); con el
+  // panel cerrado, mostrar su ficha igual que fuera del modo edición. Mover el
+  // punto es una acción aparte (botón ✋ Mover) para no soltar una manija encima.
+  if (kind === 'punto' && panelEl().classList.contains('hidden') && CTX.showWaypoint) CTX.showWaypoint(id);
 }
 function scrollRowIntoView(id) {
   const row = [...document.querySelectorAll('#admin-body .admin-row')].find((r) => r.dataset.id === id);
@@ -1246,7 +1262,7 @@ function scrollRowIntoView(id) {
 function renderEditSelection() {
   clearEditHandles();
   if (!editSel) return;
-  if (editSel.kind === 'punto') renderPointHandle(editSel.id);
+  if (editSel.kind === 'punto') { if (editMovePt) renderPointHandle(editSel.id); }   // manija sólo al pulsar ✋ Mover
   else if (editSel.kind === 'sendero') renderTrailHandles(editSel.id);
   else if (editSel.kind === 'recorrido') renderRouteHandles(editSel.id);
 }
@@ -1287,7 +1303,7 @@ function renderTrailHandles(id) {
     m.on('drag', () => { const ll = m.getLngLat(); coords[i] = [ll.lng, ll.lat]; setHl([{ type: 'Feature', properties: { _c: '#fab814' }, geometry: { type: 'LineString', coordinates: coords } }]); });
     m.on('dragend', () => {
       const ll = m.getLngLat(); let c2 = [ll.lng, ll.lat];
-      const snap = nearestVertexSnap(c2, otherTrailVertices(id).concat(allWaypointCoords()));
+      const snap = snapTrailPoint(c2, id);
       if (snap) { c2 = [snap[0], snap[1]]; m.setLngLat(c2); CTX.toast('🔗 Conectado'); }
       coords[i] = c2; persistTrailGeom(id, coords);
     });
@@ -1380,14 +1396,26 @@ function updateEditBar() {
   if (!h) { h = document.createElement('div'); h.id = 'edit-bar'; h.className = 'admin-draw-hud edit-bar'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
   const k = editSel.kind;
   const mode = editCutMode ? ' · corte' : editExtendMode ? ' · extendiendo' : editActiveVx >= 0 ? ` · vértice ${editActiveVx + 1}` : '';
-  const label = k === 'punto' ? '📍 Punto' : k === 'sendero' ? `✎ Sendero${mode}` : '🧭 Recorrido';
+  const label = k === 'punto' ? `📍 Punto${editMovePt ? ' · moviendo' : ''}` : k === 'sendero' ? `✎ Sendero${mode}` : '🧭 Recorrido';
   h.innerHTML = `<span class="adh-n">${label}</span>
     <button id="eb-data">Datos</button>
+    ${k === 'punto' ? `<button id="eb-move" class="${editMovePt ? 'adh-on' : ''}">✋ Mover</button>` : ''}
     ${k === 'sendero' ? `<button id="eb-ext" class="${editExtendMode ? 'adh-on' : ''}">➕ Extender</button><button id="eb-cut" class="${editCutMode ? 'adh-on' : ''}">✂️ Cortar</button>` : ''}
     ${k === 'sendero' && editActiveVx >= 0 ? '<button id="eb-del">🗑️ Vértice</button>' : ''}
+    ${k === 'recorrido' ? '<button id="eb-order">🧭 Ordenar</button>' : ''}
     <button id="eb-close">✕</button>`;
   const dataBtn = h.querySelector('#eb-data');
   if (dataBtn) dataBtn.onclick = () => { hideEditBar(); const id = editSel.id; if (k === 'punto') editPunto(id); else if (k === 'sendero') editSendero(id); else editRecorrido(id); };
+  const mv = h.querySelector('#eb-move');
+  if (mv) mv.onclick = () => { editMovePt = !editMovePt; renderEditSelection(); updateEditBar(); CTX.toast(editMovePt ? '✋ Arrastra el punto a su lugar (se pega a senderos cercanos)' : 'Mover: listo'); };
+  const ord = h.querySelector('#eb-order');
+  if (ord) ord.onclick = () => {
+    const r = CTX.state.routesById[editSel.id]; if (!r) return;
+    const s = orderSegmentsStartToEnd((r.segments || []), wpCoord(r.start_id), wpCoord(r.end_id));
+    const row = routeFullRow({ ...r, segments: s });
+    CTX.applyLocalRow('routes', row); saveRow('routes', row).catch((e) => CTX.toast(friendlyErr(e)));
+    renderRouteHandles(editSel.id); CTX.toast('🧭 Senderos ordenados inicio → fin');
+  };
   const ext = h.querySelector('#eb-ext'); if (ext) ext.onclick = () => { editExtendMode = !editExtendMode; editCutMode = false; updateEditBar(); CTX.toast(editExtendMode ? '➕ Toca un vértice y luego el mapa para extender desde ahí (un vértice del medio crea una rama).' : 'Extender: listo'); };
   const cut = h.querySelector('#eb-cut'); if (cut) cut.onclick = () => { editCutMode = !editCutMode; editExtendMode = false; updateEditBar(); CTX.toast(editCutMode ? '✂️ Toca sobre el sendero donde quieres cortarlo' : 'Corte cancelado'); };
   const del = h.querySelector('#eb-del'); if (del) del.onclick = () => editTrailDeleteVertex(editSel.id, editActiveVx);
@@ -1396,6 +1424,33 @@ function updateEditBar() {
 
 // ---------------- resaltar senderos en el mapa ----------------
 const trailFeat = (id) => CTX.state.trails.find((t) => t.properties.id === id);
+const wpCoord = (pid) => { const w = pid && CTX.state.waypoints.find((x) => x.properties.id === pid); return w ? w.geometry.coordinates : null; };
+// Extremos (primer y último vértice) de un sendero.
+const trailEnds = (tid) => { const tr = trailFeat(tid); if (!tr) return null; const c = tr.geometry.coordinates; return [c[0], c[c.length - 1]]; };
+const segsTouch = (tid, coord, tolM = 35) => { const e = trailEnds(tid); return !!(e && coord && (hav(coord, e[0]) < tolM || hav(coord, e[1]) < tolM)); };
+// Ordena una lista de senderos en cadena, arrancando por el más cercano al punto
+// de inicio y siguiendo por extremos compartidos. Los senderos NO tienen dirección
+// (el orden lo define el recorrido); mejor esfuerzo si la red tiene huecos.
+function orderSegmentsStartToEnd(segIds, startCoord, endCoord) {
+  const pool = (segIds || []).filter((id) => trailFeat(id));
+  if (pool.length <= 1) return pool.slice();
+  let startTid = pool[0];
+  if (startCoord) { let bd = Infinity; for (const id of pool) { const e = trailEnds(id); const d = Math.min(hav(startCoord, e[0]), hav(startCoord, e[1])); if (d < bd) { bd = d; startTid = id; } } }
+  const used = new Set([startTid]), ordered = [startTid];
+  const e0 = trailEnds(startTid);
+  let tail = startCoord ? (hav(startCoord, e0[0]) <= hav(startCoord, e0[1]) ? e0[1] : e0[0]) : e0[1];
+  while (used.size < pool.length) {
+    let next = null, nd = Infinity, nextTail = null;
+    for (const id of pool) { if (used.has(id)) continue; const e = trailEnds(id);
+      const d0 = hav(tail, e[0]), d1 = hav(tail, e[1]);
+      if (d0 < nd) { nd = d0; next = id; nextTail = e[1]; }
+      if (d1 < nd) { nd = d1; next = id; nextTail = e[0]; }
+    }
+    if (!next) break;
+    used.add(next); ordered.push(next); tail = nextTail;
+  }
+  return ordered;
+}
 function orderColor(i, n) {
   if (n <= 1) return '#2f9e44';
   const hue = 130 - (i / (n - 1)) * 130;   // verde (inicio) → rojo (fin) = dirección
@@ -1726,22 +1781,26 @@ function editRecorrido(id) {
       <label>Color</label><div class="admin-palette" id="rt-palette">${PALETTE.map((c) => `<button type="button" class="admin-sw ${c === color ? 'sel' : ''}" data-c="${c}" style="background:${c}"></button>`).join('')}</div>
       <label>Resumen (ES)</label><textarea id="rt-sum" rows="2">${esc(r.summary)}</textarea>
       <label>Summary (EN)</label><textarea id="rt-sum-en" rows="2">${esc(r.summary_en)}</textarea>
-      <label>Senderos en orden (define la dirección)</label>
-      <button type="button" class="admin-pick map-pick" id="rt-pick">🗺️ Elegir senderos en el mapa</button>
-      <div id="rt-segs"></div>
+
+      <div class="admin-group-h">🚩 Puntos del recorrido</div>
       <label>Punto de inicio</label>
       <div class="admin-loc"><span id="rt-start-lbl">${startId ? esc(wpTitle(startId)) : 'sin fijar'}</span>
         <button type="button" class="admin-pick" id="rt-start-pick">📍 Elegir en el mapa</button></div>
       <label>Punto de fin</label>
       <div class="admin-loc"><span id="rt-end-lbl">${endId ? esc(wpTitle(endId)) : 'sin fijar'}</span>
         <button type="button" class="admin-pick" id="rt-end-pick">🏁 Elegir en el mapa</button></div>
-      <label>Puntos del recorrido</label>
+      <label>Puntos intermedios</label>
       <div class="admin-loc"><span id="rt-mem-lbl">${memberWork.size} punto(s)</span>
         <div class="admin-loc-btns">
           <button type="button" class="admin-pick" id="rt-mem-pick">▦ Recuadro en el mapa</button>
           <button type="button" class="admin-pick" id="rt-mem-clear">Limpiar</button>
         </div></div>
-      <div class="admin-note">Inicio y fin: toca un punto. Intermedios: arrastra un recuadro sobre el mapa. Se ordenan solos según el recorrido.</div>
+      <div class="admin-note">Solo puntos del mapa (no vértices de senderos). Inicio y fin: toca un punto. Intermedios: arrastra un recuadro sobre los puntos.</div>
+
+      <div class="admin-group-h">🥾 Senderos del recorrido (en orden)</div>
+      <button type="button" class="admin-pick map-pick" id="rt-pick">🗺️ Elegir senderos en el mapa</button>
+      <div id="rt-segs"></div>
+      <div class="admin-note">El orden define la dirección: el primer sendero debe empezar en el punto de inicio y el último terminar en el de fin. Usa “🧭 Ordenar inicio → fin” para encadenarlos solos.</div>
       <div class="admin-err" id="rt-err"></div>
       <div class="admin-actions">
         <button class="admin-save" id="rt-save">Guardar</button>
@@ -1753,10 +1812,19 @@ function editRecorrido(id) {
   body.querySelectorAll('#rt-palette .admin-sw').forEach((b) => b.onclick = () => { color = b.dataset.c; body.querySelectorAll('#rt-palette .admin-sw').forEach((x) => x.classList.toggle('sel', x.dataset.c === color)); });
   const renderSegs = () => {
     const el = document.getElementById('rt-segs');
+    // Marca el 1º y último si NO tocan el punto de inicio/fin (aviso visual).
+    const badFirst = segWork.length && startId && !segsTouch(segWork[0], wpCoord(startId));
+    const badLast = segWork.length && endId && !segsTouch(segWork[segWork.length - 1], wpCoord(endId));
     el.innerHTML = `
-      <ol class="admin-seglist">${segWork.map((tid, i) => { const tr = CTX.state.trails.find((t) => t.properties.id === tid); return `<li><span>${esc(tr ? tr.properties.name || tid : tid)}</span><span class="admin-seg-btns"><button type="button" data-up="${i}">↑</button><button type="button" data-down="${i}">↓</button><button type="button" data-rm="${i}">✕</button></span></li>`; }).join('')}</ol>
+      <ol class="admin-seglist">${segWork.map((tid, i) => { const tr = CTX.state.trails.find((t) => t.properties.id === tid);
+        const warn = (i === 0 && badFirst) ? ' ⚠️' : (i === segWork.length - 1 && badLast) ? ' ⚠️' : '';
+        return `<li><span>${esc(tr ? tr.properties.name || tid : tid)}${warn}</span><span class="admin-seg-btns"><button type="button" data-up="${i}">↑</button><button type="button" data-down="${i}">↓</button><button type="button" data-rm="${i}">✕</button></span></li>`; }).join('')}</ol>
+      <div class="admin-loc-btns" style="margin:2px 0 6px">
+        <button type="button" class="admin-pick" id="rt-seg-order">🧭 Ordenar inicio → fin</button>
+      </div>
       <select id="rt-segsel"><option value="">＋ añadir sendero…</option>${CTX.state.trails.map((t) => `<option value="${t.properties.id}">${esc(t.properties.name || t.properties.id)}</option>`).join('')}</select>`;
     el.querySelector('#rt-segsel').onchange = (e) => { if (e.target.value) { segWork.push(e.target.value); renderSegs(); } };
+    el.querySelector('#rt-seg-order').onclick = () => { segWork = orderSegmentsStartToEnd(segWork, wpCoord(startId), wpCoord(endId)); renderSegs(); };
     el.querySelectorAll('[data-up]').forEach((b) => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [segWork[i - 1], segWork[i]] = [segWork[i], segWork[i - 1]]; renderSegs(); } });
     el.querySelectorAll('[data-down]').forEach((b) => b.onclick = () => { const i = +b.dataset.down; if (i < segWork.length - 1) { [segWork[i + 1], segWork[i]] = [segWork[i], segWork[i + 1]]; renderSegs(); } });
     el.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { segWork.splice(+b.dataset.rm, 1); renderSegs(); });
@@ -1783,6 +1851,11 @@ function editRecorrido(id) {
     } catch (e) { body.querySelector('#rt-err').textContent = friendlyErr(e); }
   };
   body.querySelector('#rt-save').onclick = async () => {
+    // Aviso (no bloquea): el 1º sendero debería empezar en el inicio y el último terminar en el fin.
+    if (segWork.length && startId && endId) {
+      const okFirst = segsTouch(segWork[0], wpCoord(startId)), okLast = segsTouch(segWork[segWork.length - 1], wpCoord(endId));
+      if (!(okFirst && okLast) && !confirm('El primer sendero no empieza en el punto de inicio o el último no termina en el de fin. ¿Guardar de todos modos? (Puedes usar “🧭 Ordenar inicio → fin”.)')) return;
+    }
     const row = { id: r.id, name: body.querySelector('#rt-name').value.trim() || null, name_en: body.querySelector('#rt-name-en').value.trim() || null,
       emoji, color, summary: body.querySelector('#rt-sum').value.trim() || null, summary_en: body.querySelector('#rt-sum-en').value.trim() || null,
       start_id: startId || null, end_id: endId || null,
