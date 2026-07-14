@@ -70,7 +70,9 @@ function speciesChecks(selected) {
     .sort((a, b) => (a.common_name || a.scientific_name || '').localeCompare(b.common_name || b.scientific_name || ''))
     .map((s) => {
       const on = sel.has(String(s.id).toLowerCase()) || sel.has((s.scientific_name || '').toLowerCase());
-      const label = s.common_name ? `${s.common_name}` : (s.scientific_name || s.id);
+      // Siempre el nombre científico entre paréntesis para distinguir especies
+      // que comparten nombre común (p. ej. varios «Encenillo»).
+      const label = s.common_name ? (s.scientific_name ? `${s.common_name} (${s.scientific_name})` : s.common_name) : (s.scientific_name || s.id);
       const search = `${s.common_name || ''} ${s.scientific_name || ''}`.toLowerCase();
       return `<label class="admin-chk" data-n="${esc(search)}"><input type="checkbox" value="${esc(s.id)}" ${on ? 'checked' : ''}> ${esc(label)}</label>`;
     }).join('');
@@ -855,7 +857,7 @@ function renderFotosSubject(fm) {
   const renderList = (q) => {
     const box = document.getElementById('fm-subj-list');
     const items = pt === 'species'
-      ? CTX.state.species.map((s) => ({ id: s.id, label: CTX.L(s, 'common_name') || s.scientific_name || s.id }))
+      ? CTX.state.species.map((s) => ({ id: s.id, label: (CTX.L(s, 'common_name') && s.scientific_name) ? `${CTX.L(s, 'common_name')} (${s.scientific_name})` : (CTX.L(s, 'common_name') || s.scientific_name || s.id) }))
       : CTX.state.waypoints.map((w) => ({ id: w.properties.id, label: CTX.L(w.properties, 'title') || w.properties.title || w.properties.id }));
     const ql = (q || '').trim().toLowerCase();
     box.innerHTML = items.filter((it) => !ql || it.label.toLowerCase().includes(ql)).slice(0, 60)

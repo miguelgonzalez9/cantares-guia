@@ -971,7 +971,7 @@ function showWaypoint(wp) {
   const badges = (p.routes || []).filter((rid) => state.routesById[rid]).map((rid) =>
     `<button class="badge route-badge" data-route="${escapeHtml(rid)}" style="background:${ROUTE_COLORS[rid] || '#5b6b60'}">${routeLabel(rid)} ›</button>`).join('');
   const linked = linkedSpecies(p);
-  const speciesChips = linked.map((s) => `<span class="chip" data-species="${s.id}">${L(s, 'common_name') || s.scientific_name}</span>`).join('');
+  const speciesChips = linked.map((s) => { const c = L(s, 'common_name'); const nm = (c && s.scientific_name) ? `${c} (${s.scientific_name})` : (c || s.scientific_name || ''); return `<span class="chip" data-species="${s.id}">${escapeHtml(nm)}</span>`; }).join('');
   const photo = realPhoto(wp);
   const gallery = waypointGallery(wp);
   const tm = typeMeta(p.tipo);

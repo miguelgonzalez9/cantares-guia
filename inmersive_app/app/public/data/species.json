@@ -1306,7 +1306,8 @@
       "zones": [],
       "photo": null,
       "notes": "Árbol nativo del bosque de Cantares, familia Clusiaceae.",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "habit": "arbol"
     },
     {
       "id": "chusque",
@@ -1444,7 +1445,8 @@
       "zones": [],
       "photo": null,
       "notes": "Árbol nativo del bosque de Cantares, familia Myrtaceae.",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "habit": "arbol"
     },
     {
       "id": "arrayan",
@@ -1700,7 +1702,9 @@
       "zones": [],
       "photo": null,
       "notes": "Objeto de conservación; árboles de hasta 20 m en la zona alta.",
-      "common_name_en": "Andean oak"
+      "common_name_en": "Andean oak",
+      "habit": "arbol",
+      "source": "3_Listado Especies Cantares.xlsx"
     },
     {
       "id": "pino-colombiano",
@@ -2096,21 +2100,6 @@
       "source": "3_Listado Especies Cantares.xlsx"
     },
     {
-      "id": "nervios-amarillos",
-      "group": "flora",
-      "status": "documented",
-      "scientific_name": "Chrysochlamys colombiano",
-      "common_name": "Nervios amarillos",
-      "family": "Clusiaceae",
-      "flagship": false,
-      "id_tool": "plantnet",
-      "zones": [],
-      "photo": null,
-      "notes": "",
-      "habit": "arbol",
-      "source": "3_Listado Especies Cantares.xlsx"
-    },
-    {
       "id": "rapabarbo",
       "group": "flora",
       "status": "documented",
@@ -2200,21 +2189,6 @@
       "notes": "Árbol hasta los 15 m de altura y los 60 cm de diámetro en su tronco, que posee aguijones cortos. Hojas compuestas, alternas, trifoliadas, tienen forma triangular, con estípulas libres en la base del pecíolo, están dispuestas en forma helicoidal, terminan en punta, son glabras; su borde es entero y su textura es coriácea. Flores de forma zigomorfas, conformadas por 4 pétalos rojonaranja, su androce",
       "habit": "arbol",
       "source": "censo_arboles_2021"
-    },
-    {
-      "id": "eucalipto",
-      "group": "flora",
-      "status": "documented",
-      "scientific_name": "Eucaliptus grandis",
-      "common_name": "Eucalipto",
-      "family": "Myrtaceae",
-      "flagship": false,
-      "id_tool": "plantnet",
-      "zones": [],
-      "photo": null,
-      "notes": "",
-      "habit": "arbol",
-      "source": "3_Listado Especies Cantares.xlsx"
     },
     {
       "id": "palmicha",
@@ -2729,21 +2703,6 @@
       "source": "censo_arboles_2021"
     },
     {
-      "id": "roble-2",
-      "group": "flora",
-      "status": "documented",
-      "scientific_name": "Quercus humbolldi",
-      "common_name": "Roble",
-      "family": "Fagaceae",
-      "flagship": false,
-      "id_tool": "plantnet",
-      "zones": [],
-      "photo": null,
-      "notes": "",
-      "habit": "arbol",
-      "source": "3_Listado Especies Cantares.xlsx"
-    },
-    {
       "id": "pino-romero-pino-colombiano",
       "group": "flora",
       "status": "documented",
@@ -2802,21 +2761,6 @@
       "notes": "Árbol nativo del bosque de Cantares, familia Actinidiaceae.",
       "habit": "arbol",
       "source": "censo_arboles_2021"
-    },
-    {
-      "id": "silvo-silvo-2",
-      "group": "flora",
-      "status": "possible",
-      "scientific_name": "Silvo silvo",
-      "common_name": "Silvo silvo",
-      "family": "",
-      "flagship": false,
-      "id_tool": "plantnet",
-      "zones": [],
-      "photo": null,
-      "notes": "",
-      "habit": "arbol",
-      "source": "6_ÁRBOLES Y ARBUSTOS NO REGISTRADOS.docx"
     },
     {
       "id": "sphaeropteris-quinduiensis",
