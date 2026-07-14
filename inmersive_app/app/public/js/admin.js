@@ -381,7 +381,8 @@ function editPunto(id) {
     return res;
   };
   // «Marca y sigue»: guarda YA con el fijo actual y afina en segundo plano.
-  fieldGpsOn();   // enciende el GPS al abrir el editor para que ya esté caliente
+  // El GPS se enciende SÓLO al tocar «Guardar aquí y seguir» (no al abrir el
+  // editor), para no pedir permiso de ubicación cuando solo editas datos.
   body.querySelector('#f-here').onclick = async () => {
     fieldGpsOn();
     const fix = currentFix();
@@ -1207,14 +1208,27 @@ function editMapClick(e) {
   }
   editDeselect();
 }
-// Extender el sendero: agrega un vértice al FIN (encadena); usa ⇄ Invertir para
-// extender el otro extremo. Se engancha si cae cerca de un punto/otro sendero.
+// Extender DESDE el vértice seleccionado: crea el segmento (vértice→nuevo punto).
+// - Si el vértice es un extremo → crece ese sendero por ahí.
+// - Si es un vértice del medio → nace una RAMA (sendero nuevo) conectada en él
+//   (un LineString no puede bifurcarse; la red se arma con senderos que comparten
+//   vértice). Sin selección → extiende por el último vértice.
+// Se engancha (snap) si el nuevo punto cae cerca de otro punto/sendero.
 function editExtendAppend(p) {
   const id = editSel.id, tr = trailFeat(id); if (!tr) return;
+  const c = tr.geometry.coordinates.slice();
   let q = p; const snap = nearestVertexSnap(p, otherTrailVertices(id).concat(allWaypointCoords()));
-  if (snap) { q = [snap[0], snap[1]]; CTX.toast('🔗 Conectado'); }
-  const c = tr.geometry.coordinates.slice(); c.push(q); editActiveVx = c.length - 1;
-  persistTrailGeom(id, c);
+  if (snap) q = [snap[0], snap[1]];
+  let i = editActiveVx; if (i < 0) i = c.length - 1;   // sin vértice activo → desde el último
+  if (i === c.length - 1) { c.push(q); editActiveVx = c.length - 1; persistTrailGeom(id, c); if (snap) CTX.toast('🔗 Conectado'); }
+  else if (i === 0) { c.unshift(q); editActiveVx = 0; persistTrailGeom(id, c); if (snap) CTX.toast('🔗 Conectado'); }
+  else {
+    const V = c[i].slice(), newId = rid('sendero');
+    const row = { id: newId, name: tr.properties.name ? tr.properties.name + ' (rama)' : null, routes: (tr.properties.routes || []).slice(), geometry: [V, q] };
+    CTX.applyLocalRow('trails', row); saveRow('trails', row).catch((e) => CTX.toast(friendlyErr(e)));
+    editSelect('sendero', newId); editExtendMode = true; editActiveVx = 1; renderTrailHandles(newId); updateEditBar();
+    CTX.toast('➕ Rama nueva conectada al vértice — sigue tocando para extenderla');
+  }
 }
 
 function editSelect(kind, id) {
@@ -1263,8 +1277,10 @@ function renderTrailHandles(id) {
   const map = CTX.map, tr = trailFeat(id); if (!tr) return;
   const coords = tr.geometry.coordinates;
   setHl([{ type: 'Feature', properties: { _c: '#fab814' }, geometry: { type: 'LineString', coordinates: coords } }]);
+  // Los senderos NO tienen orden (inicio/fin) — son la base cartográfica; el orden
+  // vive en los recorridos. Todas las manijas iguales, salvo la activa.
   editHandles = coords.map((c, i) => {
-    const el = makeHandleEl('vx-big' + (i === 0 ? ' vx-start' : i === coords.length - 1 ? ' vx-end' : '') + (i === editActiveVx ? ' vx-active' : ''));
+    const el = makeHandleEl('vx-big' + (i === editActiveVx ? ' vx-active' : ''));
     const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(c).addTo(map);
     m.on('drag', () => { const ll = m.getLngLat(); coords[i] = [ll.lng, ll.lat]; setHl([{ type: 'Feature', properties: { _c: '#fab814' }, geometry: { type: 'LineString', coordinates: coords } }]); });
     m.on('dragend', () => {
@@ -1325,12 +1341,6 @@ function editCutAt(p) {
   CTX.toast('✂️ Sendero cortado en dos');
   renderPanel(); editSelect('sendero', id);
 }
-function editReverseTrail() {
-  const id = editSel.id, tr = trailFeat(id); if (!tr) return;
-  const c = tr.geometry.coordinates.slice().reverse();
-  editActiveVx = -1; persistTrailGeom(id, c);
-  CTX.toast('⇄ Sentido del sendero invertido');
-}
 
 // ---- RECORRIDO: tocar senderos para agregar/quitar (orden = toques) ----
 function renderRouteHandles(id) {
@@ -1371,14 +1381,13 @@ function updateEditBar() {
   const label = k === 'punto' ? '📍 Punto' : k === 'sendero' ? `✎ Sendero${mode}` : '🧭 Recorrido';
   h.innerHTML = `<span class="adh-n">${label}</span>
     <button id="eb-data">Datos</button>
-    ${k === 'sendero' ? `<button id="eb-ext" class="${editExtendMode ? 'adh-on' : ''}">➕ Extender</button><button id="eb-cut" class="${editCutMode ? 'adh-on' : ''}">✂️ Cortar</button><button id="eb-rev">⇄ Invertir</button>` : ''}
+    ${k === 'sendero' ? `<button id="eb-ext" class="${editExtendMode ? 'adh-on' : ''}">➕ Extender</button><button id="eb-cut" class="${editCutMode ? 'adh-on' : ''}">✂️ Cortar</button>` : ''}
     ${k === 'sendero' && editActiveVx >= 0 ? '<button id="eb-del">🗑️ Vértice</button>' : ''}
     <button id="eb-close">✕</button>`;
   const dataBtn = h.querySelector('#eb-data');
   if (dataBtn) dataBtn.onclick = () => { hideEditBar(); const id = editSel.id; if (k === 'punto') editPunto(id); else if (k === 'sendero') editSendero(id); else editRecorrido(id); };
-  const ext = h.querySelector('#eb-ext'); if (ext) ext.onclick = () => { editExtendMode = !editExtendMode; editCutMode = false; updateEditBar(); CTX.toast(editExtendMode ? '➕ Toca el mapa para extender el FIN del sendero (usa ⇄ para el otro extremo).' : 'Extender: listo'); };
+  const ext = h.querySelector('#eb-ext'); if (ext) ext.onclick = () => { editExtendMode = !editExtendMode; editCutMode = false; updateEditBar(); CTX.toast(editExtendMode ? '➕ Toca un vértice y luego el mapa para extender desde ahí (un vértice del medio crea una rama).' : 'Extender: listo'); };
   const cut = h.querySelector('#eb-cut'); if (cut) cut.onclick = () => { editCutMode = !editCutMode; editExtendMode = false; updateEditBar(); CTX.toast(editCutMode ? '✂️ Toca sobre el sendero donde quieres cortarlo' : 'Corte cancelado'); };
-  const rev = h.querySelector('#eb-rev'); if (rev) rev.onclick = () => editReverseTrail();
   const del = h.querySelector('#eb-del'); if (del) del.onclick = () => editTrailDeleteVertex(editSel.id, editActiveVx);
   h.querySelector('#eb-close').onclick = editDeselect;
 }
