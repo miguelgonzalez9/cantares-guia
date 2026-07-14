@@ -1137,7 +1137,14 @@ function endVertexEdit(keep) {
 // editas espacialmente sin cerrar el panel. Punto → arrastrar/conectar; sendero →
 // vértices (mover/añadir-desde-vértice/insertar/borrar/snap); recorrido → tocar
 // senderos para componer. La lista de la derecha refleja la selección.
-let editMode = false, editSel = null, editHandles = [], editActiveVx = -1, editAddMode = null, editCutMode = false;
+let editMode = false, editSel = null, editHandles = [], editActiveVx = -1, editAddMode = null, editCutMode = false, editExtendMode = false;
+// Consulta senderos con TOLERANCIA (bbox de ~11 px): la línea es delgada y así es
+// mucho más fácil tocarla/seleccionarla y resaltarla al pasar el cursor.
+function queryTrailsAt(pt) {
+  const map = CTX.map; if (!map || !map.getLayer('trails-all')) return [];
+  const r = 11, bbox = [[pt.x - r, pt.y - r], [pt.x + r, pt.y + r]];
+  try { return map.queryRenderedFeatures(bbox, { layers: ['trails-all'] }); } catch (e) { return []; }
+}
 const tabForKind = (k) => ({ punto: 'puntos', sendero: 'senderos', recorrido: 'recorridos' }[k] || 'puntos');
 const allWaypointCoords = () => (CTX.state.waypoints || []).map((w) => w.geometry.coordinates);
 const allTrailVertices = () => { const o = []; (CTX.state.trails || []).forEach((t) => (t.geometry.coordinates || []).forEach((c) => o.push(c))); return o; };
@@ -1167,19 +1174,20 @@ function editMapMove(e) {
   const wpL = ['waypoints-pt', 'trees-pt'].filter((l) => map.getLayer(l));
   const overPt = wpL.length && map.queryRenderedFeatures(e.point, { layers: wpL }).length;
   if (overPt) { map.getCanvas().style.cursor = 'pointer'; try { clearHover(); } catch (er) { /* */ } return; }
-  const tf = map.getLayer('trails-all') ? map.queryRenderedFeatures(e.point, { layers: ['trails-all'] }) : [];
+  const tf = queryTrailsAt(e.point);   // área ancha alrededor de la línea
   const tid = tf.length ? tf[0].properties.id : null;
-  map.getCanvas().style.cursor = tid ? 'pointer' : (editCutMode ? 'crosshair' : '');
+  map.getCanvas().style.cursor = tid ? 'pointer' : (editCutMode || editExtendMode ? 'crosshair' : '');
   try { setHover(tid); } catch (er) { /* fuente transitoria */ }
 }
-function editDeselect() { editSel = null; editActiveVx = -1; clearEditHandles(); markSelectedRow(null); hideEditBar(); }
+function editDeselect() { editSel = null; editActiveVx = -1; editCutMode = false; editExtendMode = false; clearEditHandles(); markSelectedRow(null); hideEditBar(); }
 
 function editMapClick(e) {
   const map = CTX.map, p = [e.lngLat.lng, e.lngLat.lat];
-  if (editCutMode && editSel && editSel.kind === 'sendero') { editCutAt(p); return; }   // herramienta de corte
+  if (editCutMode && editSel && editSel.kind === 'sendero') { editCutAt(p); return; }        // cortar
+  if (editExtendMode && editSel && editSel.kind === 'sendero') { editExtendAppend(p); return; } // extender (dibujar)
   if (editAddMode === 'punto') { editAddMode = null; startNewPointAt(p); return; }
   if (editSel && editSel.kind === 'recorrido') {   // componer recorrido tocando senderos
-    const tf = map.getLayer('trails-all') ? map.queryRenderedFeatures(e.point, { layers: ['trails-all'] }) : [];
+    const tf = queryTrailsAt(e.point);
     if (tf.length) { editRouteToggleTrail(editSel.id, tf[0].properties.id); return; }
     editDeselect(); return;
   }
@@ -1187,23 +1195,30 @@ function editMapClick(e) {
   const wpL = ['waypoints-pt', 'trees-pt'].filter((l) => map.getLayer(l));
   const pf = wpL.length ? map.queryRenderedFeatures(e.point, { layers: wpL }) : [];
   if (pf.length) { editSelect('punto', pf[0].properties.id); return; }
-  // senderos: si es el ya seleccionado y tocas su línea → insertar vértice
-  const tf = map.getLayer('trails-all') ? map.queryRenderedFeatures(e.point, { layers: ['trails-all'] }) : [];
+  // senderos (área ancha): si es el ya seleccionado y tocas su línea → insertar vértice
+  const tf = queryTrailsAt(e.point);
   if (tf.length) {
     const tid = tf[0].properties.id;
     if (editSel && editSel.kind === 'sendero' && tid === editSel.id) {
       const tr = trailFeat(tid), ins = tr ? nearestSegmentInsert(tr.geometry.coordinates, p, 40) : -1;
-      if (ins >= 0) { editTrailSplice(tid, ins, p); CTX.toast('➕ Vértice insertado'); return; }
+      if (ins >= 0) { editTrailSplice(tid, ins, p); CTX.toast('➕ Vértice insertado en la línea'); return; }
     }
     editSelect('sendero', tid); return;
   }
-  // mapa vacío con un vértice activo → añadir un vértice nuevo DESPUÉS del activo
-  if (editSel && editSel.kind === 'sendero' && editActiveVx >= 0) { editTrailAddFromActive(p); return; }
   editDeselect();
+}
+// Extender el sendero: agrega un vértice al FIN (encadena); usa ⇄ Invertir para
+// extender el otro extremo. Se engancha si cae cerca de un punto/otro sendero.
+function editExtendAppend(p) {
+  const id = editSel.id, tr = trailFeat(id); if (!tr) return;
+  let q = p; const snap = nearestVertexSnap(p, otherTrailVertices(id).concat(allWaypointCoords()));
+  if (snap) { q = [snap[0], snap[1]]; CTX.toast('🔗 Conectado'); }
+  const c = tr.geometry.coordinates.slice(); c.push(q); editActiveVx = c.length - 1;
+  persistTrailGeom(id, c);
 }
 
 function editSelect(kind, id) {
-  editSel = { kind, id }; editActiveVx = -1; _selId = id;
+  editSel = { kind, id }; editActiveVx = -1; editCutMode = false; editExtendMode = false; _selId = id;
   if (tab !== tabForKind(kind)) { tab = tabForKind(kind); renderPanel(); }   // lleva la lista al tipo correcto
   renderEditSelection();
   markSelectedRow(id); scrollRowIntoView(id); updateEditBar();
@@ -1271,7 +1286,6 @@ function persistTrailGeom(id, coords) {
   renderTrailHandles(id);
 }
 function editTrailSplice(id, at, p) { const tr = trailFeat(id); if (!tr) return; const c = tr.geometry.coordinates.slice(); c.splice(at, 0, p); editActiveVx = at; persistTrailGeom(id, c); }
-function editTrailAddFromActive(p) { const id = editSel.id, tr = trailFeat(id); if (!tr) return; editTrailSplice(id, editActiveVx + 1, p); CTX.toast('➕ Vértice añadido'); }
 function editTrailDeleteVertex(id, i) {
   const tr = trailFeat(id); if (!tr) return; const c = tr.geometry.coordinates.slice();
   if (c.length <= 2) { CTX.toast('El sendero necesita al menos 2 puntos'); return; }
@@ -1353,15 +1367,17 @@ function updateEditBar() {
   let h = document.getElementById('edit-bar');
   if (!h) { h = document.createElement('div'); h.id = 'edit-bar'; h.className = 'admin-draw-hud edit-bar'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
   const k = editSel.kind;
-  const label = k === 'punto' ? '📍 Punto' : k === 'sendero' ? `✎ Sendero${editCutMode ? ' · corte' : editActiveVx >= 0 ? ` · vértice ${editActiveVx + 1}` : ''}` : '🧭 Recorrido';
+  const mode = editCutMode ? ' · corte' : editExtendMode ? ' · extendiendo' : editActiveVx >= 0 ? ` · vértice ${editActiveVx + 1}` : '';
+  const label = k === 'punto' ? '📍 Punto' : k === 'sendero' ? `✎ Sendero${mode}` : '🧭 Recorrido';
   h.innerHTML = `<span class="adh-n">${label}</span>
     <button id="eb-data">Datos</button>
-    ${k === 'sendero' ? `<button id="eb-cut" class="${editCutMode ? 'adh-on' : ''}">✂️ Cortar</button><button id="eb-rev">⇄ Invertir</button>` : ''}
+    ${k === 'sendero' ? `<button id="eb-ext" class="${editExtendMode ? 'adh-on' : ''}">➕ Extender</button><button id="eb-cut" class="${editCutMode ? 'adh-on' : ''}">✂️ Cortar</button><button id="eb-rev">⇄ Invertir</button>` : ''}
     ${k === 'sendero' && editActiveVx >= 0 ? '<button id="eb-del">🗑️ Vértice</button>' : ''}
     <button id="eb-close">✕</button>`;
   const dataBtn = h.querySelector('#eb-data');
   if (dataBtn) dataBtn.onclick = () => { hideEditBar(); const id = editSel.id; if (k === 'punto') editPunto(id); else if (k === 'sendero') editSendero(id); else editRecorrido(id); };
-  const cut = h.querySelector('#eb-cut'); if (cut) cut.onclick = () => { editCutMode = !editCutMode; updateEditBar(); CTX.toast(editCutMode ? '✂️ Toca sobre el sendero donde quieres cortarlo' : 'Corte cancelado'); };
+  const ext = h.querySelector('#eb-ext'); if (ext) ext.onclick = () => { editExtendMode = !editExtendMode; editCutMode = false; updateEditBar(); CTX.toast(editExtendMode ? '➕ Toca el mapa para extender el FIN del sendero (usa ⇄ para el otro extremo).' : 'Extender: listo'); };
+  const cut = h.querySelector('#eb-cut'); if (cut) cut.onclick = () => { editCutMode = !editCutMode; editExtendMode = false; updateEditBar(); CTX.toast(editCutMode ? '✂️ Toca sobre el sendero donde quieres cortarlo' : 'Corte cancelado'); };
   const rev = h.querySelector('#eb-rev'); if (rev) rev.onclick = () => editReverseTrail();
   const del = h.querySelector('#eb-del'); if (del) del.onclick = () => editTrailDeleteVertex(editSel.id, editActiveVx);
   h.querySelector('#eb-close').onclick = editDeselect;
@@ -1400,6 +1416,11 @@ function ensureHover() {
   if (!map.getSource('admin-hover')) {
     try {
       map.addSource('admin-hover', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      // Glow ancho bajo el cursor: banda amplia alrededor de la línea para que sea
+      // obvio qué sendero se va a seleccionar (y refuerza el área de toque ancha).
+      map.addLayer({ id: 'admin-hover-glow', type: 'line', source: 'admin-hover',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#fab814', 'line-width': 22, 'line-opacity': 0.35, 'line-blur': 3 } });
       map.addLayer({ id: 'admin-hover-line', type: 'line', source: 'admin-hover',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { 'line-color': '#ffffff', 'line-width': 11, 'line-opacity': 0.5, 'line-blur': 1.5 } });
