@@ -1154,7 +1154,6 @@ function toggleEditMode(on) {
   const map = CTX.map;
   if (editMode) {
     if (map) { map.on('click', editMapClick); map.on('mousemove', editMapMove); }
-    CTX.toast('✏️ Modo edición: toca un punto o sendero para seleccionarlo y editarlo.');
   } else {
     if (map) { map.off('click', editMapClick); map.off('mousemove', editMapMove); map.getCanvas().style.cursor = ''; }
     try { clearHover(); } catch (e) { /* estilo transitorio */ }
