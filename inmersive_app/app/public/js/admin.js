@@ -1500,6 +1500,27 @@ function setHover(tid) {
   CTX.map.getSource('admin-hover').setData({ type: 'FeatureCollection', features: tr ? [{ type: 'Feature', properties: {}, geometry: tr.geometry }] : [] });
 }
 function clearHover() { const s = styleReady() && CTX.map.getSource('admin-hover'); if (s) s.setData({ type: 'FeatureCollection', features: [] }); }
+// Resaltado AMARILLO de los puntos seleccionados para un recorrido (halo sobre el punto).
+function ensurePtHl() {
+  const map = CTX.map;
+  if (!styleReady()) return false;
+  if (!map.getSource('admin-pt-hl')) {
+    try {
+      map.addSource('admin-pt-hl', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({ id: 'admin-pt-hl-c', type: 'circle', source: 'admin-pt-hl',
+        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 10, 17, 14, 19, 18],
+          'circle-color': '#fab814', 'circle-opacity': 0.4,
+          'circle-stroke-color': '#fab814', 'circle-stroke-width': 3, 'circle-stroke-opacity': 0.95 } });
+    } catch (e) { return false; }
+  }
+  return true;
+}
+function setPtHl(ids) {
+  if (!ensurePtHl()) return;
+  const feats = (ids || []).map((pid) => { const w = CTX.state.waypoints.find((x) => x.properties.id === pid); return w ? { type: 'Feature', properties: {}, geometry: w.geometry } : null; }).filter(Boolean);
+  CTX.map.getSource('admin-pt-hl').setData({ type: 'FeatureCollection', features: feats });
+}
+function clearPtHl() { const s = styleReady() && CTX.map.getSource('admin-pt-hl'); if (s) s.setData({ type: 'FeatureCollection', features: [] }); }
 
 // ---------------- elegir senderos en el mapa (crear recorrido interactivo) ----------------
 let pick = null, _routeDraft = null;
@@ -1625,6 +1646,47 @@ function endMarquee(id, ids) {
     CTX.toast(`▦ ${ids.length} punto(s) añadidos al recorrido`);
   }
   openPanel(); editRecorrido(id);
+}
+
+// -------- elegir puntos del recorrido TOCÁNDOLOS (se marcan en amarillo) --------
+// Toca un punto para añadirlo/quitarlo; queda resaltado en amarillo. ✓ Listo guarda.
+let ptSel = null;
+function startPointPick(id) {
+  const map = CTX.map;
+  closePanel();
+  map.getCanvas().style.cursor = 'crosshair';
+  const sel = new Set((_routeDraft && _routeDraft.memberPoints) || []);
+  const layerList = () => ['waypoints-pt', 'trees-pt'].filter((l) => map.getLayer(l));
+  const redraw = () => { setPtHl([...sel]); const h = document.getElementById('admin-ptsel-hud'); const n = h && h.querySelector('.adh-n'); if (n) n.textContent = `${sel.size} punto(s)`; };
+  const click = (e) => {
+    const f = map.queryRenderedFeatures(e.point, { layers: layerList() });
+    if (!f.length) return;   // hay que tocar un punto (no vértices ni líneas)
+    const pid = f[0].properties.id; if (pid == null) return;
+    if (sel.has(pid)) sel.delete(pid); else sel.add(pid);
+    redraw();
+  };
+  const hover = (e) => { const f = map.queryRenderedFeatures(e.point, { layers: layerList() }); map.getCanvas().style.cursor = f.length ? 'pointer' : 'crosshair'; };
+  ptSel = { click, hover, sel, id };
+  map.on('click', click); map.on('mousemove', hover);
+  showPtSelHud();
+  redraw();
+  CTX.toast('Toca los puntos del recorrido — se marcan en amarillo. Toca de nuevo para quitar. Luego ✓ Listo.');
+}
+function showPtSelHud() {
+  let h = document.getElementById('admin-ptsel-hud');
+  if (!h) { h = document.createElement('div'); h.id = 'admin-ptsel-hud'; h.className = 'admin-draw-hud'; (document.getElementById('view-recorridos') || document.body).appendChild(h); }
+  h.innerHTML = '<span class="adh-n">0 punto(s)</span><button class="adh-done" id="pts-done">✓ Listo</button><button id="pts-cancel">✕</button>';
+  h.querySelector('#pts-done').onclick = () => endPointPick(true);
+  h.querySelector('#pts-cancel').onclick = () => endPointPick(false);
+}
+function endPointPick(keep) {
+  const map = CTX.map, st = ptSel; ptSel = null;
+  if (st) { map.off('click', st.click); map.off('mousemove', st.hover); }
+  map.getCanvas().style.cursor = '';
+  const h = document.getElementById('admin-ptsel-hud'); if (h) h.remove();
+  clearPtHl();
+  if (keep && st && _routeDraft) _routeDraft.memberPoints = [...st.sel];   // ✕ = descarta esta sesión
+  openPanel(); editRecorrido(st ? st.id : null);
 }
 
 // ---------------- arrastrar un punto en el mapa ----------------
@@ -1789,13 +1851,13 @@ function editRecorrido(id) {
       <label>Punto de fin</label>
       <div class="admin-loc"><span id="rt-end-lbl">${endId ? esc(wpTitle(endId)) : 'sin fijar'}</span>
         <button type="button" class="admin-pick" id="rt-end-pick">🏁 Elegir en el mapa</button></div>
-      <label>Puntos intermedios</label>
+      <label>Puntos del recorrido</label>
       <div class="admin-loc"><span id="rt-mem-lbl">${memberWork.size} punto(s)</span>
         <div class="admin-loc-btns">
-          <button type="button" class="admin-pick" id="rt-mem-pick">▦ Recuadro en el mapa</button>
+          <button type="button" class="admin-pick" id="rt-mem-pick">🖐️ Tocar puntos en el mapa</button>
           <button type="button" class="admin-pick" id="rt-mem-clear">Limpiar</button>
         </div></div>
-      <div class="admin-note">Solo puntos del mapa (no vértices de senderos). Inicio y fin: toca un punto. Intermedios: arrastra un recuadro sobre los puntos.</div>
+      <div class="admin-note">Solo puntos del mapa (no vértices de senderos). Toca cada punto del recorrido: se marca en amarillo; tócalo de nuevo para quitarlo. Al terminar, ✓ Listo.</div>
 
       <div class="admin-group-h">🥾 Senderos del recorrido (en orden)</div>
       <button type="button" class="admin-pick map-pick" id="rt-pick">🗺️ Elegir senderos en el mapa</button>
@@ -1839,7 +1901,7 @@ function editRecorrido(id) {
   body.querySelector('#rt-pick').onclick = () => { saveDraft(); startRoutePick(id); };
   body.querySelector('#rt-start-pick').onclick = () => { saveDraft(); pickRoutePoint(id, 'start'); };
   body.querySelector('#rt-end-pick').onclick = () => { saveDraft(); pickRoutePoint(id, 'end'); };
-  body.querySelector('#rt-mem-pick').onclick = () => { saveDraft(); marqueePoints(id); };
+  body.querySelector('#rt-mem-pick').onclick = () => { saveDraft(); startPointPick(id); };
   body.querySelector('#rt-mem-clear').onclick = () => { memberWork.clear(); if (startId) memberWork.add(startId); if (endId) memberWork.add(endId); document.getElementById('rt-mem-lbl').textContent = `${memberWork.size} punto(s)`; };
   body.querySelector('#rt-cancel').onclick = () => { clearHighlight(); renderRecorridos(); };
   if (id) body.querySelector('#rt-del').onclick = async () => {
