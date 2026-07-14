@@ -814,17 +814,19 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .adh-acc.mid { color: #e8890c; }
 .adh-acc.bad { color: #e03131; }
 .admin-draw-hud .adh-on { background: var(--red, #d31320); color: #fff; }
-/* Manejadores de vértice (editor de senderos): arrastrables, con snap a otros senderos */
-.vx-handle { position: relative; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid #e07a1f;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.45); cursor: grab; box-sizing: border-box;
-  /* Sin recuadro gris de tap/foco del navegador al tocar la manija */
+/* Manejadores de vértice: un ÁREA DE TOQUE grande y transparente (fácil de agarrar
+   con el dedo) con un PUNTO visible pequeño centrado (.vxd) adentro. IMPORTANTE:
+   NO poner position/tamaño que pelee con el posicionamiento de MapLibre — el
+   elemento se deja como flex-center transparente; el punto va dentro. */
+.vx-handle { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; box-shadow: none; cursor: grab;
   outline: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: none; }
-/* Área de toque invisible más grande (12 px extra por lado): fácil de agarrar con el dedo */
-.vx-handle::before { content: ''; position: absolute; inset: -12px; border-radius: 50%; }
 .vx-handle:active { cursor: grabbing; }
-.vx-handle.vx-start { border-color: #2f9e44; }
-.vx-handle.vx-end { border-color: #d31320; }
-.vx-handle.vx-del { border-color: #d31320; background: #ffe3e3; }
+.vx-handle .vxd { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid #e07a1f;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.45); box-sizing: border-box; pointer-events: none; }
+.vx-handle.vx-start .vxd { border-color: #2f9e44; }
+.vx-handle.vx-end .vxd { border-color: #d31320; }
+.vx-handle.vx-del .vxd { border-color: #d31320; background: #ffe3e3; }
 /* ===================== Modo edición (mapa ↔ menú) ===================== */
 .admin-edit-toggle { border: 1px solid rgba(255,255,255,.5); background: transparent; color: #fff;
   border-radius: 999px; padding: 5px 12px; font-weight: 800; font-size: 12.5px; cursor: pointer; }
@@ -842,9 +844,11 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .edit-bar .adh-n { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Manijas de vértice más grandes (dedo) + activa + punto */
-.vx-handle.vx-big { width: 22px; height: 22px; border-width: 4px; }
-.vx-handle.vx-active { border-color: var(--sun, #fab814); background: #fff6d6; box-shadow: 0 0 0 4px rgba(250,184,20,.4); }
-.vx-handle.vx-point { width: 24px; height: 24px; border-color: #e07a1f; background: #fff; }
+.vx-handle.vx-big .vxd { width: 22px; height: 22px; border-width: 4px; }
+.vx-handle.vx-active .vxd { border-color: var(--sun, #fab814); background: #fff6d6; box-shadow: 0 0 0 4px rgba(250,184,20,.45); }
+.vx-handle.vx-point .vxd { width: 22px; height: 22px; border-color: #e07a1f; }
+/* Glow del sendero/punto bajo el cursor en modo edición (facilita la selección) */
+.edit-mode .maplibregl-canvas { }
 
 /* «Marca y sigue»: botón e indicador de afinado en segundo plano */
 .admin-save.gps-here { width: 100%; margin-top: 8px; background: var(--moss, #2f9e44); }
