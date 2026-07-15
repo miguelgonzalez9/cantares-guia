@@ -4,7 +4,7 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout } from './auth-ui.js';
-import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap } from './admin.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor } from './admin.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
@@ -63,6 +63,28 @@ const TYPE_META = {
 };
 const typeMeta = (tp) => TYPE_META[tp] || TYPE_META.punto;
 const typeLabel = (tp) => { const m = typeMeta(tp); return LANG === 'en' ? m.en : m.es; };
+// Tipos personalizados que añade el admin. Se guardan en el dispositivo y se
+// funden en TYPE_META, de modo que leyenda, coloreado del mapa y editor comparten
+// UNA sola lista (no dos paralelas). Nota: por ahora son por-dispositivo (aún no
+// hay tabla en la nube para tipos).
+function loadCustomTypes() {
+  try { const raw = JSON.parse(localStorage.getItem('cantares_types') || '{}');
+    Object.entries(raw).forEach(([k, v]) => { if (k && v && !TYPE_META[k]) TYPE_META[k] = v; });
+  } catch (e) { /* json corrupto: ignorar */ }
+}
+loadCustomTypes();
+// Registra un tipo nuevo y refresca mapa + leyenda al vuelo. def: {tipo,emoji,color,es,en}.
+function registerPointType(def) {
+  const tp = String(def && def.tipo || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
+  if (!tp) return null;
+  TYPE_META[tp] = { emoji: def.emoji || '📍', color: def.color || '#5b6b60', es: def.es || tp, en: def.en || def.es || tp };
+  try { const raw = JSON.parse(localStorage.getItem('cantares_types') || '{}'); raw[tp] = TYPE_META[tp]; localStorage.setItem('cantares_types', JSON.stringify(raw)); } catch (e) { /* almacenamiento lleno */ }
+  const map = state.map;
+  if (map && map.getLayer('waypoints-pt')) { try { map.setPaintProperty('waypoints-pt', 'circle-color', typeColorMatch()); } catch (e) { /* estilo no listo */ } }
+  renderLegend();
+  return tp;
+}
 // Distinct tipos present in the loaded waypoints, in a stable, meaningful order.
 function presentTypes() {
   const order = Object.keys(TYPE_META);
@@ -944,7 +966,10 @@ function miniPopup(wp) {
       <strong>${escapeHtml(L(p, 'title') || p.title)}</strong>
       ${(() => { const s = p.sci || (linkedSpecies(p)[0] && linkedSpecies(p)[0].scientific_name); return s ? `<em class="mp-sci">${escapeHtml(s)}</em>` : ''; })()}
       ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
-      ${hasMore ? `<button class="mp-more" type="button">${t('more_info')} ›</button>` : ''}
+      <div class="mp-actions">
+        ${hasMore ? `<button class="mp-more" type="button">${t('more_info')} ›</button>` : ''}
+        ${isAdminUser() ? '<button class="mp-edit" type="button">✏️ Editar</button>' : ''}
+      </div>
     </div></div>`;
   state.popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, maxWidth: '240px', offset: 12, className: 'cantares-popup' })
     .setLngLat(wp.geometry.coordinates).setHTML(html).addTo(state.map);
@@ -954,6 +979,8 @@ function miniPopup(wp) {
     el.addEventListener('mouseleave', scheduleClosePopup);
     const btn = el.querySelector('.mp-more');
     if (btn) btn.onclick = () => { removePopup(); showWaypoint(wp); };
+    const edb = el.querySelector('.mp-edit');
+    if (edb) edb.onclick = () => { removePopup(); try { openPointEditor(wp.properties.id); } catch (e) { /* admin no cargado */ } };
   }
 }
 
@@ -1650,7 +1677,6 @@ function renderLegend() {
           <span class="lg-dot" style="background:${m.color}"></span>${m.emoji} ${typeLabel(tp)}</button>`;
       }).join('')}
     </div>
-    ${state.waypoints.some((w) => w.properties.tipo === 'arbol') ? `<div class="lg-row lg-dim" style="font-size:11px">${t('lg_trees_hint')}</div>` : ''}
     <div class="lg-sep lg-zones-head">${t('lg_zones')}
       <button id="zones-toggle" class="lg-eye" title="${t('lg_zones_toggle')}">${off ? '🚫' : '👁'}</button></div>
     <div id="lg-zone-rows" class="${off ? 'lg-dim' : ''}">
@@ -1840,7 +1866,9 @@ async function main() {
         typeColor: (tp) => typeMeta(tp).color,
         refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails,
         applyLocalRow, removeLocalRow,
-        showWaypoint: (id) => { const w = wpById(id); if (w) showWaypoint(w); },   // ficha normal del punto (modo edición, panel cerrado)
+        showPointPopup: (id) => { const w = wpById(id); if (w) miniPopup(w); },   // mismo popup que fuera del modo edición (con "más info" + "Editar")
+        pointTypes: () => Object.keys(TYPE_META).map((tp) => ({ tipo: tp, emoji: TYPE_META[tp].emoji, color: TYPE_META[tp].color, label: typeLabel(tp) })),
+        registerPointType,
         ensureGps: () => { if (state.watchId == null) locate(); },   // GPS caliente para marcar sin esperar
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
       initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); } });

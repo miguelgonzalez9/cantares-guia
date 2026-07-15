@@ -56,8 +56,16 @@ export function initAdmin(ctx) {
   fab.id = 'admin-fab'; fab.className = 'admin-fab'; fab.title = 'Administrar';
   fab.textContent = '🛠️';
   (document.getElementById('view-recorridos') || document.body).appendChild(fab);
-  if (CTX.makeDraggable) CTX.makeDraggable(fab, fab, 'cantares_pos_admin', openPanel);
-  else fab.onclick = openPanel;
+  if (CTX.makeDraggable) CTX.makeDraggable(fab, fab, 'cantares_pos_admin', openAdmin);
+  else fab.onclick = openAdmin;
+}
+// Tocar 🛠️: abre el panel Y activa el modo edición de una vez (sin doble tap).
+function openAdmin() { openPanel(); if (!editMode) toggleEditMode(true); }
+// Abre el editor de un punto desde el mapa (botón «Editar» del popup).
+export function openPointEditor(id) {
+  if (!CTX) return;
+  openPanel(); if (!editMode) toggleEditMode(true);
+  tab = 'puntos'; renderPanel(); editPunto(id);
 }
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -117,7 +125,7 @@ function renderPanel() {
     <div class="admin-note" style="margin:6px 10px 0">Las especies se editan en la pestaña 🦋 Especies.</div>
     <div class="admin-body" id="admin-body"></div>`;
   if (tab === 'especies') tab = 'puntos';   // las especies ya no viven en el panel
-  el.querySelector('#admin-x').onclick = closePanel;
+  el.querySelector('#admin-x').onclick = () => { if (editMode) toggleEditMode(false); closePanel(); };
   el.querySelector('#admin-logout').onclick = doLogout;
   el.querySelector('#admin-edit').onclick = () => toggleEditMode();
   el.querySelectorAll('.edit-new').forEach((b) => b.onclick = () => {
@@ -229,7 +237,13 @@ function editPunto(id) {
       <div class="admin-note">Con descripción, foto o especies, el punto muestra el botón «Más información». Sin nada de eso, solo el título.</div>
       <label>Description (EN)</label><textarea id="f-desc-en" rows="3">${esc(p.description_en)}</textarea>
       <label>Tipo (define el color e ícono del pin)</label>
-      <select id="f-tipo">${TIPOS.map((tp) => `<option value="${tp}" ${p.tipo === tp ? 'selected' : ''}>${TIPO_LABEL[tp] || tp}</option>`).join('')}</select>
+      <select id="f-tipo">${(CTX.pointTypes ? CTX.pointTypes() : []).map((tp) => `<option value="${tp.tipo}" ${p.tipo === tp.tipo ? 'selected' : ''}>${tp.emoji} ${esc(tp.label)}</option>`).join('')}<option value="__new__">➕ Nuevo tipo…</option></select>
+      <div id="f-newtype" class="admin-newtype" style="display:none">
+        <input id="nt-es" placeholder="Nombre del tipo (ej: Cascada)">
+        <input id="nt-emoji" placeholder="💦" maxlength="4">
+        <input id="nt-color" type="color" value="#2b8cbe" title="Color del pin">
+        <button type="button" class="admin-pick" id="nt-create">Crear</button>
+      </div>
       <label>Recorridos</label><div class="admin-checks" id="f-routes">${routeChecks}</div>
       <label>Especies en este punto (opcional)</label>
       <input id="f-sp-search" placeholder="🔎 Buscar especie…">
@@ -319,6 +333,24 @@ function editPunto(id) {
     const timer = setTimeout(finish, MAX_WAIT);
   };
   const v = (sel) => body.querySelector(sel).value;
+  // Tipo de punto: lista unificada con la leyenda; «➕ Nuevo tipo…» crea uno al vuelo
+  // (se funde en la misma base: leyenda + coloreado del mapa + editor).
+  const tipoSel = body.querySelector('#f-tipo'), ntBlock = body.querySelector('#f-newtype');
+  if (tipoSel && ntBlock) {
+    tipoSel.onchange = () => { ntBlock.style.display = tipoSel.value === '__new__' ? 'flex' : 'none'; };
+    body.querySelector('#nt-create').onclick = () => {
+      const es = body.querySelector('#nt-es').value.trim();
+      if (!es) { CTX.toast('Ponle un nombre al tipo'); return; }
+      const emoji = body.querySelector('#nt-emoji').value.trim() || '📍';
+      const color = body.querySelector('#nt-color').value || '#5b6b60';
+      const tp = CTX.registerPointType && CTX.registerPointType({ tipo: es, es, en: es, emoji, color });
+      if (!tp) { CTX.toast('No se pudo crear el tipo'); return; }
+      const opt = document.createElement('option'); opt.value = tp; opt.textContent = `${emoji} ${es}`;
+      tipoSel.insertBefore(opt, tipoSel.querySelector('option[value="__new__"]'));
+      tipoSel.value = tp; ntBlock.style.display = 'none';
+      CTX.toast(`✓ Tipo «${es}» creado`);
+    };
+  }
   // Buscador de especies: filtra la lista por nombre común o científico.
   const spSearch = body.querySelector('#f-sp-search');
   if (spSearch) spSearch.oninput = (e) => {
@@ -375,7 +407,7 @@ function editPunto(id) {
       title_en: body.querySelector('#f-title-en').value.trim() || null,
       description: body.querySelector('#f-desc').value.trim() || null,
       description_en: body.querySelector('#f-desc-en').value.trim() || null,
-      tipo: body.querySelector('#f-tipo').value,
+      tipo: body.querySelector('#f-tipo').value === '__new__' ? (p.tipo || 'punto') : body.querySelector('#f-tipo').value,
       routes: pickedRoutes(), species_ids: pickedSpecies(), lng: loc[0], lat: loc[1], photo: photoUrl, photo_leaf: photoLeafUrl,
     };
     const res = await saveRow('waypoints', row, { photo: photoBlob, photo_leaf: photoLeafBlob });
@@ -1253,7 +1285,7 @@ function editSelect(kind, id) {
   // Punto: el panel abierto ya se desplazó a su fila (nada en el mapa); con el
   // panel cerrado, mostrar su ficha igual que fuera del modo edición. Mover el
   // punto es una acción aparte (botón ✋ Mover) para no soltar una manija encima.
-  if (kind === 'punto' && panelEl().classList.contains('hidden') && CTX.showWaypoint) CTX.showWaypoint(id);
+  if (kind === 'punto' && panelEl().classList.contains('hidden') && CTX.showPointPopup) CTX.showPointPopup(id);
 }
 function scrollRowIntoView(id) {
   const row = [...document.querySelectorAll('#admin-body .admin-row')].find((r) => r.dataset.id === id);
