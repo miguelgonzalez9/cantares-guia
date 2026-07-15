@@ -119,6 +119,13 @@ export async function deleteTrail(id) { const c = await getClient(); const { err
 export async function upsertRoute(r) { const c = await getClient(); const { error } = await c.from('routes').upsert(r); if (error) throw error; }
 export async function deleteRoute(id) { const c = await getClient(); const { error } = await c.from('routes').delete().eq('id', id); if (error) throw error; }
 
+// Tipos de punto (color/emoji/nombre) compartidos entre dispositivos. La tabla
+// point_types (migración 19) guarda sólo los que crea/edita el admin; los base
+// viven en el código. Lectura pública; escritura sólo admin (RLS).
+export const listPointTypes = () => sel('point_types');
+export async function upsertPointType(pt) { const c = await getClient(); const { error } = await c.from('point_types').upsert(pt); if (error) throw error; }
+export async function deletePointType(id) { const c = await getClient(); const { error } = await c.from('point_types').delete().eq('id', id); if (error) throw error; }
+
 // ---------- medios (fotos + videos): tabla runtime, espejo de media.json ----------
 export const listMedia = () => sel('media');
 export async function upsertMedia(m) {

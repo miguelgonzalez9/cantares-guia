@@ -6,7 +6,7 @@ import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout } from './auth-ui.js';
 import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor } from './admin.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
-import { initSync, pendingOps } from './sync.js';
+import { initSync, pendingOps, saveRow } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
@@ -73,16 +73,28 @@ function loadCustomTypes() {
   } catch (e) { /* json corrupto: ignorar */ }
 }
 loadCustomTypes();
-// Registra un tipo nuevo y refresca mapa + leyenda al vuelo. def: {tipo,emoji,color,es,en}.
-function registerPointType(def) {
-  const tp = String(def && def.tipo || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
-  if (!tp) return null;
-  TYPE_META[tp] = { emoji: def.emoji || '📍', color: def.color || '#5b6b60', es: def.es || tp, en: def.en || def.es || tp };
+// Funde un tipo en TYPE_META + cache local + refresca coloreado del mapa y leyenda.
+// row: {id, emoji, color, es, en}. NO escribe a la nube (eso lo hace registerPointType).
+function mergePointType(row) {
+  const tp = row && row.id; if (!tp) return null;
+  TYPE_META[tp] = { emoji: row.emoji || '📍', color: row.color || '#5b6b60', es: row.es || tp, en: row.en || row.es || tp };
   try { const raw = JSON.parse(localStorage.getItem('cantares_types') || '{}'); raw[tp] = TYPE_META[tp]; localStorage.setItem('cantares_types', JSON.stringify(raw)); } catch (e) { /* almacenamiento lleno */ }
   const map = state.map;
   if (map && map.getLayer('waypoints-pt')) { try { map.setPaintProperty('waypoints-pt', 'circle-color', typeColorMatch()); } catch (e) { /* estilo no listo */ } }
   renderLegend();
+  return tp;
+}
+// Aplica los tipos que vienen de la nube (la nube manda por id).
+function applyCloudTypes(list) { (list || []).forEach((r) => { if (r && r.id) mergePointType(r); }); }
+// Crea/edita un tipo: lo funde localmente Y lo sube a la nube (cola offline), para
+// que se sincronice entre dispositivos. def: {tipo,emoji,color,es,en}.
+function registerPointType(def) {
+  const tp = String(def && def.tipo || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
+  if (!tp) return null;
+  const row = { id: tp, emoji: def.emoji || '📍', color: def.color || '#5b6b60', es: def.es || tp, en: def.en || def.es || tp, sort: 0 };
+  mergePointType(row);
+  saveRow('point_types', row).catch((e) => console.warn('[cloud] point_type', e && e.message));
   return tp;
 }
 // Distinct tipos present in the loaded waypoints, in a stable, meaningful order.
@@ -1880,6 +1892,7 @@ async function main() {
       onSynced: async (n) => {
         toast(`☁️ ${n} cambio(s) sincronizado(s)`);
         await refreshRoutes(); await refreshTrails(); await refreshWaypoints(); await refreshSpecies(); await refreshMedia();
+        try { const cpt = await Cloud.listPointTypes(); applyCloudTypes(cpt); } catch (e) { /* tipos: sin conexión */ }
       },
       onPending: (n) => { const fab = document.getElementById('admin-fab'); if (fab) fab.dataset.pending = String(n || 0); },
       onStuck: (op) => toast(`⚠️ Un cambio (${op.table}) no se ha podido subir. Revisa tu sesión de admin; se seguirá reintentando.`),
@@ -1950,11 +1963,12 @@ function applyCloudSpecies(cs) {
 async function loadCloudData() {
   if (!Cloud.cloudConfigured()) return;
   try {
-    const [cw, cs, cr, ct, cm] = await Promise.all([
+    const [cw, cs, cr, ct, cm, cpt] = await Promise.all([
       Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null),
       Cloud.listRoutes().catch(() => null), Cloud.listTrails().catch(() => null),
-      Cloud.listMedia().catch(() => null),
+      Cloud.listMedia().catch(() => null), Cloud.listPointTypes().catch(() => null),
     ]);
+    if (cpt && cpt.length) applyCloudTypes(cpt);   // tipos de punto ANTES de coloreado/leyenda
     if (cw && cw.length) applyCloudWaypoints(cw);
     if (cs && cs.length) applyCloudSpecies(cs);
     if (cr && cr.length) applyCloudRoutes(cr);
@@ -2044,6 +2058,8 @@ function applyLocalRow(table, row) {
       if (i >= 0) list[i] = { ...list[i], ...row }; else list.push(row);
       applyCloudMedia(list);
       renderSpeciesGrid(); refreshOpenCard();
+    } else if (table === 'point_types') {
+      mergePointType(row);
     }
     if (state.activeRoute) selectRoute(state.activeRoute);
     if (state.map && state.map.triggerRepaint) state.map.triggerRepaint();   // fuerza repintado tras el cambio

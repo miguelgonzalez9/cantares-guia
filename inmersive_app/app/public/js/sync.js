@@ -4,12 +4,12 @@
 // senderos y puntos en plena montaña sin cobertura.
 import { cloudConfigured, uploadImage, upsertWaypoint, deleteWaypoint, upsertSpecies, deleteSpecies,
   upsertTrail, deleteTrail, upsertRoute, deleteRoute, upsertSighting, upsertWalk, deleteWalkCloud,
-  upsertMedia, deleteMedia } from './cloud.js';
+  upsertMedia, deleteMedia, upsertPointType, deletePointType } from './cloud.js';
 
 const UPSERT = { waypoints: upsertWaypoint, trails: upsertTrail, routes: upsertRoute, species: upsertSpecies,
-  sightings: upsertSighting, walks: upsertWalk, media: upsertMedia };
+  sightings: upsertSighting, walks: upsertWalk, media: upsertMedia, point_types: upsertPointType };
 const REMOVE = { waypoints: deleteWaypoint, trails: deleteTrail, routes: deleteRoute, species: deleteSpecies,
-  walks: deleteWalkCloud, media: deleteMedia };
+  walks: deleteWalkCloud, media: deleteMedia, point_types: deletePointType };
 // La clave de cada fila: id normal, o client_id (avistamientos: el id del
 // servidor lo genera la base; el cliente identifica por client_id).
 const rowKey = (row) => row.id != null ? row.id : row.client_id;
