@@ -283,10 +283,12 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .mp-body strong { display: block; font-size: 14px; color: var(--forest); margin: 4px 0 2px; }
 .mp-body p { margin: 0 0 8px; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .mp-badge { display: inline-block; font-size: 10px; font-weight: 700; color: #fff; padding: 2px 8px; border-radius: 999px; }
-.mp-actions { display: flex; gap: 6px; }
+.mp-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .mp-more { border: none; background: var(--forest); color: #fff; font-size: 12px; font-weight: 700;
   padding: 6px 12px; border-radius: 999px; cursor: pointer; flex: 1 1 auto; }
 .mp-edit { border: none; background: var(--sun, #fab814); color: var(--navy, #0a0e1d); font-size: 12px; font-weight: 800;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer; flex: 0 0 auto; }
+.mp-listen { border: none; background: var(--water, #2b8cbe); color: #fff; font-size: 12px; font-weight: 700;
   padding: 6px 12px; border-radius: 999px; cursor: pointer; flex: 0 0 auto; }
 
 /* ---------- Waypoint detail — full "page" over the map ---------- */
@@ -796,6 +798,16 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-newtype input#nt-es { flex: 1 1 120px; }
 .admin-newtype input#nt-emoji { width: 56px; flex: 0 0 auto; text-align: center; }
 .admin-newtype input#nt-color { width: 42px; height: 38px; padding: 2px; flex: 0 0 auto; }
+/* editor de tipos de punto: emoji + color + nombres (ES/EN) por fila */
+.admin-typerow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.admin-typerow input.tp-emoji { width: 48px; flex: 0 0 auto; text-align: center; }
+.admin-typerow input.tp-color { width: 40px; height: 36px; padding: 2px; flex: 0 0 auto; }
+.admin-typerow .tp-names { display: flex; flex-direction: column; gap: 4px; flex: 1 1 120px; }
+.admin-typerow .tp-save { flex: 0 0 auto; }
+/* editor de guiones de audioguía: un bloque por punto */
+.admin-script { margin: 6px 0; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.admin-script-h { font-size: 13px; font-weight: 700; color: var(--forest); margin-bottom: 4px; }
+.admin-script textarea { width: 100%; margin-bottom: 4px; }
 /* Encabezado de grupo dentro de un formulario (Puntos / Senderos del recorrido) */
 .admin-group-h { font-size: 13.5px; font-weight: 800; color: var(--forest); margin: 14px 0 2px;
   padding-top: 10px; border-top: 1.5px solid var(--line); }

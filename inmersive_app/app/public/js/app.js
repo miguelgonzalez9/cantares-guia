@@ -86,16 +86,21 @@ function mergePointType(row) {
 }
 // Aplica los tipos que vienen de la nube (la nube manda por id).
 function applyCloudTypes(list) { (list || []).forEach((r) => { if (r && r.id) mergePointType(r); }); }
-// Crea/edita un tipo: lo funde localmente Y lo sube a la nube (cola offline), para
-// que se sincronice entre dispositivos. def: {tipo,emoji,color,es,en}.
+// Guarda un tipo con id EXPLÍCITO (editar sin renombrar el id): lo funde localmente
+// Y lo sube a la nube (cola offline). row: {id,emoji,color,es,en,sort}.
+function savePointType(row) {
+  const id = row && row.id; if (!id) return null;
+  const full = { id, emoji: row.emoji || '📍', color: row.color || '#5b6b60', es: row.es || id, en: row.en || row.es || id, sort: row.sort || 0 };
+  mergePointType(full);
+  saveRow('point_types', full).catch((e) => console.warn('[cloud] point_type', e && e.message));
+  return id;
+}
+// Crea un tipo NUEVO: deriva el id (slug) del nombre. def: {tipo,emoji,color,es,en}.
 function registerPointType(def) {
   const tp = String(def && def.tipo || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
   if (!tp) return null;
-  const row = { id: tp, emoji: def.emoji || '📍', color: def.color || '#5b6b60', es: def.es || tp, en: def.en || def.es || tp, sort: 0 };
-  mergePointType(row);
-  saveRow('point_types', row).catch((e) => console.warn('[cloud] point_type', e && e.message));
-  return tp;
+  return savePointType({ id: tp, emoji: def.emoji, color: def.color, es: def.es, en: def.en, sort: 0 });
 }
 // Distinct tipos present in the loaded waypoints, in a stable, meaningful order.
 function presentTypes() {
@@ -980,6 +985,7 @@ function miniPopup(wp) {
       ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
       <div class="mp-actions">
         ${hasMore ? `<button class="mp-more" type="button">${t('more_info')} ›</button>` : ''}
+        ${(routeScript(state.guiding, p.id) || routeScript(state.activeRoute, p.id)) ? '<button class="mp-listen" type="button">🔊 Escuchar</button>' : ''}
         ${isAdminUser() ? '<button class="mp-edit" type="button">✏️ Editar</button>' : ''}
       </div>
     </div></div>`;
@@ -991,6 +997,8 @@ function miniPopup(wp) {
     el.addEventListener('mouseleave', scheduleClosePopup);
     const btn = el.querySelector('.mp-more');
     if (btn) btn.onclick = () => { removePopup(); showWaypoint(wp); };
+    const lsb = el.querySelector('.mp-listen');
+    if (lsb) lsb.onclick = () => { primeSpeech(); speakScript(routeScript(state.guiding, p.id) || routeScript(state.activeRoute, p.id)); };
     const edb = el.querySelector('.mp-edit');
     if (edb) edb.onclick = () => { removePopup(); try { openPointEditor(wp.properties.id); } catch (e) { /* admin no cargado */ } };
   }
@@ -1124,6 +1132,7 @@ function onGeoError(err) {
 // ----- guided mode: follow the visitor and surface points as they approach -----
 function startGuiding(id) {
   state.guiding = id;
+  primeSpeech();   // gesto del usuario: habilita el TTS para leer los guiones al llegar
   const built = buildRoutePath(id);
   if (built && state.map) state.map.easeTo({ center: built.path[0], zoom: 17.5, duration: 800 });
   if (state.watchId == null) locate();   // begin GPS follow (google-maps style)
@@ -1143,6 +1152,7 @@ function startGuiding(id) {
 function stopGuiding() {
   const wasId = state.guiding;
   state.guiding = null;
+  stopSpeech();   // corta cualquier guión en curso al terminar el recorrido
   releaseAwake();
   guideChip(false);
   if (isRecording()) stopWalk();   // guarda el recorrido guiado en el historial
@@ -1171,6 +1181,39 @@ function guideChip(show) {
   el.querySelector('.gc-stop').onclick = () => { if (confirm(t('guiding_confirm_end'))) stopGuiding(); };
 }
 
+// ---------- audioguía: guión por (recorrido, punto), leído en voz alta ----------
+// El guión es TEXTO (ES/EN) guardado en route.scripts[pointId]. Al llegar a un
+// punto durante un recorrido, el teléfono lo lee con la voz del sistema (TTS,
+// offline). Un punto sin guión en ese recorrido no activa audio. Como el mismo
+// punto puede estar en varios recorridos, la clave es (recorrido, punto).
+function routeScript(routeId, pointId) {
+  const r = routeId && state.routesById[routeId];
+  const s = r && r.scripts && r.scripts[pointId];
+  return (s && (s.es || s.en)) ? s : null;
+}
+// El TTS del navegador necesita un gesto del usuario para "despertar" (iOS).
+// Se ceba al iniciar el recorrido (que sí es un toque) con un enunciado mudo.
+let _speechPrimed = false;
+function primeSpeech() {
+  if (_speechPrimed || !('speechSynthesis' in window)) return;
+  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); _speechPrimed = true; } catch (e) { /* sin TTS */ }
+}
+function stopSpeech() { if ('speechSynthesis' in window) try { window.speechSynthesis.cancel(); } catch (e) { /* sin TTS */ } }
+// Lee un guión. cancel()+speak garantiza UN solo guión a la vez: si se llega a
+// otro punto antes de terminar, reemplaza (nunca se solapan dos audios).
+function speakScript(s) {
+  if (!s || !('speechSynthesis' in window)) return;
+  const text = (LANG === 'en' ? s.en : s.es) || s.es || s.en;
+  if (!text) return;
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = LANG === 'en' ? 'en-US' : 'es-CO';
+    u.rate = 0.95;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  } catch (e) { /* TTS no disponible: el guión igual está en pantalla */ }
+}
+
 function checkProximity() {
   if (!state.userPos || !state.guiding) return;   // sólo durante un recorrido iniciado
   state.waypoints.forEach((wp) => {
@@ -1182,6 +1225,8 @@ function checkProximity() {
       const arriveName = L(wp.properties, 'title') || wp.properties.title || '';
       if (arriveName) toast('📍 ' + arriveName);
       miniPopup(wp);   // arriving shows the small popup; visitor taps "Más info" to expand
+      const sc = routeScript(state.guiding, id);   // guión de ESTE recorrido en este punto
+      if (sc) speakScript(sc);
     } else if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) state.lastTriggered[id] = false;
   });
 }
@@ -1879,8 +1924,8 @@ async function main() {
         refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails,
         applyLocalRow, removeLocalRow,
         showPointPopup: (id) => { const w = wpById(id); if (w) miniPopup(w); },   // mismo popup que fuera del modo edición (con "más info" + "Editar")
-        pointTypes: () => Object.keys(TYPE_META).map((tp) => ({ tipo: tp, emoji: TYPE_META[tp].emoji, color: TYPE_META[tp].color, label: typeLabel(tp) })),
-        registerPointType,
+        pointTypes: () => Object.keys(TYPE_META).map((tp) => ({ tipo: tp, emoji: TYPE_META[tp].emoji, color: TYPE_META[tp].color, label: typeLabel(tp), es: TYPE_META[tp].es, en: TYPE_META[tp].en })),
+        registerPointType, savePointType,
         ensureGps: () => { if (state.watchId == null) locate(); },   // GPS caliente para marcar sin esperar
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
       initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); } });

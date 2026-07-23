@@ -204,7 +204,10 @@ function renderPuntos() {
   const body = document.getElementById('admin-body');
   const pts = CTX.state.waypoints.slice().sort((a, b) => (a.properties.title || '').localeCompare(b.properties.title || ''));
   body.innerHTML = `
-    <button class="admin-add" id="pt-add">＋ Nuevo punto</button>
+    <div class="admin-loc-btns" style="margin-bottom:6px">
+      <button class="admin-add" id="pt-add" style="flex:1">＋ Nuevo punto</button>
+      <button class="admin-pick" id="pt-types">🎨 Tipos de punto</button>
+    </div>
     <input class="admin-search" placeholder="🔎 Buscar punto… (toca para verlo en el mapa)">
     <div class="admin-list">${pts.map((w) => `
       <div class="admin-row" data-id="${esc(w.properties.id)}">
@@ -213,9 +216,44 @@ function renderPuntos() {
         <button class="admin-edit" data-id="${esc(w.properties.id)}">Editar</button>
       </div>`).join('')}</div>`;
   body.querySelector('#pt-add').onclick = () => editPunto(null);
+  body.querySelector('#pt-types').onclick = editTipos;
   body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = (e) => { e.stopPropagation(); editPunto(b.dataset.id); });
   wireList('punto');
   if (_selId) markSelectedRow(_selId);
+}
+
+// Editor de tipos de punto: color, emoji y nombre (ES/EN) de cada tipo. Comparte
+// base con la leyenda y el mapa (TYPE_META); editar un tipo base lo sobrescribe
+// vía la tabla point_types (la nube manda por id). Sincroniza entre dispositivos.
+function editTipos() {
+  const body = document.getElementById('admin-body');
+  const types = CTX.pointTypes ? CTX.pointTypes() : [];
+  body.innerHTML = `
+    <div class="admin-form">
+      <button class="admin-cancel" id="tp-back">← Volver a puntos</button>
+      <div class="admin-note">Cambia el color, símbolo y nombre de cada tipo. Se refleja en el mapa, la leyenda y el editor de puntos, y se sincroniza entre dispositivos.</div>
+      <div class="admin-list">${types.map((tp) => `
+        <div class="admin-typerow" data-id="${esc(tp.tipo)}">
+          <input class="tp-emoji" value="${esc(tp.emoji)}" maxlength="4" title="Símbolo">
+          <input class="tp-color" type="color" value="${esc(tp.color)}" title="Color del pin">
+          <div class="tp-names">
+            <input class="tp-es" value="${esc(tp.es || tp.label)}" placeholder="Nombre (ES)">
+            <input class="tp-en" value="${esc(tp.en || tp.es || tp.label)}" placeholder="Name (EN)">
+          </div>
+          <button type="button" class="admin-pick tp-save">Guardar</button>
+        </div>`).join('')}</div>
+    </div>`;
+  body.querySelector('#tp-back').onclick = renderPuntos;
+  body.querySelectorAll('.admin-typerow').forEach((rowEl) => {
+    rowEl.querySelector('.tp-save').onclick = () => {
+      const id = rowEl.dataset.id;
+      const es = rowEl.querySelector('.tp-es').value.trim() || id;
+      const row = { id, es, en: rowEl.querySelector('.tp-en').value.trim() || es,
+        emoji: rowEl.querySelector('.tp-emoji').value.trim() || '📍',
+        color: rowEl.querySelector('.tp-color').value || '#5b6b60' };
+      if (CTX.savePointType) { CTX.savePointType(row); CTX.toast(`✓ Tipo «${es}» actualizado`); }
+    };
+  });
 }
 
 function editPunto(id) {
@@ -1865,6 +1903,9 @@ function editRecorrido(id) {
     : CTX.state.waypoints.filter((w) => (w.properties.routes || []).includes(r.id)).map((w) => w.properties.id));
   if (startId) memberWork.add(startId);
   if (endId) memberWork.add(endId);
+  // Guiones por punto (audioguía): { [pointId]: {es, en} }. Se leen en voz alta
+  // al llegar a cada punto DURANTE ESTE recorrido. Un punto sin guión no suena.
+  let scriptWork = { ...(r.scripts || {}) };
   const wpTitle = (pid) => { const w = CTX.state.waypoints.find((x) => x.properties.id === pid); return w ? (CTX.L(w.properties, 'title') || w.properties.title || pid) : pid; };
   const wpOpts = (sel) => '<option value="">—</option>' + CTX.state.waypoints.map((w) => `<option value="${w.properties.id}" ${sel === w.properties.id ? 'selected' : ''}>${esc(CTX.L(w.properties, 'title') || w.properties.id)}</option>`).join('');
   body.innerHTML = `
@@ -1890,6 +1931,10 @@ function editRecorrido(id) {
           <button type="button" class="admin-pick" id="rt-mem-clear">Limpiar</button>
         </div></div>
       <div class="admin-note">Solo puntos del mapa (no vértices de senderos). Toca cada punto del recorrido: se marca en amarillo; tócalo de nuevo para quitarlo. Al terminar, ✓ Listo.</div>
+
+      <div class="admin-group-h">🎙️ Guiones por punto (audioguía)</div>
+      <div class="admin-note">Escribe el guión de cada punto <em>para este recorrido</em>. Al llegar al punto durante el recorrido, el teléfono lo lee en voz alta (como una audioguía de museo). El mismo punto puede tener otro guión en otro recorrido. Un punto sin guión no activa audio.</div>
+      <div id="rt-scripts"></div>
 
       <div class="admin-group-h">🥾 Senderos del recorrido (en orden)</div>
       <button type="button" class="admin-pick map-pick" id="rt-pick">🗺️ Elegir senderos en el mapa</button>
@@ -1925,16 +1970,40 @@ function editRecorrido(id) {
     highlightSegments(segWork, color);   // iluminar solo los elegidos, en el color del recorrido
   };
   renderSegs();
+  // Un textarea (ES/EN) por punto miembro. Se sincroniza a scriptWork en cada
+  // tecla para sobrevivir a los re-render (elegir puntos/senderos en el mapa).
+  const renderScriptsBlock = () => {
+    const el = document.getElementById('rt-scripts'); if (!el) return;
+    const ids = [...memberWork];
+    el.innerHTML = ids.length ? ids.map((pid) => {
+      const sc = scriptWork[pid] || {};
+      return `<div class="admin-script" data-pid="${esc(pid)}">
+        <div class="admin-script-h">📍 ${esc(wpTitle(pid))}</div>
+        <textarea class="sc-es" rows="2" placeholder="Guión en español (se lee al llegar)">${esc(sc.es)}</textarea>
+        <textarea class="sc-en" rows="2" placeholder="Script in English (optional)">${esc(sc.en)}</textarea>
+      </div>`; }).join('')
+      : '<div class="admin-note">Agrega puntos al recorrido (arriba) para escribirles un guión.</div>';
+    el.querySelectorAll('.admin-script').forEach((d) => {
+      const pid = d.dataset.pid;
+      const sync = () => {
+        const es = d.querySelector('.sc-es').value.trim(), en = d.querySelector('.sc-en').value.trim();
+        if (es || en) scriptWork[pid] = { es: es || null, en: en || null }; else delete scriptWork[pid];
+      };
+      d.querySelector('.sc-es').oninput = sync;
+      d.querySelector('.sc-en').oninput = sync;
+    });
+  };
+  renderScriptsBlock();
   const saveDraft = () => { _routeDraft = { id: r.id, _new: !id, sort: r.sort,
     name: body.querySelector('#rt-name').value, name_en: body.querySelector('#rt-name-en').value,
     emoji, color, summary: body.querySelector('#rt-sum').value, summary_en: body.querySelector('#rt-sum-en').value,
-    start_id: startId, end_id: endId, memberPoints: [...memberWork],
+    start_id: startId, end_id: endId, memberPoints: [...memberWork], scripts: scriptWork,
     segments: segWork.slice() }; };
   body.querySelector('#rt-pick').onclick = () => { saveDraft(); startRoutePick(id); };
   body.querySelector('#rt-start-pick').onclick = () => { saveDraft(); pickRoutePoint(id, 'start'); };
   body.querySelector('#rt-end-pick').onclick = () => { saveDraft(); pickRoutePoint(id, 'end'); };
   body.querySelector('#rt-mem-pick').onclick = () => { saveDraft(); startPointPick(id); };
-  body.querySelector('#rt-mem-clear').onclick = () => { memberWork.clear(); if (startId) memberWork.add(startId); if (endId) memberWork.add(endId); document.getElementById('rt-mem-lbl').textContent = `${memberWork.size} punto(s)`; };
+  body.querySelector('#rt-mem-clear').onclick = () => { memberWork.clear(); if (startId) memberWork.add(startId); if (endId) memberWork.add(endId); document.getElementById('rt-mem-lbl').textContent = `${memberWork.size} punto(s)`; renderScriptsBlock(); };
   body.querySelector('#rt-cancel').onclick = () => { clearHighlight(); renderRecorridos(); };
   if (id) body.querySelector('#rt-del').onclick = async () => {
     if (!confirm('¿Eliminar este recorrido?')) return;
@@ -1950,10 +2019,12 @@ function editRecorrido(id) {
       const okFirst = segsTouch(segWork[0], wpCoord(startId)), okLast = segsTouch(segWork[segWork.length - 1], wpCoord(endId));
       if (!(okFirst && okLast) && !confirm('El primer sendero no empieza en el punto de inicio o el último no termina en el de fin. ¿Guardar de todos modos? (Puedes usar “🧭 Ordenar inicio → fin”.)')) return;
     }
+    // Guardar solo los guiones de puntos que siguen en el recorrido.
+    const scripts = {}; for (const pid of memberWork) if (scriptWork[pid]) scripts[pid] = scriptWork[pid];
     const row = { id: r.id, name: body.querySelector('#rt-name').value.trim() || null, name_en: body.querySelector('#rt-name-en').value.trim() || null,
       emoji, color, summary: body.querySelector('#rt-sum').value.trim() || null, summary_en: body.querySelector('#rt-sum-en').value.trim() || null,
       start_id: startId || null, end_id: endId || null,
-      segments: segWork, sort: r.sort || 0 };
+      segments: segWork, scripts, sort: r.sort || 0 };
     body.querySelector('#rt-err').textContent = 'Guardando…';
     try {
       const res = await saveRow('routes', row);
