@@ -1,0 +1,25 @@
+FLAGS del inventario — revisar y corregir a mano:
+
+[CONFLICTO] Retrophyllum rospigliossi (3_Listado Especies Cantares.xlsx) vs ya-en-inventario: Retrophyllum rospigliosii
+[CLASE≠ÁRBOL] Sphaeropteris quinduiensis (Pteridopsida) en 3_Listado Especies Cantares.xlsx — ¿de verdad árbol?
+[CLASE≠ÁRBOL] Citharexylum subflavescens (Equisetopsida) en 3_Listado Especies Cantares.xlsx — ¿de verdad árbol?
+[CONFLICTO] Quercus humbolldi (3_Listado Especies Cantares.xlsx) vs ya-en-inventario: Quercus humboldtii
+[CLASE≠ÁRBOL] Camaedorea linearis (Liliopsida) en 3_Listado Especies Cantares.xlsx — ¿de verdad árbol?
+[CONFLICTO] Chrysochlamys colombiano (3_Listado Especies Cantares.xlsx) vs ya-en-inventario: Chrysochlamys colombiana; Chrysochlamys dependens
+[CONFLICTO] Palicourea angustifolia (3_Listado Especies Cantares.xlsx) vs ya-en-inventario: Palicourea acetosoides; Palicourea sprucei
+[CLASE≠ÁRBOL] Geonoma orbygniana (Liliopsida) en 3_Listado Especies Cantares.xlsx — ¿de verdad árbol?
+[CONFLICTO] Lafoensia punicifolia (3_Listado Especies Cantares.xlsx) vs ya-en-inventario: Lafoensia speciosa
+[CLASE≠ÁRBOL] Wettinia kalbreyeri (Liliopsida) en 3_Listado Especies Cantares.xlsx — ¿de verdad árbol?
+[CLASE≠ÁRBOL] Ceroxylon quindiuense (Liliopsida) en 3_Listado Especies Cantares.xlsx — ¿de verdad árbol?
+[CONFLICTO] Andigena hypoglauca (inventaro aves reserva cantares.xlsx) vs ya-en-inventario: Andigena nigrirostris
+[CONFLICTO] Anisognathus igniventris (inventaro aves reserva cantares.xlsx) vs ya-en-inventario: Anisognathus lacrymosus; Anisognathus somptuosus
+[CONFLICTO] Asio stygius (inventaro aves reserva cantares.xlsx) vs ya-en-inventario: Asio flammeus
+[CONFLICTO] Atlapetes schistaceus (inventaro aves reserva cantares.xlsx) vs ya-en-inventario: Atlapetes albinucha
+[CONFLICTO] Buteo sainsoni (inventaro aves reserva cantares.xlsx) vs ya-en-inventario: Buteo platypterus
+[CONFLICTO] Catharus ustulatus (inventaro aves reserva cantares.xlsx) vs ya-en-inventario: Catharus fuscater
+[CONFLICTO] Conirostrum sitticolor (inventaro aves reserva cantares.xlsx) vs ya-en-inventario: Conirostrum albifrons
+[CONFLICTO] Diglosa lafresnayii (inventaro aves reserva cantares.xlsx) vs ya-en-inventario: Diglosa humeralis
+[CONFLICTO] Spinus xanthogaster (inventaro aves reserva cantares.xlsx) vs ya-en-inventario: Spinus psaltria
+[MANUAL] inventario_tangaras.pdf: PDF escaneado (sin capa de texto) — extraer aves a mano o exportar a Excel.
+[MANUAL] 4_Fichas Técnicas.pdf: PDF de imágenes (sin texto) — dar la lista de especies aparte.
+[MANUAL] 2_Album_Flora_CANTARES_Duque&Galeano_2021.docx: Mezcla árboles y flores; hábito no es 1:1 → revisar y separar.

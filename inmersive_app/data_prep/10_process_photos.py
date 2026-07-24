@@ -46,6 +46,8 @@ THUMBS = IMG / "_thumbs"
 MEDIA_JSON = DATA / "media.json"
 SPECIES_JSON = DATA / "species.json"
 WAYPOINTS = DATA / "waypoints.geojson"
+TRAILS = DATA / "trails.geojson"
+ROUTES = DATA / "routes.json"
 
 # ---------- parámetros de imagen ----------
 FULL_MAX = 1600      # lado largo de la imagen principal (px)
@@ -79,17 +81,33 @@ def species_index():
     return idx
 
 
-def waypoint_ids():
+def _feature_ids(path):
     try:
-        fc = load_json(WAYPOINTS)
+        fc = load_json(path)
     except FileNotFoundError:
         return set()
     ids = set()
     for f in fc.get("features", []):
         p = f.get("properties", {})
         if p.get("id"):
-            ids.add(p["id"])
+            ids.add(str(p["id"]))
     return ids
+
+
+def waypoint_ids():
+    return _feature_ids(WAYPOINTS)
+
+
+def trail_ids():
+    return _feature_ids(TRAILS)
+
+
+def route_ids():
+    try:
+        doc = load_json(ROUTES)
+    except FileNotFoundError:
+        return set()
+    return {str(r["id"]) for r in doc.get("routes", []) if r.get("id")}
 
 
 # ---------- EXIF ----------
@@ -179,6 +197,11 @@ def main():
 
     sp_idx = species_index()
     wp_ids = waypoint_ids()
+    tr_ids = trail_ids()
+    rt_ids = route_ids()
+    # ids válidos + archivo de referencia por tipo de sujeto
+    VALID = {"species": (set(sp_idx), "species.json"), "waypoint": (wp_ids, "waypoints.geojson"),
+             "trail": (tr_ids, "trails.geojson"), "route": (rt_ids, "routes.json")}
     media = load_json(MEDIA_JSON) if MEDIA_JSON.exists() else {"_meta": {}, "photos": []}
     photos = media.setdefault("photos", [])
     # conserva campos manuales por 'file'
@@ -197,7 +220,9 @@ def main():
         return n
 
     jobs = [("especies", "species", IMG / "species"),
-            ("puntos", "waypoint", IMG / "waypoints")]
+            ("puntos", "waypoint", IMG / "waypoints"),
+            ("senderos", "trail", IMG / "trails"),
+            ("recorridos", "route", IMG / "routes")]
 
     processed = 0
     warnings = []
@@ -210,11 +235,11 @@ def main():
             continue
         for subj_dir in sorted(p for p in base.iterdir() if p.is_dir()):
             subject_id = subj_dir.name
-            # validación contra inventario
-            known = (subject_id in sp_idx) if subject_type == "species" else (subject_id in wp_ids)
-            if not known:
+            # validación contra el archivo de referencia del tipo de sujeto
+            valid_ids, ref_file = VALID[subject_type]
+            if subject_id not in valid_ids:
                 warnings.append(f"❓ id desconocido: {folder}/{subject_id}/ "
-                                f"(no está en {'species.json' if subject_type=='species' else 'waypoints.geojson'}) — omitido")
+                                f"(no está en {ref_file}) — omitido")
                 continue
             files = sorted(f for f in subj_dir.iterdir()
                            if f.is_file() and f.suffix.lower() in VALID_EXT | HEIC_EXT)

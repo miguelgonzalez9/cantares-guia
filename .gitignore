@@ -9,6 +9,10 @@ wa-logs.txt
 Thumbs.db
 desktop.ini
 
+# --- Python ---
+__pycache__/
+*.pyc
+
 # --- R ---
 .Rproj.user/
 .Rhistory
@@ -39,6 +43,31 @@ inmersive_app/inputs/maps/satellite/*.jpg
 inmersive_app/inputs/maps/satellite/*.jgw
 inmersive_app/inputs/maps/satellite/*.prj
 
+# --- SIC info/: contiene material PRIVADO (escrituras, contabilidad, media, WhatsApp).
+#     NADA de info/ entra al repo salvo el catálogo generado y los censos json/txt.
+#     Ver docs/SISTEMA_INFORMACION.md. (Antes solo se ignoraban pdf/office → fuga de
+#     .rar/.mp4/.jpg privados; ahora blanket + negaciones explícitas.) ---
+info/**
+!info/INDEX.md
+!info/catalog.json
+!info/censos_inventarios/
+!info/censos_inventarios/*.json
+!info/censos_inventarios/*.txt
+
+# --- SIC: fotos de campo del juego (originales; Dropbox respalda; se reingieren) ---
+inmersive_app/inputs/photos/field/_incoming/*.json
+inmersive_app/inputs/photos/field/_procesados/**
+inmersive_app/inputs/photos/field/**/*.jpg
+inmersive_app/inputs/photos/field/**/*.jpeg
+inmersive_app/inputs/photos/field/**/*.png
+!inmersive_app/inputs/photos/field/.gitkeep
+
+# --- SIC: archivo de fotos de los papás (fotos Y VIDEOS crudos; Dropbox respalda;
+#     clasificado local). Solo el catálogo generado + LÉEME entran al repo. ---
+fotos/**
+!fotos/catalog_fotos.json
+!fotos/LÉEME.txt
+
 # --- Secrets ---
 .env
 .env.*
@@ -46,3 +75,6 @@ inmersive_app/inputs/maps/satellite/*.prj
 # --- SQLite WAL/SHM transitorios de los GeoPackage (no versionar) ---
 *.gpkg-wal
 *.gpkg-shm
+
+# --- Archivo crudo de la reserva (41GB; Dropbox respalda; NO al repo) ---
+Reserva natural cantares/

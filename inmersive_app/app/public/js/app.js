@@ -229,6 +229,7 @@ const I18N = {
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
     id_plant: 'Identificar planta', id_bird: 'Identificar ave', id_inat: 'Sumar al inventario',
     f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos', f_anf: '🐸 Anfibios',
+    f_seen: '👁 Vistas', f_potential: '✨ Potenciales', f_bothtier: 'Ambas',
     grp_anfibio: 'Anfibios',
     count_suffix: 'especies · el inventario crece con cada avistamiento', possible: 'posible',
     info_h: 'La Reserva',
@@ -303,6 +304,7 @@ const I18N = {
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
     id_plant: 'Identify plant', id_bird: 'Identify bird', id_inat: 'Add to inventory',
     f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals', f_anf: '🐸 Amphibians',
+    f_seen: '👁 Seen', f_potential: '✨ Possible', f_bothtier: 'Both',
     grp_anfibio: 'Amphibians',
     count_suffix: 'species · the inventory grows with every sighting', possible: 'possible',
     info_h: 'The Reserve',
@@ -1283,6 +1285,11 @@ function speciesGroup(s) {
 }
 
 let speciesFilter = 'all';
+// Capa vista/potencial (aves): eBird distingue lo REGISTRADO en la reserva ('seen')
+// de lo que PODRÍA verse (unión montana, 'potential'). Todo lo no-ave (flora, fauna
+// del censo) cuenta como 'seen' (confirmado en la reserva). Default: sólo vistas.
+let seenFilter = 'seen';
+function speciesTier(s) { return (s.group === 'ave' && s.reserve_status) ? s.reserve_status : 'seen'; }
 function renderSpeciesFilters() {
   const wrap = $('#species-filters');
   // Sólo los grupos presentes (según el grupo derivado), en el orden canónico.
@@ -1297,9 +1304,28 @@ function renderSpeciesFilters() {
     b.onclick = () => { speciesFilter = key; renderSpeciesFilters(); renderSpeciesGrid(); };
     wrap.appendChild(b);
   });
+  // Segunda fila: capa vistas / potenciales. Sólo se muestra si hay aves potenciales.
+  const tw = $('#species-tier');
+  if (!tw) return;
+  const nPot = state.species.filter((s) => speciesTier(s) === 'potential').length;
+  if (!nPot) { tw.innerHTML = ''; return; }   // sin lista potencial → sin toggle
+  const nSeen = state.species.length - nPot;
+  const tiers = [['seen', `${t('f_seen')} (${nSeen})`], ['potential', `${t('f_potential')} (${nPot})`], ['all', t('f_bothtier')]];
+  tw.innerHTML = '';
+  tiers.forEach(([key, label]) => {
+    const b = document.createElement('button');
+    b.className = 'filter-chip' + (key === seenFilter ? ' active' : '');
+    b.textContent = label;
+    b.onclick = () => { seenFilter = key; renderSpeciesFilters(); renderSpeciesGrid(); };
+    tw.appendChild(b);
+  });
 }
 function filteredSpecies() {
-  return state.species.filter((s) => speciesFilter === 'all' ? true : speciesFilter === 'flagship' ? s.flagship : speciesGroup(s) === speciesFilter);
+  return state.species.filter((s) => {
+    const groupOk = speciesFilter === 'all' ? true : speciesFilter === 'flagship' ? s.flagship : speciesGroup(s) === speciesFilter;
+    const tierOk = seenFilter === 'all' ? true : speciesTier(s) === seenFilter;
+    return groupOk && tierOk;
+  });
 }
 function renderSpeciesGrid(highlightId) {
   const grid = $('#species-grid');
@@ -1357,7 +1383,7 @@ function renderSpeciesGrid(highlightId) {
 }
 function highlightSpecies(id) {
   if (!state.species.find((x) => x.id === id)) return;
-  speciesFilter = 'all'; renderSpeciesFilters(); renderSpeciesGrid(id);
+  speciesFilter = 'all'; seenFilter = 'all'; renderSpeciesFilters(); renderSpeciesGrid(id);
 }
 
 // ---------- ficha de especie (click en una especie) ----------

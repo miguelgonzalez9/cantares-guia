@@ -1,0 +1,1652 @@
+{
+  "hotspot": {
+    "id": "L28187817",
+    "name": "Cantares Reserva Natural",
+    "lat": 5.0824,
+    "lng": -75.4498
+  },
+  "n_seen": 205,
+  "n_already_in_inventory": 62,
+  "species": [
+    {
+      "scientific_name": "Accipiter striatus",
+      "common_es": "Gavilán Americano",
+      "common_en": "Sharp-shinned Hawk",
+      "family": "Accipitridae",
+      "order": "Accipitriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Acropternis orthonyx",
+      "common_es": "Tapaculo Ocelado",
+      "common_en": "Ocellated Tapaculo",
+      "family": "Rhinocryptidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Adelomyia melanogenys",
+      "common_es": "Colibrí Jaspeado",
+      "common_en": "Speckled Hummingbird",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Aglaeactis cupripennis",
+      "common_es": "Colibrí Cobrizo",
+      "common_en": "Shining Sunbeam",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Aglaiocercus kingii",
+      "common_es": "Silfo de King",
+      "common_en": "Long-tailed Sylph",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Amazona mercenarius",
+      "common_es": "Amazona Mercenaria",
+      "common_en": "Scaly-naped Amazon",
+      "family": "Psittacidae",
+      "order": "Psittaciformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Amblycercus holosericeus",
+      "common_es": "Cacique Piquiclaro",
+      "common_en": "Yellow-billed Cacique",
+      "family": "Icteridae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Ampelion rubrocristatus",
+      "common_es": "Cotinga Crestirrojo",
+      "common_en": "Red-crested Cotinga",
+      "family": "Cotingidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Anabacerthia striaticollis",
+      "common_es": "Ticotico Montano",
+      "common_en": "Montane Foliage-gleaner",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Andigena hypoglauca",
+      "common_es": "Tucán Pechigrís",
+      "common_en": "Gray-breasted Mountain-Toucan",
+      "family": "Ramphastidae",
+      "order": "Piciformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Andigena nigrirostris",
+      "common_es": "Tucán Piquinegro",
+      "common_en": "Black-billed Mountain-Toucan",
+      "family": "Ramphastidae",
+      "order": "Piciformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Anisognathus igniventris",
+      "common_es": "Tangara Ventriescarlata",
+      "common_en": "Scarlet-bellied Mountain Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Anisognathus lacrymosus",
+      "common_es": "Tangara Lacrimosa",
+      "common_en": "Lacrimose Mountain Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Anisognathus somptuosus",
+      "common_es": "Tangara Aliazul",
+      "common_en": "Blue-winged Mountain Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Ardea ibis",
+      "common_es": "Garcilla Bueyera Occidental",
+      "common_en": "Western Cattle-Egret",
+      "family": "Ardeidae",
+      "order": "Pelecaniformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Arremon assimilis",
+      "common_es": "Cerquero Picofino",
+      "common_en": "Gray-browed Brushfinch",
+      "family": "Passerellidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Arremon brunneinucha",
+      "common_es": "Cerquero Coronicastaño",
+      "common_en": "Chestnut-capped Brushfinch",
+      "family": "Passerellidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Asio stygius",
+      "common_es": "Búho Negruzco",
+      "common_en": "Stygian Owl",
+      "family": "Strigidae",
+      "order": "Strigiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Atlapetes albinucha",
+      "common_es": "Atlapetes Nuquiblanco",
+      "common_en": "White-naped Brushfinch",
+      "family": "Passerellidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Atlapetes pallidinucha",
+      "common_es": "Atlapetes Nuquipálido",
+      "common_en": "Pale-naped Brushfinch",
+      "family": "Passerellidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Atlapetes schistaceus",
+      "common_es": "Atlapetes Pizarroso",
+      "common_en": "Northern Slaty Brushfinch",
+      "family": "Passerellidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Aulacorhynchus albivitta",
+      "common_es": "Tucanete Gorjiblanco",
+      "common_en": "Southern Emerald-Toucanet",
+      "family": "Ramphastidae",
+      "order": "Piciformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Basileuterus tristriatus",
+      "common_es": "Reinita Cabecilistada",
+      "common_en": "Three-striped Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Boissonneaua flavescens",
+      "common_es": "Colibrí Colihabano",
+      "common_en": "Buff-tailed Coronet",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Bolborhynchus lineola",
+      "common_es": "Catita Barrada",
+      "common_en": "Barred Parakeet",
+      "family": "Psittacidae",
+      "order": "Psittaciformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Buteo brachyurus",
+      "common_es": "Busardo Colicorto",
+      "common_en": "Short-tailed Hawk",
+      "family": "Accipitridae",
+      "order": "Accipitriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Buteo platypterus",
+      "common_es": "Busardo Aliancho",
+      "common_en": "Broad-winged Hawk",
+      "family": "Accipitridae",
+      "order": "Accipitriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Buthraupis montana",
+      "common_es": "Tangara Montana",
+      "common_en": "Hooded Mountain Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cacicus chrysonotus",
+      "common_es": "Cacique Montano",
+      "common_en": "Mountain Cacique",
+      "family": "Icteridae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Campephilus pollens",
+      "common_es": "Picamaderos Poderoso",
+      "common_en": "Powerful Woodpecker",
+      "family": "Picidae",
+      "order": "Piciformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Camptostoma obsoletum",
+      "common_es": "Mosquerito Silbón",
+      "common_en": "Southern Beardless-Tyrannulet",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Caracara plancus",
+      "common_es": "Caracara Carancho",
+      "common_en": "Crested Caracara",
+      "family": "Falconidae",
+      "order": "Falconiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cardellina canadensis",
+      "common_es": "Reinita Canadiense",
+      "common_en": "Canada Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Catamblyrhynchus diadema",
+      "common_es": "Tangara Peluda",
+      "common_en": "Plushcap",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Cathartes aura",
+      "common_es": "Aura Gallipavo",
+      "common_en": "Turkey Vulture",
+      "family": "Cathartidae",
+      "order": "Cathartiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Catharus fuscater",
+      "common_es": "Zorzalito Sombrío",
+      "common_en": "Slaty-backed Nightingale-Thrush",
+      "family": "Turdidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Catharus ustulatus",
+      "common_es": "Zorzalito de Swainson",
+      "common_en": "Swainson's Thrush",
+      "family": "Turdidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Chaetocercus mulsant",
+      "common_es": "Colibrí de Mulsant",
+      "common_en": "White-bellied Woodstar",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Chamaepetes goudotii",
+      "common_es": "Pava Falcialar",
+      "common_en": "Sickle-winged Guan",
+      "family": "Cracidae",
+      "order": "Galliformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Chlorochrysa phoenicotis",
+      "common_es": "Tangara Verde",
+      "common_en": "Glistening-green Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Chlorophonia cyanocephala",
+      "common_es": "Eufonia Culidorada",
+      "common_en": "Golden-rumped Euphonia",
+      "family": "Fringillidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Chlorornis riefferii",
+      "common_es": "Tangara Lorito",
+      "common_en": "Grass-green Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Chlorospingus flavopectus",
+      "common_es": "Clorospingo Común",
+      "common_en": "Common Chlorospingus",
+      "family": "Passerellidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Chondrohierax uncinatus",
+      "common_es": "Milano Picogarfio",
+      "common_en": "Hook-billed Kite",
+      "family": "Accipitridae",
+      "order": "Accipitriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cinclus leucocephalus",
+      "common_es": "Mirlo Acuático Coroniblanco",
+      "common_en": "White-capped Dipper",
+      "family": "Cinclidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cinnycerthia olivascens",
+      "common_es": "Cucarachero Sepia",
+      "common_en": "Sharpe's Wren",
+      "family": "Troglodytidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cinnycerthia unirufa",
+      "common_es": "Cucarachero Rufo",
+      "common_en": "Rufous Wren",
+      "family": "Troglodytidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cnemoscopus rubrirostris",
+      "common_es": "Tangara Piquirrubia",
+      "common_en": "Pink-billed Cnemoscopus",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Coeligena coeligena",
+      "common_es": "Inca Bronceado",
+      "common_en": "Bronzy Inca",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Coeligena torquata",
+      "common_es": "Inca Acollarado",
+      "common_en": "Collared Inca",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Colaptes rivolii",
+      "common_es": "Carpintero Candela",
+      "common_en": "Crimson-mantled Woodpecker",
+      "family": "Picidae",
+      "order": "Piciformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Colaptes rubiginosus",
+      "common_es": "Carpintero Oliváceo",
+      "common_en": "Golden-olive Woodpecker",
+      "family": "Picidae",
+      "order": "Piciformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Colibri coruscans",
+      "common_es": "Colibrí Rutilante",
+      "common_en": "Sparkling Violetear",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Colibri cyanotus",
+      "common_es": "Colibrí Verdemar Menor",
+      "common_en": "Lesser Violetear",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Conirostrum albifrons",
+      "common_es": "Conirrostro Coronado",
+      "common_en": "Capped Conebill",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Contopus fumigatus",
+      "common_es": "Pibí Ahumado",
+      "common_en": "Smoke-colored Pewee",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Coragyps atratus",
+      "common_es": "Zopilote Negro",
+      "common_en": "Black Vulture",
+      "family": "Cathartidae",
+      "order": "Cathartiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cyanocorax yncas",
+      "common_es": "Chara Verde",
+      "common_en": "Green Jay",
+      "family": "Corvidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cyanoloxia cyanoides",
+      "common_es": "Picogrueso Negriazul",
+      "common_en": "Blue-black Grosbeak",
+      "family": "Cardinalidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cyanolyca armillata",
+      "common_es": "Chara Collareja",
+      "common_en": "Black-collared Jay",
+      "family": "Corvidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Cyclarhis nigrirostris",
+      "common_es": "Vireón Piquinegro",
+      "common_en": "Black-billed Peppershrike",
+      "family": "Vireonidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Daptrius chimachima",
+      "common_es": "Caracara Chimachima",
+      "common_en": "Yellow-headed Caracara",
+      "family": "Falconidae",
+      "order": "Falconiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Dendrocincla tyrannina",
+      "common_es": "Trepatroncos Tiranino",
+      "common_en": "Tyrannine Woodcreeper",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Dendrocygna autumnalis",
+      "common_es": "Suirirí Piquirrojo",
+      "common_en": "Black-bellied Whistling-Duck",
+      "family": "Anatidae",
+      "order": "Anseriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Diglossa albilatera",
+      "common_es": "Pinchaflor Flanquiblanco",
+      "common_en": "White-sided Flowerpiercer",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Diglossa cyanea",
+      "common_es": "Pinchaflor Enmascarado",
+      "common_en": "Masked Flowerpiercer",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Drymophila striaticeps",
+      "common_es": "Tiluchí Colilargo",
+      "common_en": "Streak-headed Antbird",
+      "family": "Thamnophilidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Dubusia taeniata",
+      "common_es": "Tangara Pechifulva Norteña",
+      "common_en": "Buff-banded Mountain Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Elaenia frantzii",
+      "common_es": "Fiofío Montano",
+      "common_en": "Mountain Elaenia",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Ensifera ensifera",
+      "common_es": "Colibrí Picoespada",
+      "common_en": "Sword-billed Hummingbird",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Euphonia xanthogaster",
+      "common_es": "Eufonia Ventrinaranja",
+      "common_en": "Orange-bellied Euphonia",
+      "family": "Fringillidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Falco peregrinus",
+      "common_es": "Halcón Peregrino",
+      "common_en": "Peregrine Falcon",
+      "family": "Falconidae",
+      "order": "Falconiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Falco sparverius",
+      "common_es": "Cernícalo Americano",
+      "common_en": "American Kestrel",
+      "family": "Falconidae",
+      "order": "Falconiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Geothlypis philadelphia",
+      "common_es": "Reinita Plañidera",
+      "common_en": "Mourning Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Geranoaetus albicaudatus",
+      "common_es": "Busardo Coliblanco",
+      "common_en": "White-tailed Hawk",
+      "family": "Accipitridae",
+      "order": "Accipitriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Glaucidium jardinii",
+      "common_es": "Mochuelo Andino",
+      "common_en": "Andean Pygmy-Owl",
+      "family": "Strigidae",
+      "order": "Strigiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Glyphorynchus spirurus",
+      "common_es": "Trepatroncos Picocuña",
+      "common_en": "Wedge-billed Woodcreeper",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Grallaria milleri",
+      "common_es": "Tororoí Bandeado",
+      "common_en": "Brown-banded Antpitta",
+      "family": "Grallariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Grallaria ruficapilla",
+      "common_es": "Tororoí Compadre",
+      "common_en": "Chestnut-crowned Antpitta",
+      "family": "Grallariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Grallaria rufocinerea",
+      "common_es": "Tororoí Bicolor",
+      "common_en": "Bicolored Antpitta",
+      "family": "Grallariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Grallaricula nana",
+      "common_es": "Ponchito Enano",
+      "common_en": "Slate-crowned Antpitta",
+      "family": "Grallariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Haplospiza rustica",
+      "common_es": "Yal Pizarroso",
+      "common_en": "Slaty Finch",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Heliangelus exortis",
+      "common_es": "Colibrí Turmalina",
+      "common_en": "Tourmaline Sunangel",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Heliodoxa rubinoides",
+      "common_es": "Brillante Pechigamuza",
+      "common_en": "Fawn-breasted Brilliant",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Henicorhina leucophrys",
+      "common_es": "Cucarachero Pechigrís",
+      "common_en": "Gray-breasted Wood-Wren",
+      "family": "Troglodytidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Henicorhina leucosticta",
+      "common_es": "Cucarachero Pechiblanco",
+      "common_en": "White-breasted Wood-Wren",
+      "family": "Troglodytidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Kleinothraupis atropileus",
+      "common_es": "Hemispingo Capirotado",
+      "common_en": "Black-capped Hemispingus",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Lafresnaya lafresnayi",
+      "common_es": "Colibrí Aterciopelado",
+      "common_en": "Mountain Velvetbreast",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Leiothlypis peregrina",
+      "common_es": "Reinita de Tennessee",
+      "common_en": "Tennessee Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Lepidocolaptes lacrymiger",
+      "common_es": "Trepatroncos Montano",
+      "common_en": "Montane Woodcreeper",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Lepidocolaptes souleyetii",
+      "common_es": "Trepatroncos Cabecirrayado",
+      "common_en": "Streak-headed Woodcreeper",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Leptopogon rufipectus",
+      "common_es": "Orejero Pechirrufo",
+      "common_en": "Rufous-breasted Flycatcher",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Leptosittaca branickii",
+      "common_es": "Aratinga de Pinceles",
+      "common_en": "Golden-plumed Parakeet",
+      "family": "Psittacidae",
+      "order": "Psittaciformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Lipaugus fuscocinereus",
+      "common_es": "Guardabosques Oscuro",
+      "common_en": "Dusky Piha",
+      "family": "Cotingidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Margarornis squamiger",
+      "common_es": "Subepalo Perlado",
+      "common_en": "Pearled Treerunner",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Mecocerculus leucophrys",
+      "common_es": "Piojito Gargantilla",
+      "common_en": "White-throated Tyrannulet",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Megascops albogularis",
+      "common_es": "Autillo Gorjiblanco",
+      "common_en": "White-throated Screech-Owl",
+      "family": "Strigidae",
+      "order": "Strigiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Metallura tyrianthina",
+      "common_es": "Metalura Tiria",
+      "common_en": "Tyrian Metaltail",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Mionectes striaticollis",
+      "common_es": "Mosquero Gorjiestriado",
+      "common_en": "Streak-necked Flycatcher",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Mniotilta varia",
+      "common_es": "Reinita Trepadora",
+      "common_en": "Black-and-white Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Molothrus bonariensis",
+      "common_es": "Tordo Renegrido",
+      "common_en": "Shiny Cowbird",
+      "family": "Icteridae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Momotus aequatorialis",
+      "common_es": "Momoto Serrano",
+      "common_en": "Andean Motmot",
+      "family": "Momotidae",
+      "order": "Coraciiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Myadestes ralloides",
+      "common_es": "Solitario Andino",
+      "common_en": "Andean Solitaire",
+      "family": "Turdidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myiarchus cephalotes",
+      "common_es": "Copetón Montañero",
+      "common_en": "Pale-edged Flycatcher",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Myioborus miniatus",
+      "common_es": "Candelita Plomiza",
+      "common_en": "Slate-throated Redstart",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myioborus ornatus",
+      "common_es": "Candelita Adornada",
+      "common_en": "Golden-fronted Redstart",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myiodynastes hemichrysus",
+      "common_es": "Bienteveo Ventridorado",
+      "common_en": "Golden-bellied Flycatcher",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myiotheretes fumigatus",
+      "common_es": "Birro Ahumado",
+      "common_en": "Smoky Bush-Tyrant",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myiotheretes striaticollis",
+      "common_es": "Birro Grande",
+      "common_en": "Streak-throated Bush-Tyrant",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myiothlypis coronata",
+      "common_es": "Reinita Coronirroja",
+      "common_en": "Russet-crowned Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myiothlypis luteoviridis",
+      "common_es": "Reinita Citrina",
+      "common_en": "Citrine Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myiothlypis nigrocristata",
+      "common_es": "Reinita Crestinegra",
+      "common_en": "Black-crested Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myiotriccus ornatus",
+      "common_es": "Mosquerito Adornado",
+      "common_en": "Ornate Flycatcher",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myiozetetes cayanensis",
+      "common_es": "Bienteveo Alicastaño",
+      "common_en": "Rusty-margined Flycatcher",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Myornis senilis",
+      "common_es": "Tapaculo Cenizo",
+      "common_en": "Ash-colored Tapaculo",
+      "family": "Rhinocryptidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Nothocercus julius",
+      "common_es": "Tinamú Cabecirrojo",
+      "common_en": "Tawny-breasted Tinamou",
+      "family": "Tinamidae",
+      "order": "Tinamiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Nyctibius griseus",
+      "common_es": "Nictibio Urutaú",
+      "common_en": "Common Potoo",
+      "family": "Nyctibiidae",
+      "order": "Nyctibiiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Ochthoeca cinnamomeiventris",
+      "common_es": "Pitajo Ventricastaño",
+      "common_en": "Chestnut-bellied Chat-Tyrant",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Ochthoeca fumicolor",
+      "common_es": "Pitajo Dorsipardo",
+      "common_en": "Brown-backed Chat-Tyrant",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Odontophorus hyperythrus",
+      "common_es": "Corcovado Castaño",
+      "common_en": "Chestnut Wood-Quail",
+      "family": "Odontophoridae",
+      "order": "Galliformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Orochelidon flavipes",
+      "common_es": "Golondrina Paticlara",
+      "common_en": "Pale-footed Swallow",
+      "family": "Hirundinidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Orochelidon murina",
+      "common_es": "Golondrina Ventriparda",
+      "common_en": "Brown-bellied Swallow",
+      "family": "Hirundinidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pachyramphus polychopterus",
+      "common_es": "Anambé Aliblanco",
+      "common_en": "White-winged Becard",
+      "family": "Tityridae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pachyramphus versicolor",
+      "common_es": "Anambé Barrado",
+      "common_en": "Barred Becard",
+      "family": "Tityridae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Parabuteo leucorrhous",
+      "common_es": "Busardo Culiblanco",
+      "common_en": "White-rumped Hawk",
+      "family": "Accipitridae",
+      "order": "Accipitriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Patagioenas fasciata",
+      "common_es": "Paloma Torcaza",
+      "common_en": "Band-tailed Pigeon",
+      "family": "Columbidae",
+      "order": "Columbiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Penelope montagnii",
+      "common_es": "Pava Andina",
+      "common_en": "Andean Guan",
+      "family": "Cracidae",
+      "order": "Galliformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Phaethornis syrmatophorus",
+      "common_es": "Ermitaño Ventrihabano",
+      "common_en": "Tawny-bellied Hermit",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pharomachrus auriceps",
+      "common_es": "Quetzal Cabecidorado",
+      "common_en": "Golden-headed Quetzal",
+      "family": "Trogonidae",
+      "order": "Trogoniformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pheugopedius mystacalis",
+      "common_es": "Cucarachero Bigotudo Montano",
+      "common_en": "Whiskered Wren",
+      "family": "Troglodytidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Piaya cayana",
+      "common_es": "Cuco Ardilla Común",
+      "common_en": "Common Squirrel-Cuckoo",
+      "family": "Cuculidae",
+      "order": "Cuculiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pionus chalcopterus",
+      "common_es": "Loro Alibronceado",
+      "common_en": "Bronze-winged Parrot",
+      "family": "Psittacidae",
+      "order": "Psittaciformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pionus menstruus",
+      "common_es": "Loro Cabeciazul",
+      "common_en": "Blue-headed Parrot",
+      "family": "Psittacidae",
+      "order": "Psittaciformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pionus tumultuosus",
+      "common_es": "Loro Tumultuoso",
+      "common_en": "Speckle-faced Parrot",
+      "family": "Psittacidae",
+      "order": "Psittaciformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pipraeidea melanonota",
+      "common_es": "Tangara de Antifaz",
+      "common_en": "Fawn-breasted Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pipreola riefferii",
+      "common_es": "Frutero Verdinegro",
+      "common_en": "Green-and-black Fruiteater",
+      "family": "Cotingidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Piranga rubra",
+      "common_es": "Piranga Roja",
+      "common_en": "Summer Tanager",
+      "family": "Cardinalidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Piranga rubriceps",
+      "common_es": "Piranga Capuchirroja",
+      "common_en": "Red-hooded Tanager",
+      "family": "Cardinalidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Poecilotriccus ruficeps",
+      "common_es": "Titirijí Capirrufo",
+      "common_en": "Rufous-crowned Tody-Flycatcher",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Porphyrio martinica",
+      "common_es": "Calamoncillo Americano",
+      "common_en": "Purple Gallinule",
+      "family": "Rallidae",
+      "order": "Gruiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Premnoplex brunnescens",
+      "common_es": "Subepalo Moteado",
+      "common_en": "Spotted Barbtail",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pseudocolaptes boissonneautii",
+      "common_es": "Trepamusgos Barbablanca Andino",
+      "common_en": "Streaked Tuftedcheek",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pseudotriccus ruficeps",
+      "common_es": "Tiranuelo Cabecirrojo",
+      "common_en": "Rufous-headed Pygmy-Tyrant",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pygochelidon cyanoleuca",
+      "common_es": "Golondrina Barranquera",
+      "common_en": "Blue-and-white Swallow",
+      "family": "Hirundinidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Pyrrhomyias cinnamomeus",
+      "common_es": "Birro Chico",
+      "common_en": "Cinnamon Flycatcher",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Ramphocelus flammigerus",
+      "common_es": "Tangara Flamígera",
+      "common_en": "Flame-rumped Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Ramphomicron microrhynchum",
+      "common_es": "Colibrí Piquicorto Común",
+      "common_en": "Purple-backed Thornbill",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Rupornis magnirostris",
+      "common_es": "Busardo Caminero",
+      "common_en": "Roadside Hawk",
+      "family": "Accipitridae",
+      "order": "Accipitriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Saltator atripennis",
+      "common_es": "Pepitero Alinegro",
+      "common_en": "Black-winged Saltator",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Saltator cinctus",
+      "common_es": "Pepitero Enmascarado",
+      "common_en": "Masked Saltator",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Saucerottia saucerottei",
+      "common_es": "Amazilia Verdiazul",
+      "common_en": "Steely-vented Hummingbird",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Sayornis nigricans",
+      "common_es": "Mosquero Negro",
+      "common_en": "Black Phoebe",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Schistes albogularis",
+      "common_es": "Colibrí Picocuña Occidental",
+      "common_en": "White-throated Daggerbill",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Scytalopus latrans",
+      "common_es": "Churrín Negruzco",
+      "common_en": "Blackish Tapaculo",
+      "family": "Rhinocryptidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Scytalopus spillmanni",
+      "common_es": "Churrín de Spillmann",
+      "common_en": "Spillmann's Tapaculo",
+      "family": "Rhinocryptidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Scytalopus stilesi",
+      "common_es": "Churrín de Stiles",
+      "common_en": "Stiles's Tapaculo",
+      "family": "Rhinocryptidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Sericossypha albocristata",
+      "common_es": "Tangara Coroniblanca",
+      "common_en": "White-capped Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Serpophaga cinerea",
+      "common_es": "Piojito Guardarríos",
+      "common_en": "Torrent Tyrannulet",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Setophaga castanea",
+      "common_es": "Reinita Castaña",
+      "common_en": "Bay-breasted Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Setophaga fusca",
+      "common_es": "Reinita Gorjinaranja",
+      "common_en": "Blackburnian Warbler",
+      "family": "Parulidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Sicalis flaveola",
+      "common_es": "Chirigüe Azafranado",
+      "common_en": "Saffron Finch",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Silvicultrix diadema",
+      "common_es": "Pitajo Diademado",
+      "common_en": "Yellow-bellied Chat-Tyrant",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Silvicultrix frontalis",
+      "common_es": "Pitajo Coronado",
+      "common_en": "Crowned Chat-Tyrant",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Sphenopsis frontalis",
+      "common_es": "Hemispingo Oleaginoso",
+      "common_en": "Oleaginous Hemispingus",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Sphenopsis melanotis",
+      "common_es": "Hemispingo Orejinegro",
+      "common_en": "Black-eared Hemispingus",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Spinus psaltria",
+      "common_es": "Jilguero Menor",
+      "common_en": "Lesser Goldfinch",
+      "family": "Fringillidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Spinus spinescens",
+      "common_es": "Jilguero Andino",
+      "common_en": "Andean Siskin",
+      "family": "Fringillidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Spinus xanthogastrus",
+      "common_es": "Jilguero Ventriamarillo",
+      "common_en": "Yellow-bellied Siskin",
+      "family": "Fringillidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Sporathraupis cyanocephala",
+      "common_es": "Tangara Coroniazul",
+      "common_en": "Blue-capped Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Stilpnia heinei",
+      "common_es": "Tangara Coroninegra",
+      "common_en": "Black-capped Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Streptoprocne rutila",
+      "common_es": "Vencejo Cuellirrojo",
+      "common_en": "Chestnut-collared Swift",
+      "family": "Apodidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Streptoprocne zonaris",
+      "common_es": "Vencejo Acollarado",
+      "common_en": "White-collared Swift",
+      "family": "Apodidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Strix albitarsis",
+      "common_es": "Cárabo Patiblanco",
+      "common_en": "Rufous-banded Owl",
+      "family": "Strigidae",
+      "order": "Strigiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Synallaxis azarae",
+      "common_es": "Pijuí de Azara",
+      "common_en": "Azara's Spinetail",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Synallaxis brachyura",
+      "common_es": "Pijuí Pizarroso",
+      "common_en": "Slaty Spinetail",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Systellura longirostris",
+      "common_es": "Chotacabras Ñañarca Grande",
+      "common_en": "Band-winged Nightjar",
+      "family": "Caprimulgidae",
+      "order": "Caprimulgiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Tangara arthus",
+      "common_es": "Tangara Dorada",
+      "common_en": "Golden Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Tangara labradorides",
+      "common_es": "Tangara Verdinegra",
+      "common_en": "Metallic-green Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Tangara nigroviridis",
+      "common_es": "Tangara de Lentejuelas",
+      "common_en": "Beryl-spangled Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Tangara vassorii",
+      "common_es": "Tangara Azulinegra",
+      "common_en": "Blue-and-black Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Tangara xanthocephala",
+      "common_es": "Tangara Coronigualda",
+      "common_en": "Saffron-crowned Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Thlypopsis superciliaris",
+      "common_es": "Hemispingo Cejudo",
+      "common_en": "Superciliaried Hemispingus",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Thripadectes flammulatus",
+      "common_es": "Trepamusgos Flamulado",
+      "common_en": "Flammulated Treehunter",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Thripadectes holostictus",
+      "common_es": "Trepamusgos Listado",
+      "common_en": "Striped Treehunter",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Troglodytes musculus",
+      "common_es": "Chochín Criollo Sureño",
+      "common_en": "Southern House Wren",
+      "family": "Troglodytidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Troglodytes solstitialis",
+      "common_es": "Chochín Montañés",
+      "common_en": "Mountain Wren",
+      "family": "Troglodytidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Trogon collaris",
+      "common_es": "Trogón Acollarado",
+      "common_en": "Collared Trogon",
+      "family": "Trogonidae",
+      "order": "Trogoniformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Trogon personatus",
+      "common_es": "Trogón Enmascarado",
+      "common_en": "Masked Trogon",
+      "family": "Trogonidae",
+      "order": "Trogoniformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Turdus fuscater",
+      "common_es": "Mirlo Grande",
+      "common_en": "Great Thrush",
+      "family": "Turdidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Turdus serranus",
+      "common_es": "Mirlo Serrano",
+      "common_en": "Glossy-black Thrush",
+      "family": "Turdidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Tyranniscus cinereiceps",
+      "common_es": "Mosquerito Cenizo",
+      "common_en": "Ashy-headed Tyrannulet",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Tyranniscus nigrocapillus",
+      "common_es": "Mosquerito Capirotado",
+      "common_en": "Black-capped Tyrannulet",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Tyrannus melancholicus",
+      "common_es": "Tirano Melancólico",
+      "common_en": "Tropical Kingbird",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Uranomitra franciae",
+      "common_es": "Amazilia Andina",
+      "common_en": "Andean Emerald",
+      "family": "Trochilidae",
+      "order": "Apodiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Uropsalis lyra",
+      "common_es": "Chotacabras Lira",
+      "common_en": "Lyre-tailed Nightjar",
+      "family": "Caprimulgidae",
+      "order": "Caprimulgiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Urothraupis stolzmanni",
+      "common_es": "Tangara de Stolzmann",
+      "common_en": "Black-backed Bush Tanager",
+      "family": "Thraupidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Vanellus chilensis",
+      "common_es": "Avefría Tero",
+      "common_en": "Southern Lapwing",
+      "family": "Charadriidae",
+      "order": "Charadriiformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Veniliornis dignus",
+      "common_es": "Carpintero Ventriamarillo",
+      "common_en": "Yellow-vented Woodpecker",
+      "family": "Picidae",
+      "order": "Piciformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Vireo leucophrys",
+      "common_es": "Vireo Coronipardo",
+      "common_en": "Brown-capped Vireo",
+      "family": "Vireonidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Xenops rutilans",
+      "common_es": "Picolezna Rojizo",
+      "common_en": "Streaked Xenops",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Xiphocolaptes promeropirhynchus",
+      "common_es": "Trepatroncos Picofuerte",
+      "common_en": "Strong-billed Woodcreeper",
+      "family": "Furnariidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Zenaida auriculata",
+      "common_es": "Zenaida Torcaza",
+      "common_en": "Eared Dove",
+      "family": "Columbidae",
+      "order": "Columbiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Zentrygon frenata",
+      "common_es": "Paloma Perdiz Gorjiblanca",
+      "common_en": "White-throated Quail-Dove",
+      "family": "Columbidae",
+      "order": "Columbiformes",
+      "in_census_inventory": true
+    },
+    {
+      "scientific_name": "Zimmerius chrysops",
+      "common_es": "Mosquerito Caridorado",
+      "common_en": "Golden-faced Tyrannulet",
+      "family": "Tyrannidae",
+      "order": "Passeriformes",
+      "in_census_inventory": false
+    },
+    {
+      "scientific_name": "Zonotrichia capensis",
+      "common_es": "Chingolo Común",
+      "common_en": "Rufous-collared Sparrow",
+      "family": "Passerellidae",
+      "order": "Passeriformes",
+      "in_census_inventory": true
+    }
+  ]
+}

@@ -12,7 +12,8 @@ import json, fitz
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PDF = ROOT / "inputs/maps/ortofoto_caminos.pdf"
+# El documento vive ahora en el sistema centralizado info/ (ver docs/SISTEMA_INFORMACION.md).
+PDF = ROOT.parent / "info" / "cartografia" / "ortofoto_caminos.pdf"
 OUTD = ROOT / "app/public/data"
 IMGD = ROOT / "app/public/img"
 IMGD.mkdir(parents=True, exist_ok=True)
