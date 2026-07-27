@@ -78,3 +78,7 @@ fotos/**
 
 # --- Archivo crudo de la reserva (41GB; Dropbox respalda; NO al repo) ---
 Reserva natural cantares/
+
+# --- data_prep clasificador: cache de embeddings + logs (regenerables) ---
+inmersive_app/data_prep/_archive_work/*.npz
+inmersive_app/data_prep/_archive_work/*.log

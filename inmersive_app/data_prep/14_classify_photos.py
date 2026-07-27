@@ -61,8 +61,6 @@ SPECIES_MIN = 0.30      # score de BioCLIP para asignar especie (softmax sobre e
 MARGIN_MIN = 0.08       # margen del 1º sobre el 2º candidato
 PUNTO_RADIUS_M = 20     # radio para asociar la foto a un waypoint (por GPS)
 
-# Categorías que NO son organismos (no van a BioCLIP; CLIP las resuelve).
-NON_ORGANISM = {"visitante", "infraestructura", "paisaje"}
 # grupo del inventario → carpeta de fauna (flora usa habit_folder)
 GROUP_CAT = {"ave": "aves", "mamifero": "mamiferos", "anfibio": "anfibios"}
 # categoría de CLIP → grupo esperado en el inventario. Si BioCLIP devuelve otro
@@ -71,8 +69,10 @@ CAT_GROUP = {"planta": "flora", "arbol": "flora", "flor": "flora",
              "ave": "ave", "mamifero": "mamifero", "anfibio": "anfibio"}
 
 CATEGORIES = ["plantas", "arboles", "flores", "aves", "mamiferos", "anfibios",
-              "insectos", "paisaje", "infraestructura", "visitantes", "_sin_clasificar"]
+              "reptiles", "insectos", "aracnidos", "hongos", "aguas", "paisaje",
+              "visitantes", "_sin_clasificar"]
 VALID_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+VIDEO_EXT = {".mp4", ".mov", ".m4v", ".avi"}     # se categorizan por consenso de frames
 HEIC_EXT = {".heic", ".heif"}
 
 # Hábito por familia (alta confianza en el bosque montano andino). Ambiguo → plantas.
@@ -83,9 +83,10 @@ FLOWER_FAMILIES = {"Orchidaceae"}
 
 # Etiqueta de CLIP (singular) → carpeta de salida (plural).
 CLIP_TO_FOLDER = {
-    "ave": "aves", "mamifero": "mamiferos", "anfibio": "anfibios", "insecto": "insectos",
+    "ave": "aves", "mamifero": "mamiferos", "anfibio": "anfibios", "reptil": "reptiles",
+    "insecto": "insectos", "aracnido": "aracnidos", "hongo": "hongos", "aguas": "aguas",
     "flor": "flores", "planta": "plantas", "arbol": "arboles",
-    "visitante": "visitantes", "infraestructura": "infraestructura", "paisaje": "paisaje",
+    "visitante": "visitantes", "paisaje": "paisaje",
 }
 
 
@@ -238,25 +239,21 @@ def nearest_punto(latlon, wps):
     return None, None
 
 
-# ---------- decisión de categoría/especie (local: CLIP + BioCLIP) ----------
-def decide(category, cscore, preds, by_sci):
-    """category, cscore: CLIP.  preds: [(sci,score)] de BioCLIP (cerrado al inventario) o [].
-    Devuelve (carpeta, species_dict|None, species_score, razon)."""
-    folder = CLIP_TO_FOLDER.get(category, "_sin_clasificar")
-    if cscore < CLIP_CONF_MIN:
-        return "_sin_clasificar", None, 0.0, f"categoría incierta (CLIP {cscore:.2f})"
-    if category in NON_ORGANISM:
-        return folder, None, 0.0, "no-organismo (CLIP)"
-    # organismo → BioCLIP sobre el conjunto cerrado del inventario
-    if preds:
-        top_sci, top_sc = preds[0]
-        second = preds[1][1] if len(preds) > 1 else 0.0
-        rec = by_sci.get((top_sci or "").lower())
-        agree = rec and rec.get("group") == CAT_GROUP.get(category)
-        if top_sc >= SPECIES_MIN and (top_sc - second) >= MARGIN_MIN and agree:
-            return species_folder(rec), rec, top_sc, "especie confirmada (BioCLIP)"
-        return folder, None, top_sc, "organismo, especie incierta (BioCLIP)"
-    return folder, None, 0.0, "organismo, sin especie"
+# ---------- confirmación de especie (BioCLIP, cerrado al inventario) ----------
+# La CATEGORÍA la decide id_local.decide_category (umbral+margen calibrados,
+# anti-falso-positivo). Aquí solo se refina a ESPECIE cuando CLIP dice organismo y
+# BioCLIP concuerda de grupo con confianza — si no, se queda en la carpeta-categoría.
+def confirm_species(category, preds, by_sci):
+    """Devuelve (species_dict|None, score). Guardia: BioCLIP concuerda de grupo con CLIP,
+    supera SPECIES_MIN y el margen sobre el 2º candidato."""
+    if not preds:
+        return None, 0.0
+    top_sci, top_sc = preds[0]
+    second = preds[1][1] if len(preds) > 1 else 0.0
+    rec = by_sci.get((top_sci or "").lower())
+    if rec and rec.get("group") == CAT_GROUP.get(category) and top_sc >= SPECIES_MIN and (top_sc - second) >= MARGIN_MIN:
+        return rec, top_sc
+    return None, top_sc
 
 
 # ---------- principal ----------
@@ -276,19 +273,20 @@ def main():
             common_counts[c] = common_counts.get(c, 0) + 1
     wps = load_waypoints()
 
-    # fotos nuevas = archivos sueltos en la RAÍZ de fotos/ (no en las subcarpetas)
+    # nuevos = archivos sueltos en la RAÍZ de fotos/ (no en subcarpetas). Fotos Y VIDEOS.
     new = [f for f in sorted(FOTOS.glob("*"))
-           if f.is_file() and f.suffix.lower() in VALID_EXT | HEIC_EXT]
+           if f.is_file() and f.suffix.lower() in VALID_EXT | VIDEO_EXT | HEIC_EXT]
     if not new:
-        print(f"Sin fotos nuevas en {FOTOS.name}/. (Suelta fotos ahí y re-corre.)")
+        print(f"Sin archivos nuevos en {FOTOS.name}/. (Suelta fotos/videos ahí y re-corre.)")
         return
 
     import id_local   # carga perezosa de los modelos (CLIP + BioCLIP) al 1er uso
     print(f"Cargando modelos locales (CLIP + BioCLIP, {len(names)} especies en el conjunto cerrado)…")
 
-    n_species = n_general = n_unclass = n_dup = n_heic = n_punto = 0
+    n_species = n_general = n_unclass = n_dup = n_heic = n_punto = n_video = 0
     for f in new:
-        if f.suffix.lower() in HEIC_EXT:
+        ext = f.suffix.lower()
+        if ext in HEIC_EXT:
             n_heic += 1
             continue
         h = sha256(f)
@@ -298,15 +296,25 @@ def main():
                 f.unlink()
             continue
         seen.add(h)
-        date, latlon = read_exif(f)
+        is_video = ext in VIDEO_EXT
+        date, latlon = (None, None) if is_video else read_exif(f)   # PIL no lee EXIF de video
         punto, pdist = nearest_punto(latlon, wps)
 
-        category, cscore = id_local.classify_category(f)          # CLIP (categoría gruesa)
-        preds = []
-        if cscore >= CLIP_CONF_MIN and category not in NON_ORGANISM:
-            preds = id_local.identify_species(f, names)           # BioCLIP (cerrado al inventario)
-        folder, sp, sscore, reason = decide(category, cscore, preds, by_sci)
+        sp, sscore, preds = None, 0.0, []
+        if is_video:                          # VIDEO: categoría por consenso de frames
+            frames = id_local.video_category_scores(f, n=3)
+            cat, reason = id_local.decide_video(frames)
+            cscore = max((s[0][1] for s in frames), default=0.0)
+            n_video += 1
+        else:                                 # FOTO: categoría CLIP calibrada + especie BioCLIP
+            scores = id_local.category_scores(f)
+            cat, reason = id_local.decide_category(scores)
+            cscore = scores[0][1]
+            if cat and cat in id_local.ORGANISM_CATS:
+                preds = id_local.identify_species(f, names)
+                sp, sscore = confirm_species(cat, preds, by_sci)
 
+        folder = species_folder(sp) if sp else (CLIP_TO_FOLDER.get(cat, "_sin_clasificar") if cat else "_sin_clasificar")
         if sp:
             dest_dir = FOTOS / folder / common_dirname(sp, common_counts)   # carpeta = nombre común
             n_species += 1
@@ -317,15 +325,15 @@ def main():
             else:
                 n_general += 1
         stem = f"{(date or '')[:10] or 'sinfecha'}_{h[:8]}"
-        dest = dest_dir / f"{stem}{f.suffix.lower()}"
+        dest = dest_dir / f"{stem}{ext}"
         if punto:
             n_punto += 1
 
         rec = {
-            "hash": h, "file": None, "category": folder,
+            "hash": h, "file": None, "category": folder, "kind": "video" if is_video else "photo",
             "species_id": slug(sp["scientific_name"]) if sp else None,   # id = nombre científico
             "scientific_name": (sp["scientific_name"] if sp else (preds[0][0] if preds else "")),
-            "clip_category": category, "clip_score": round(cscore, 3),
+            "clip_category": cat or "", "clip_score": round(cscore, 3),
             "bioclip_score": round(sscore, 3),
             "punto": punto, "punto_dist_m": pdist,
             "date": date, "lat": latlon[0] if latlon else None, "lon": latlon[1] if latlon else None,
@@ -341,8 +349,8 @@ def main():
         catalog["generated"] = datetime.now(tz=timezone.utc).isoformat(timespec="seconds")
         CATALOG.write_text(json.dumps(catalog, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"{'DRY-RUN — ' if DRY else ''}Clasificación de fotos (local: CLIP + BioCLIP, $0)")
-    print(f"  Nuevas procesadas: {len(new) - n_heic}")
+    print(f"{'DRY-RUN — ' if DRY else ''}Clasificación de fotos y videos (local: CLIP + BioCLIP, $0)")
+    print(f"  Nuevas procesadas: {len(new) - n_heic}  (de las cuales videos: {n_video})")
     print(f"    → especie confirmada: {n_species}")
     print(f"    → categoría general (especie/tipo incierto): {n_general}")
     print(f"    → _sin_clasificar/: {n_unclass}")
