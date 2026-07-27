@@ -439,6 +439,21 @@ function makeArrowIcon(map) {
   x.fill(); x.stroke();
   map.addImage('arrow', x.getImageData(0, 0, s, s));
 }
+// Haz de brújula: abanico translúcido con vértice en el usuario, dibujado
+// apuntando hacia ARRIBA (norte del mapa a icon-rotate=0). pixelRatio:2 → nítido
+// en retina; tamaño lógico ≈64 px.
+function makeHeadingCone(map) {
+  if (map.hasImage('heading-cone')) return;
+  const S = 128, cx = S / 2, cy = S / 2, R = 54, half = 30 * Math.PI / 180;
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(cx, cy, 6, cx, cy, R);
+  g.addColorStop(0, 'rgba(43,140,190,0.55)'); g.addColorStop(1, 'rgba(43,140,190,0)');
+  x.fillStyle = g;
+  x.beginPath(); x.moveTo(cx, cy);
+  x.arc(cx, cy, R, -Math.PI / 2 - half, -Math.PI / 2 + half); x.closePath(); x.fill();
+  map.addImage('heading-cone', x.getImageData(0, 0, S, S), { pixelRatio: 2 });
+}
 
 const emptyFC = () => ({ type: 'FeatureCollection', features: [] });
 // MapLibre `match` expression coloring a point by its `tipo` (legend parity).
@@ -481,6 +496,7 @@ async function initMap() {
     setTimeout(finish, 11000);
     onStyleReady(map, () => {
       makeArrowIcon(map);
+      makeHeadingCone(map);
       // zones
       map.addSource('zones', { type: 'geojson', data: zones });
       const zv = state.zonesVisible ? 'visible' : 'none';   // apagadas por defecto
@@ -545,6 +561,13 @@ async function initMap() {
       map.addLayer({ id: 'user-acc', type: 'circle', source: 'user',
         paint: { 'circle-radius': 0, 'circle-color': '#2b8cbe', 'circle-opacity': 0.15,
           'circle-stroke-color': '#2b8cbe', 'circle-stroke-width': 1, 'circle-stroke-opacity': 0.35 } });
+      // Haz de dirección (estilo Google Maps): sólo aparece cuando hay rumbo de
+      // brújula. rotation-alignment:'map' → MapLibre lo mantiene correcto aunque
+      // el mapa esté rotado; icon-rotate = rumbo en grados horarios desde el norte.
+      map.addLayer({ id: 'user-heading', type: 'symbol', source: 'user',
+        filter: ['has', 'heading'],
+        layout: { 'icon-image': 'heading-cone', 'icon-rotate': ['get', 'heading'],
+          'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
       map.addLayer({ id: 'user-dot', type: 'circle', source: 'user',
         paint: { 'circle-radius': 7, 'circle-color': '#2b8cbe', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
       map.on('zoom', updateAccuracyCircle);
@@ -1081,16 +1104,65 @@ function locate() {
   state.following = true;
   setGps('searching', t('gps_searching'));
   $('#locate-btn').classList.add('tracking');
+  startHeading();   // brújula: pide permiso (iOS) dentro del gesto del tap
   navigator.geolocation.getCurrentPosition(onPosition, onGeoError, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
   state.watchId = navigator.geolocation.watchPosition(onPosition, onGeoError, { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 });
 }
 function stopTracking() {
   if (state.watchId != null) navigator.geolocation.clearWatch(state.watchId);
   state.watchId = null; state.following = false;
+  stopHeading();
   $('#locate-btn').classList.remove('tracking'); setGps('off', t('gps'));
   // Sin GPS no hay avisos de proximidad: cerrar también el modo guiado para
   // que el estado visible coincida con lo que de verdad está pasando.
   if (state.guiding) stopGuiding();
+}
+// El punto del usuario lleva su rumbo (si lo hay) como propiedad `heading`, que
+// alimenta el haz de dirección. Una sola feature para halo + haz + punto.
+function pushUserFeature() {
+  const src = state.map && state.map.getSource('user');
+  if (!src) return;
+  const props = state.heading != null ? { heading: state.heading } : {};
+  src.setData({ type: 'FeatureCollection', features: state.userPos
+    ? [{ type: 'Feature', geometry: { type: 'Point', coordinates: state.userPos }, properties: props }]
+    : [] });
+}
+// ---------- device heading (brújula, estilo Google Maps) ----------
+// Suaviza el rumbo por el camino corto (evita el salto 359°→0°).
+function smoothHeading(prev, next, a = 0.2) {
+  if (prev == null) return next;
+  const d = ((next - prev + 540) % 360) - 180;
+  return (prev + a * d + 360) % 360;
+}
+let _headingRaf = 0;
+function onDeviceOrientation(e) {
+  let h = null;
+  if (e.webkitCompassHeading != null) h = e.webkitCompassHeading;   // iOS: grados horarios desde el norte
+  else if (e.absolute && e.alpha != null) h = 360 - e.alpha;        // Android absoluto
+  if (h == null || isNaN(h)) return;
+  // Compensa la rotación de pantalla (no-op en vertical). Si en horizontal el haz
+  // apunta al revés en el terreno, invertir el signo aquí (calibración de campo).
+  const scr = (screen.orientation && screen.orientation.angle) || 0;
+  h = (h + scr + 360) % 360;
+  state.heading = smoothHeading(state.heading, h);
+  if (!_headingRaf) _headingRaf = requestAnimationFrame(() => { _headingRaf = 0; pushUserFeature(); });
+}
+function startHeading() {
+  if (state._headingOn || !window.isSecureContext) return;
+  const attach = () => {
+    state._headingOn = true;
+    if ('ondeviceorientationabsolute' in window) window.addEventListener('deviceorientationabsolute', onDeviceOrientation, true);
+    window.addEventListener('deviceorientation', onDeviceOrientation, true);
+  };
+  const req = window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission;
+  if (typeof req === 'function') req().then((s) => { if (s === 'granted') attach(); }).catch(() => {});   // iOS 13+: requiere gesto (el tap de ubicar)
+  else attach();
+}
+function stopHeading() {
+  state._headingOn = false;
+  window.removeEventListener('deviceorientationabsolute', onDeviceOrientation, true);
+  window.removeEventListener('deviceorientation', onDeviceOrientation, true);
+  state.heading = null; pushUserFeature();
 }
 function onPosition(pos) {
   const { longitude, latitude, accuracy } = pos.coords;
@@ -1098,8 +1170,7 @@ function onPosition(pos) {
   state.userAccuracy = accuracy;   // metros — para el círculo de precisión
   setGps('on', `±${Math.round(accuracy)} m`);
   window.dispatchEvent(new CustomEvent('cantares:position', { detail: { lng: longitude, lat: latitude, accuracy } }));   // stream compartido (grabador)
-  const src = state.map && state.map.getSource('user');
-  if (src) src.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: state.userPos }, properties: {} }] });
+  pushUserFeature();
   updateAccuracyCircle();
   if (state.map) {
     if (!state.firstFix) { state.map.flyTo({ center: state.userPos, zoom: 17, duration: 900 }); state.firstFix = true; }
