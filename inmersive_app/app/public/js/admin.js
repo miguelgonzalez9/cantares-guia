@@ -886,6 +886,159 @@ function assignPicker(m) {
 }
 
 // Abre el clasificador directamente en un punto/especie (desde sus editores).
+// ---- Editor de contenido de páginas (Historia / Info) --------------------
+// Un solo editor guiado por esquema: campos sueltos + listas con añadir /
+// borrar / reordenar. Guarda el DOCUMENTO COMPLETO en la tabla `content`
+// (migración 22) por la cola offline, así que funciona sin señal.
+const F = (k, t, l, ph) => ({ k, t, l, ph });
+const CONTENT_SCHEMA = {
+  historia: {
+    label: '📖 Nuestra Historia',
+    fields: [F('lead', 'area', 'Frase de apertura (ES)'), F('lead_en', 'area', 'Opening line (EN)')],
+    lists: [
+      { path: 'secciones', label: 'Secciones', title: (it) => it.titulo || '(sin título)',
+        item: [F('titulo', 'text', 'Título (ES)'), F('titulo_en', 'text', 'Title (EN)'),
+          F('texto', 'area', 'Texto (ES)', 'Separa párrafos con una línea en blanco'),
+          F('texto_en', 'area', 'Text (EN)'), F('pie', 'text', 'Pie de sección'),
+          F('foto', 'text', 'Foto (ruta)', 'img/…')] },
+      { path: 'hitos.items', label: 'Línea de tiempo', title: (it) => it.fecha || '(sin fecha)',
+        item: [F('fecha', 'text', 'Fecha'), F('texto', 'area', 'Qué pasó (ES)'),
+          F('texto_en', 'area', 'What happened (EN)'), F('hito', 'check', 'Hito mayor (punto dorado)')] },
+    ],
+  },
+  comercial: {
+    label: '🎟️ Info: servicios y reseñas',
+    fields: [F('airbnb_url', 'text', 'Enlace de Airbnb'), F('instagram_url', 'text', 'Enlace de Instagram'),
+      F('instagram_handle', 'text', 'Usuario de Instagram'), F('email', 'text', 'Correo'),
+      F('telefono', 'text', 'Teléfono'), F('whatsapp', 'text', 'WhatsApp (solo dígitos)')],
+    lists: [
+      { path: 'servicios', label: 'Servicios y tarifas', title: (it) => it.nombre || '(sin nombre)',
+        item: [F('emoji', 'text', 'Emoji'), F('nombre', 'text', 'Nombre (ES)'), F('nombre_en', 'text', 'Name (EN)'),
+          F('tarifa', 'text', 'Tarifa'), F('horario', 'text', 'Horario (ES)'), F('horario_en', 'text', 'Hours (EN)'),
+          F('incluye', 'lines', 'Incluye (una por línea)'), F('nota', 'area', 'Nota')] },
+      { path: 'adicionales', label: 'Servicios adicionales', simple: true, title: (it) => String(it || '') },
+      { path: 'resenas', label: 'Comentarios (Airbnb)', title: (it) => it.autor || '(sin autor)',
+        item: [F('autor', 'text', 'Nombre'), F('origen', 'text', 'De dónde / antigüedad'),
+          F('fecha', 'text', 'Fecha'), F('estadia', 'text', 'Estadía'),
+          F('estrellas', 'text', 'Estrellas (1–5)'), F('traducido', 'check', 'Traducido por Airbnb'),
+          F('texto', 'area', 'Comentario')] },
+    ],
+  },
+};
+const getPath = (o, p) => p.split('.').reduce((a, k) => (a && a[k] != null ? a[k] : undefined), o);
+function setPath(o, p, v) {
+  const ks = p.split('.'); let cur = o;
+  ks.slice(0, -1).forEach((k) => { if (typeof cur[k] !== 'object' || cur[k] == null) cur[k] = {}; cur = cur[k]; });
+  cur[ks[ks.length - 1]] = v;
+}
+export function openContentEditor(key) {
+  const sch = CONTENT_SCHEMA[key]; if (!sch) return;
+  // Copia profunda: se edita en borrador y sólo se escribe al guardar.
+  const src = key === 'historia' ? CTX.state.historia : CTX.state.comercial;
+  const doc = JSON.parse(JSON.stringify(src || {}));
+  let open = null;   // `${listIdx}:${itemIdx}` del ítem desplegado
+  let ov = document.getElementById('ce-ov');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'ce-ov'; ov.className = 'ce-ov'; document.body.appendChild(ov); }
+  const close = () => ov.remove();
+
+  const inputFor = (f, val, id) => {
+    const v = val == null ? '' : val;
+    if (f.t === 'check') return `<label class="ce-chk"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}> ${esc(f.l)}</label>`;
+    const lbl = `<label class="ce-lbl" for="${id}">${esc(f.l)}</label>`;
+    const ph = f.ph ? ` placeholder="${esc(f.ph)}"` : '';
+    if (f.t === 'area') return `${lbl}<textarea id="${id}" rows="4"${ph}>${esc(v)}</textarea>`;
+    if (f.t === 'lines') return `${lbl}<textarea id="${id}" rows="4"${ph}>${esc(Array.isArray(v) ? v.join('\n') : v)}</textarea>`;
+    return `${lbl}<input id="${id}" value="${esc(v)}"${ph}>`;
+  };
+  const readInto = (obj, fields, prefix) => fields.forEach((f) => {
+    const el = ov.querySelector('#' + prefix + f.k); if (!el) return;
+    if (f.t === 'check') obj[f.k] = el.checked;
+    else if (f.t === 'lines') obj[f.k] = el.value.split('\n').map((x) => x.trim()).filter(Boolean);
+    else obj[f.k] = el.value;
+  });
+
+  function render() {
+    const lists = sch.lists.map((L, li) => {
+      const arr = getPath(doc, L.path) || [];
+      const rows = arr.map((it, ii) => {
+        const isOpen = open === `${li}:${ii}`;
+        const body = !isOpen ? '' : L.simple
+          ? `<div class="ce-item-body"><textarea id="s_${li}_${ii}" rows="2">${esc(String(it || ''))}</textarea></div>`
+          : `<div class="ce-item-body">${L.item.map((f) => inputFor(f, it[f.k], `f_${li}_${ii}_`)).join('')}</div>`;
+        return `<div class="ce-item ${isOpen ? 'open' : ''}" data-li="${li}" data-ii="${ii}">
+          <div class="ce-item-h">
+            <button class="ce-item-t" data-a="toggle">${esc(L.title(it))}</button>
+            <span class="ce-item-btns">
+              <button data-a="up" title="Subir">↑</button><button data-a="down" title="Bajar">↓</button>
+              <button data-a="del" title="Borrar">🗑️</button>
+            </span>
+          </div>${body}</div>`;
+      }).join('');
+      return `<div class="ce-list" data-li="${li}">
+        <h3 class="ce-h3">${esc(L.label)} <span class="ce-count">${arr.length}</span></h3>
+        ${rows || '<p class="ce-empty">Todavía no hay nada. Añade el primero.</p>'}
+        <button class="ce-add" data-a="add" data-li="${li}">＋ Añadir</button>
+      </div>`;
+    }).join('');
+    ov.innerHTML = `<div class="ce-box">
+      <div class="ce-head"><b>${esc(sch.label)}</b><button class="ce-x" aria-label="Cerrar">✕</button></div>
+      <div class="ce-scroll">
+        <div class="ce-fields">${sch.fields.map((f) => inputFor(f, doc[f.k], 'top_')).join('')}</div>
+        ${lists}
+      </div>
+      <div class="ce-foot">
+        <button class="ce-cancel">Cancelar</button>
+        <button class="ce-save">Guardar cambios</button>
+      </div>
+    </div>`;
+    wire();
+  }
+  // Pasa lo escrito en pantalla al borrador (antes de re-renderizar o guardar).
+  function harvest() {
+    readInto(doc, sch.fields, 'top_');
+    if (!open) return;
+    const [li, ii] = open.split(':').map(Number);
+    const L = sch.lists[li], arr = getPath(doc, L.path) || [];
+    if (!arr[ii]) return;
+    if (L.simple) { const el = ov.querySelector(`#s_${li}_${ii}`); if (el) arr[ii] = el.value; }
+    else readInto(arr[ii], L.item, `f_${li}_${ii}_`);
+  }
+  function wire() {
+    ov.querySelector('.ce-x').onclick = close;
+    ov.querySelector('.ce-cancel').onclick = close;
+    ov.onclick = (e) => { if (e.target === ov) close(); };
+    ov.querySelectorAll('.ce-add').forEach((b) => b.onclick = () => {
+      harvest();
+      const li = +b.dataset.li, L = sch.lists[li];
+      let arr = getPath(doc, L.path); if (!Array.isArray(arr)) { arr = []; setPath(doc, L.path, arr); }
+      arr.push(L.simple ? '' : {});
+      open = `${li}:${arr.length - 1}`; render();
+    });
+    ov.querySelectorAll('.ce-item [data-a]').forEach((b) => b.onclick = () => {
+      const card = b.closest('.ce-item'), li = +card.dataset.li, ii = +card.dataset.ii;
+      const L = sch.lists[li], arr = getPath(doc, L.path) || [];
+      const a = b.dataset.a;
+      if (a === 'toggle') { harvest(); open = (open === `${li}:${ii}`) ? null : `${li}:${ii}`; render(); return; }
+      harvest();
+      if (a === 'del') { if (!confirm('¿Borrar este elemento?')) return; arr.splice(ii, 1); open = null; }
+      else if (a === 'up' && ii > 0) { [arr[ii - 1], arr[ii]] = [arr[ii], arr[ii - 1]]; open = null; }
+      else if (a === 'down' && ii < arr.length - 1) { [arr[ii + 1], arr[ii]] = [arr[ii], arr[ii + 1]]; open = null; }
+      render();
+    });
+    ov.querySelector('.ce-save').onclick = async () => {
+      harvest();
+      const btn = ov.querySelector('.ce-save'); btn.disabled = true; btn.textContent = 'Guardando…';
+      try {
+        const res = await saveRow('content', { id: key, doc });
+        CTX.applyLocalRow('content', res.row);
+        CTX.toast(res.queued ? '💾 Guardado en el teléfono — se subirá con señal' : '✓ Contenido actualizado');
+        close();
+      } catch (e) { btn.disabled = false; btn.textContent = 'Guardar cambios'; CTX.toast(friendlyErr(e)); }
+    };
+  }
+  render();
+}
+
 // ---- Encuadrar / cambiar la foto (portada) de una especie o punto ----
 // Editor de punto focal (arrastrar sobre un recorte 4:3, como la rejilla) + tira
 // del stock de fotos de ESE sujeto; para puntos, además las fotos de sus especies

@@ -4,10 +4,10 @@
 // senderos y puntos en plena montaña sin cobertura.
 import { cloudConfigured, uploadImage, upsertWaypoint, deleteWaypoint, upsertSpecies, deleteSpecies,
   upsertTrail, deleteTrail, upsertRoute, deleteRoute, upsertSighting, upsertWalk, deleteWalkCloud,
-  upsertMedia, deleteMedia, upsertPointType, deletePointType } from './cloud.js';
+  upsertMedia, deleteMedia, upsertPointType, deletePointType, upsertContent } from './cloud.js';
 
 const UPSERT = { waypoints: upsertWaypoint, trails: upsertTrail, routes: upsertRoute, species: upsertSpecies,
-  sightings: upsertSighting, walks: upsertWalk, media: upsertMedia, point_types: upsertPointType };
+  sightings: upsertSighting, walks: upsertWalk, media: upsertMedia, point_types: upsertPointType, content: upsertContent };
 const REMOVE = { waypoints: deleteWaypoint, trails: deleteTrail, routes: deleteRoute, species: deleteSpecies,
   walks: deleteWalkCloud, media: deleteMedia, point_types: deletePointType };
 // La clave de cada fila: id normal, o client_id (avistamientos: el id del

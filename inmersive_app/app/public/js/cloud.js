@@ -126,6 +126,12 @@ export const listPointTypes = () => sel('point_types');
 export async function upsertPointType(pt) { const c = await getClient(); const { error } = await c.from('point_types').upsert(pt); if (error) throw error; }
 export async function deletePointType(id) { const c = await getClient(); const { error } = await c.from('point_types').delete().eq('id', id); if (error) throw error; }
 
+// Contenido editable de las páginas (Historia e Info). Un documento JSON por
+// página; la app lo funde ENCIMA del JSON empacado. Lectura pública, escritura
+// sólo admin (RLS, migración 22).
+export const listContent = () => sel('content');
+export async function upsertContent(row) { const c = await getClient(); const { error } = await c.from('content').upsert(row); if (error) throw error; }
+
 // ---------- medios (fotos + videos): tabla runtime, espejo de media.json ----------
 export const listMedia = () => sel('media');
 export async function upsertMedia(m) {

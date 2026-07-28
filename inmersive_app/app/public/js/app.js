@@ -4,7 +4,7 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout } from './auth-ui.js';
-import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe } from './admin.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor } from './admin.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps, saveRow } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
@@ -162,6 +162,16 @@ function applyCloudMedia(cm) {
   state.cloudMedia = cm || [];
   state.media = indexMedia(state.staticMedia, state.cloudMedia);
 }
+// Contenido de páginas (Historia / Info): el documento de la nube REEMPLAZA al
+// empacado (el admin edita el documento completo). Sin fila en la nube, manda el
+// JSON del build, así la app funciona igual antes de correr la migración 22.
+function applyCloudContent(rows) {
+  (rows || []).forEach((r) => {
+    if (!r || !r.doc) return;
+    if (r.id === 'historia') state.historia = r.doc;
+    else if (r.id === 'comercial') state.comercial = r.doc;
+  });
+}
 function photosFor(type, id) { return state.media.bySubject[`${type}:${id}`] || []; }
 function primaryPhoto(type, id) { const a = photosFor(type, id); return a[0] || null; }
 // <picture>/<video> con recorte por punto focal (focal_x/y → object-position).
@@ -221,6 +231,7 @@ const I18N = {
     cm_reviews_empty: 'Aún no hemos copiado los comentarios de Airbnb aquí. Puedes leerlos en el anuncio.',
     cm_reviews_link: 'Ver el anuncio en Airbnb',
     cm_more: 'Ver más comentarios', cm_translated: 'traducido',
+    ce_edit: 'Editar esta página', ce_edit_info: 'Editar servicios y comentarios',
     tree_photo: 'Árbol', leaf_photo: 'Hoja',
     lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
@@ -304,6 +315,7 @@ const I18N = {
     cm_reviews_empty: 'We have not copied the Airbnb reviews here yet. You can read them on the listing.',
     cm_reviews_link: 'View the Airbnb listing',
     cm_more: 'Show more reviews', cm_translated: 'translated',
+    ce_edit: 'Edit this page', ce_edit_info: 'Edit services and reviews',
     tree_photo: 'Tree', leaf_photo: 'Leaf',
     lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
@@ -1693,8 +1705,10 @@ function renderHistoria() {
         <span class="ht-date">${escapeHtml(it.fecha || '')}</span>
         <span class="ht-text">${escapeHtml(L(it, 'texto') || '')}</span></li>`).join('')}</ol>
     </section>` : '';
-  el.innerHTML = `${L(h, 'lead') ? `<figure class="hist-quote"><blockquote>${escapeHtml(L(h, 'lead'))}</blockquote></figure>` : ''}
+  el.innerHTML = `${isAdminUser() ? `<button class="ce-edit-btn" id="hist-edit">✏️ ${t('ce_edit')}</button>` : ''}
+    ${L(h, 'lead') ? `<figure class="hist-quote"><blockquote>${escapeHtml(L(h, 'lead'))}</blockquote></figure>` : ''}
     ${(h.secciones || []).map(blk).join('')}${hitos}`;
+  const eb = $('#hist-edit'); if (eb) eb.onclick = () => openContentEditor('historia');
 }
 // ---------- Info comercial: servicios, tarifas, Airbnb, redes, reseñas ----------
 function renderComercial() {
@@ -1713,6 +1727,7 @@ function renderComercial() {
   const rm = c.resenas_meta || {};
   const revs = c.resenas || [];
   el.innerHTML = `
+    ${isAdminUser() ? `<button class="ce-edit-btn" id="cm-edit">✏️ ${t('ce_edit_info')}</button>` : ''}
     <div class="panel">
       <h2 class="hist-h">${t('cm_services_h')}</h2>
       <div class="cm-list">${(c.servicios || []).map(svc).join('')}</div>
@@ -1745,6 +1760,7 @@ function renderComercial() {
         : `<p class="muted">${t('cm_reviews_empty')}</p>`}
       ${c.airbnb_url ? `<a class="cm-btn cm-airbnb" href="${escapeAttr(c.airbnb_url)}" target="_blank" rel="noopener">${t('cm_reviews_link')}</a>` : ''}
     </div>`;
+  const ceb = $('#cm-edit'); if (ceb) ceb.onclick = () => openContentEditor('comercial');
   const more = $('#cm-more');
   if (more) more.onclick = () => {
     $$('#cm-revs .is-more').forEach((n) => n.classList.remove('is-more'));
@@ -2243,17 +2259,20 @@ function applyCloudSpecies(cs) {
 async function loadCloudData() {
   if (!Cloud.cloudConfigured()) return;
   try {
-    const [cw, cs, cr, ct, cm, cpt] = await Promise.all([
+    const [cw, cs, cr, ct, cm, cpt, cc] = await Promise.all([
       Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null),
       Cloud.listRoutes().catch(() => null), Cloud.listTrails().catch(() => null),
       Cloud.listMedia().catch(() => null), Cloud.listPointTypes().catch(() => null),
+      Cloud.listContent().catch(() => null),
     ]);
+    if (cc && cc.length) applyCloudContent(cc);   // textos de Historia / Info editados por el admin
     if (cpt && cpt.length) applyCloudTypes(cpt);   // tipos de punto ANTES de coloreado/leyenda
     if (cw && cw.length) applyCloudWaypoints(cw);
     if (cs && cs.length) applyCloudSpecies(cs);
     if (cr && cr.length) applyCloudRoutes(cr);
     if (ct && ct.length) { const fc = { type: 'FeatureCollection', features: ct.map(cloudTrailToFeature) }; normalizeFeatures(fc); state.trails = fc.features; }
     if (cm) applyCloudMedia(cm);   // tabla de medios (fotos + videos) sobre las estáticas
+    renderHistoria(); renderComercial();
   } catch (e) { console.warn('[cloud] datos', e && e.message); }
 }
 async function refreshRoutes() {
@@ -2338,6 +2357,9 @@ function applyLocalRow(table, row) {
       if (i >= 0) list[i] = { ...list[i], ...row }; else list.push(row);
       applyCloudMedia(list);
       renderSpeciesGrid(); refreshOpenCard();
+    } else if (table === 'content') {
+      applyCloudContent([row]);
+      renderHistoria(); renderComercial();
     } else if (table === 'point_types') {
       mergePointType(row);
     }
