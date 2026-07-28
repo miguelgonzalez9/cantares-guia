@@ -219,7 +219,8 @@ const I18N = {
     cm_book_h: '📅 Reservar y seguirnos', cm_airbnb: 'Ver en Airbnb',
     cm_reviews_h: '⭐ Comentarios de huéspedes', cm_reviews_n: 'comentarios',
     cm_reviews_empty: 'Aún no hemos copiado los comentarios de Airbnb aquí. Puedes leerlos en el anuncio.',
-    cm_reviews_link: 'Leer los comentarios en Airbnb',
+    cm_reviews_link: 'Ver el anuncio en Airbnb',
+    cm_more: 'Ver más comentarios', cm_translated: 'traducido',
     tree_photo: 'Árbol', leaf_photo: 'Hoja',
     lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
@@ -301,7 +302,8 @@ const I18N = {
     cm_book_h: '📅 Book & follow us', cm_airbnb: 'View on Airbnb',
     cm_reviews_h: '⭐ Guest reviews', cm_reviews_n: 'reviews',
     cm_reviews_empty: 'We have not copied the Airbnb reviews here yet. You can read them on the listing.',
-    cm_reviews_link: 'Read the reviews on Airbnb',
+    cm_reviews_link: 'View the Airbnb listing',
+    cm_more: 'Show more reviews', cm_translated: 'translated',
     tree_photo: 'Tree', leaf_photo: 'Leaf',
     lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
@@ -1673,24 +1675,26 @@ function renderHistoria() {
   const el = $('#historia'); if (!el) return;
   const h = state.historia;
   if (!h) { el.innerHTML = ''; return; }
-  const blk = (b) => b ? `<div class="panel hist-panel">
-      <h2>${escapeHtml(L(b, 'titulo'))}</h2>
-      <p>${escapeHtml(L(b, 'texto'))}</p>
-      ${b.contacto ? `<p class="tiny muted">${escapeHtml(b.contacto)}</p>` : ''}
-    </div>` : '';
-  const sentido = h.sentido ? `<div class="panel hist-panel">
-      <h2>${escapeHtml(L(h.sentido, 'titulo'))}</h2>
-      <p>${escapeHtml(L(h.sentido, 'intro'))}</p>
-      <ul class="hist-list">${(L(h.sentido, 'puntos') || []).map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul>
-    </div>` : '';
-  const hitos = h.hitos ? `<div class="panel hist-panel">
-      <h2>${escapeHtml(L(h.hitos, 'titulo'))}</h2>
-      <ol class="hist-timeline">${(h.hitos.items || []).map((it) => `<li>
-        <span class="ht-date">${escapeHtml(it.fecha)}</span>
-        <span class="ht-text">${escapeHtml(L(it, 'texto'))}</span></li>`).join('')}</ol>
-    </div>` : '';
-  el.innerHTML = `${h.lead ? `<p class="lead hist-lead">${escapeHtml(L(h, 'lead'))}</p>` : ''}
-    ${blk(h.proyecto)}${blk(h.personas)}${sentido}${hitos}${blk(h.enfoque)}${blk(h.siembra)}`;
+  // Secciones: se pintan en el orden del JSON. Añadir texto = añadir un objeto.
+  const blk = (b) => {
+    const titulo = L(b, 'titulo'), texto = L(b, 'texto');
+    if (!titulo && !texto) return '';   // slot vacío → no ocupa espacio
+    return `<section class="panel hist-panel">
+      ${b.foto ? `<img class="hist-foto" src="${escapeAttr(b.foto)}" alt="" loading="lazy">` : ''}
+      ${titulo ? `<h2 class="hist-h">${escapeHtml(titulo)}</h2>` : ''}
+      ${texto ? paraHtml(texto, 'hist-p') : ''}
+      ${b.pie ? `<p class="hist-pie">${escapeHtml(b.pie)}</p>` : ''}
+    </section>`;
+  };
+  const items = (h.hitos && h.hitos.items) || [];
+  const hitos = items.length ? `<section class="panel hist-panel hist-tl-panel">
+      <h2 class="hist-h">${escapeHtml(L(h.hitos, 'titulo') || '')}</h2>
+      <ol class="hist-timeline">${items.map((it) => `<li class="${it.hito ? 'is-key' : ''}">
+        <span class="ht-date">${escapeHtml(it.fecha || '')}</span>
+        <span class="ht-text">${escapeHtml(L(it, 'texto') || '')}</span></li>`).join('')}</ol>
+    </section>` : '';
+  el.innerHTML = `${L(h, 'lead') ? `<figure class="hist-quote"><blockquote>${escapeHtml(L(h, 'lead'))}</blockquote></figure>` : ''}
+    ${(h.secciones || []).map(blk).join('')}${hitos}`;
 }
 // ---------- Info comercial: servicios, tarifas, Airbnb, redes, reseñas ----------
 function renderComercial() {
@@ -1710,14 +1714,14 @@ function renderComercial() {
   const revs = c.resenas || [];
   el.innerHTML = `
     <div class="panel">
-      <h2>${t('cm_services_h')}</h2>
+      <h2 class="hist-h">${t('cm_services_h')}</h2>
       <div class="cm-list">${(c.servicios || []).map(svc).join('')}</div>
       ${(c.adicionales || []).length ? `<h3 class="cm-sub">${t('cm_extra_h')}</h3>
         <ul class="cm-inc">${c.adicionales.map((a) => `<li>${escapeHtml(a)}</li>`).join('')}</ul>` : ''}
       <p class="tiny muted">${t('cm_rates_note')}${c._meta && c._meta.vigencia ? ` (${escapeHtml(c._meta.vigencia)})` : ''}</p>
     </div>
     <div class="panel">
-      <h2>${t('cm_book_h')}</h2>
+      <h2 class="hist-h">${t('cm_book_h')}</h2>
       <div class="cm-links">
         ${c.airbnb_url ? `<a class="cm-btn cm-airbnb" href="${escapeAttr(c.airbnb_url)}" target="_blank" rel="noopener">🏡 ${t('cm_airbnb')}</a>` : ''}
         ${wa ? `<a class="cm-btn cm-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
@@ -1726,16 +1730,26 @@ function renderComercial() {
       </div>
     </div>
     <div class="panel">
-      <h2>${t('cm_reviews_h')}</h2>
-      ${rm.rating ? `<div class="cm-rating">★ ${escapeHtml(String(rm.rating))}${rm.total ? ` <span class="muted">· ${escapeHtml(String(rm.total))} ${t('cm_reviews_n')}</span>` : ''}</div>` : ''}
+      <h2 class="hist-h">${t('cm_reviews_h')}</h2>
+      ${rm.rating ? `<div class="cm-score">
+          <span class="cm-score-n">${escapeHtml(String(rm.rating).replace('.', ','))}</span>
+          <span class="cm-stars" aria-hidden="true">★★★★★</span>
+          ${rm.total ? `<span class="cm-score-c">${escapeHtml(String(rm.total))} ${t('cm_reviews_n')}</span>` : ''}
+        </div>` : ''}
       ${revs.length
-        ? `<div class="cm-revs">${revs.map((r) => `<blockquote class="cm-rev">
+        ? `<div class="cm-revs" id="cm-revs">${revs.map((r, i) => `<blockquote class="cm-rev${i >= 3 ? ' is-more' : ''}">
             <p>${escapeHtml(r.texto || '')}</p>
-            <footer>${escapeHtml(r.autor || '')}${r.fecha ? ` · ${escapeHtml(r.fecha)}` : ''}${r.estrellas ? ` · ★${escapeHtml(String(r.estrellas))}` : ''}</footer>
-          </blockquote>`).join('')}</div>`
+            <footer><span class="cm-rev-who">${escapeHtml(r.autor || '')}</span>${r.origen ? ` · ${escapeHtml(r.origen)}` : ''}${r.fecha ? ` · ${escapeHtml(r.fecha)}` : ''}${r.traducido ? ` · <i>${t('cm_translated')}</i>` : ''}</footer>
+          </blockquote>`).join('')}</div>
+          ${revs.length > 3 ? `<button class="cm-more" id="cm-more">${t('cm_more')} (${revs.length - 3})</button>` : ''}`
         : `<p class="muted">${t('cm_reviews_empty')}</p>`}
       ${c.airbnb_url ? `<a class="cm-btn cm-airbnb" href="${escapeAttr(c.airbnb_url)}" target="_blank" rel="noopener">${t('cm_reviews_link')}</a>` : ''}
     </div>`;
+  const more = $('#cm-more');
+  if (more) more.onclick = () => {
+    $$('#cm-revs .is-more').forEach((n) => n.classList.remove('is-more'));
+    more.remove();
+  };
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s); }

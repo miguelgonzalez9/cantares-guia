@@ -4,14 +4,12 @@
     "fuente_tarifas": "info/comercial/tarifas/servicios y tarifas 2024.docx",
     "vigencia": "2024"
   },
-
   "airbnb_url": "https://www.airbnb.com.co/rooms/844318982540990515",
   "instagram_url": "https://www.instagram.com/cantaresreservanatural/",
   "instagram_handle": "@cantaresreservanatural",
   "email": "reservacantares@gmail.com",
   "telefono": "+57 315 467 9940",
   "whatsapp": "573154679940",
-
   "servicios": [
     {
       "id": "aves",
@@ -83,18 +81,116 @@
       "nota": "US$25 (COP $120.000) por persona adicional (máx. 2). No incluye alimentación. No se reciben mascotas."
     }
   ],
-
   "adicionales": [
     "Transporte Manizales – Cantares – Manizales (hasta 4 personas): US$45 (COP $200.000), previa reserva",
     "Desayuno no incluido en el tour: US$10 (COP $45.000), previa reserva",
     "Almuerzo no incluido en el tour: US$15 (COP $65.000), previa reserva",
     "Cena no incluida en el tour: US$10 (COP $45.000), previa reserva"
   ],
-
   "resenas_meta": {
-    "rating": null,
-    "total": null,
-    "nota": "Airbnb no permite descargar las reseñas automáticamente. Copia aquí las que quieras mostrar (autor, fecha, texto, estrellas) y aparecerán en la app."
+    "rating": 5.0,
+    "total": 11,
+    "nota": "Reseñas copiadas del anuncio de Airbnb (Airbnb no permite descargarlas automáticamente). Para añadir una nueva, agrega un objeto a 'resenas'."
   },
-  "resenas": []
+  "resenas": [
+    {
+      "autor": "Camila",
+      "origen": "Cali, Colombia",
+      "fecha": "septiembre de 2025",
+      "estadia": "Estadía de varias noches",
+      "estrellas": 5,
+      "traducido": false,
+      "texto": "La cabaña de Victoria es hermosa, tal cual como se ve en las fotografías. El lugar es hermoso, solo se escuchan las aves. Pasamos mucho tiempo viendo diferentes tipos de colibríes. El lugar es perfecto para descansar y desconectarse, justo lo que estábamos buscando. Victoria y su esposo fueron muy amables con nosotros, estuvieron súper pendientes de que todo anduviera bien. ¡Muchas gracias por todo!"
+    },
+    {
+      "autor": "Emma",
+      "origen": "11 años en Airbnb",
+      "fecha": "julio de 2026",
+      "estadia": "Estadía de varias noches",
+      "estrellas": 5,
+      "traducido": true,
+      "texto": "¡¡Un lugar fantástico!! La casa es increíblemente bonita y está ubicada en un hermoso entorno natural con vistas fantásticas. Para nosotros, como biólogos interesados en la naturaleza, fue increíblemente agradable alojarnos en la reserva que la pareja anfitriona creó en medio de Río Blanco. Muy cálida bienvenida y nos ayudaron a reservar un guía para Ant Pittas. Muy buena observación de aves. Puede ser el mejor lugar en el que nos hemos alojado. Lo recomendamos encarecidamente a los amantes de la naturaleza que también quieran un alojamiento muy cómodo."
+    },
+    {
+      "autor": "Evan",
+      "origen": "5 años en Airbnb",
+      "fecha": "febrero de 2026",
+      "estadia": "Estadía de alrededor de una semana",
+      "estrellas": 5,
+      "traducido": true,
+      "texto": "No podría haber soñado una mejor introducción a la campiña colombiana que aterrizar en Cantares. Es un oasis: hermoso, tranquilo, encantador. Los anfitriones Victoria y Jorge son generosos y amables. El alojamiento es muy cómodo y los alrededores ofrecen muchos paseos agradables. Fui allí a observar aves y no me decepcionó. Tanto Cantares como Río Blanco, y áreas un poco más alejadas, ofrecen oportunidades para una excelente observación de aves."
+    },
+    {
+      "autor": "Johanna",
+      "origen": "7 meses en Airbnb",
+      "fecha": "enero de 2026",
+      "estadia": "Estadía de varias noches",
+      "estrellas": 5,
+      "traducido": false,
+      "texto": "Para quienes buscamos desconexión el sitio es ideal. Un lugar maravilloso."
+    },
+    {
+      "autor": "Ernesto",
+      "origen": "San Francisco, California",
+      "fecha": "enero de 2025",
+      "estadia": "Estadía de varias noches",
+      "estrellas": 5,
+      "traducido": false,
+      "texto": "Victoria fue una excelente anfitriona; compartir un café con ella y que nos contara sobre la reserva fue muy especial. La cabaña superó nuestras expectativas, los alrededores fueron increíbles, incluyendo senderos a diferentes lugares de la reserva. La diversidad de aves, especialmente los colibríes, hicieron que el lugar fuera más memorable. Definitivamente regresaremos; nos sentimos como en casa, nos encantó."
+    },
+    {
+      "autor": "Alejandra",
+      "origen": "Cambridge, Massachusetts",
+      "fecha": "septiembre de 2024",
+      "estadia": "Estadía de varias noches",
+      "estrellas": 5,
+      "traducido": false,
+      "texto": "Victoria y Jorge son anfitriones excepcionales, al igual que Carlos, quien está a cargo de la finca. Su cabaña en medio de una reserva natural es el paraíso. Mi pareja y yo pasamos 4 días maravillosos disfrutando de la cabaña, los pajaritos, el jacuzzi y el descanso. Además del hospedaje, los senderos son increíbles para visitar y descubrir la montaña. ¡Absolutamente recomendada!"
+    },
+    {
+      "autor": "Mari",
+      "origen": "Costa Rica",
+      "fecha": "marzo de 2025",
+      "estadia": "Estadía de varias noches",
+      "estrellas": 5,
+      "traducido": false,
+      "texto": "Victoria y su esposo Jorge son unos excelentes anfitriones, siempre atentos y ayudándonos en lo que necesitábamos. Nos organizaron un tour de avistamiento de aves con un guía local y nos hicieron desayuno. El lugar es un sueño, alejado de la ciudad y rodeado de naturaleza. El jacuzzi increíble para disfrutar y descansar después del día. La cabaña es hermosa, llena de detalles y muy equipada. Muy felices, recomendamos muchísimo este lugar."
+    },
+    {
+      "autor": "Paula Vanessa",
+      "origen": "Manizales, Colombia",
+      "fecha": "junio de 2024",
+      "estadia": "Estadía de una noche",
+      "estrellas": 5,
+      "traducido": false,
+      "texto": "El lugar es espectacular, ideal para amantes de la naturaleza; tiene muchas opciones para caminar, pero si se prefiere descansar la cabaña es suficientemente acogedora. El lugar es hermoso, el paisaje increíble. Volvería mil veces y además lo recomiendo absolutamente."
+    },
+    {
+      "autor": "Pierre-Antoine",
+      "origen": "11 años en Airbnb",
+      "fecha": "agosto de 2024",
+      "estadia": "Estadía de varias noches",
+      "estrellas": 5,
+      "traducido": true,
+      "texto": "Pasamos dos días maravillosos en esta reserva. Todo perfecto en la cabaña y era cómoda. Ver pájaros y otros animales fue genial. El jacuzzi funcionaba perfectamente. Hemos disfrutado de poder hablar con los anfitriones y un MUCHÍSIMAS gracias también a Carlos, que nos guio y facilitó nuestra estancia. Los paseos son geniales y agradables, y un entorno así en la montaña es único. ¡Una verdadera inmersión en la naturaleza!"
+    },
+    {
+      "autor": "Isabel",
+      "origen": "Panamá",
+      "fecha": "julio de 2024",
+      "estadia": "Estadía de varias noches",
+      "estrellas": 5,
+      "traducido": false,
+      "texto": "Nuestros días en Reserva Cantares han sido maravillosos; el lugar es mucho mejor de lo que cualquier foto puede reflejar. Está rodeado de naturaleza, tiene unas vistas impresionantes de los nevados y la casa tiene todas las amenidades para cocinar, desconectarse con un baño de jacuzzi, buscando ranitas con el señor Carlos o frente a la chimenea. Victoria y Jorge son unos anfitriones excepcionales, muy respetuosos y amables. Nos recibieron con un café y estuvieron atentos a nuestras consultas. Carlos Ariel nos llevó por los senderos, que son muy accesibles. El mejor lugar donde hemos estado y seguro volveremos."
+    },
+    {
+      "autor": "Juan Camilo",
+      "origen": "Manizales, Colombia",
+      "fecha": "julio de 2024",
+      "estadia": "Estadía de una noche",
+      "estrellas": 5,
+      "traducido": false,
+      "texto": "La cabaña en el bosque es un refugio encantador, acogedor y totalmente equipado, donde todo funciona a la perfección. El acceso se realiza por una vía rural en excelentes condiciones. Victoria y Jorge, los anfitriones, son personas excepcionales, siempre atentas a las necesidades de los huéspedes. El entorno cuenta con senderos bien diseñados y mantenidos, además de cascadas: lugar ideal para el avistamiento y la fotografía de aves. Las vistas matutinas desde la cama, con los nevados en el horizonte, son incomparables. Muy recomendado."
+    }
+  ]
 }

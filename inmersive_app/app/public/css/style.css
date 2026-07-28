@@ -408,10 +408,22 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .species-section-head:first-child { margin-top: 0; }
 .species-section-head .ssh-emoji { font-size: 18px; }
 
-.facts { list-style: none; padding: 0; margin: 0 0 18px; }
-.facts li { font-size: 13.5px; line-height: 1.5; padding: 9px 0; border-bottom: 1px solid var(--line); }
-.facts strong { color: var(--forest); display: inline-block; min-width: 108px; }
-.offline-status { font-size: 12.5px; padding: 10px 12px; border-radius: 10px; background: #eef5ef; margin-bottom: 14px; color: var(--moss); }
+.facts {
+  list-style: none; padding: 0; margin: 0 0 16px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.facts li {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--mist) 0%, var(--card) 60%);
+}
+.fact-k {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--sky);
+}
+.fact-v { font-size: 13.5px; line-height: 1.4; color: var(--ink); font-weight: 600; }
+.offline-status { font-size: 12.5px; padding: 10px 12px; border-radius: 10px;
+  background: var(--mist); margin-bottom: 14px; color: var(--deep); }
 
 /* ---------- Tab bar ---------- */
 .tabbar {
@@ -485,7 +497,10 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .ob-go:active { transform: scale(0.98); }
 
 /* ---------- Planea tu visita (vista Info) ---------- */
-.visit-panel h2 { color: var(--forest); font-size: 16px; margin: 0 0 10px; }
+.visit-panel h2 {
+  font-family: var(--brand-font); font-weight: normal; letter-spacing: 0.2px;
+  color: var(--deep); font-size: 19px; margin: 0 0 10px;
+}
 .v-grid { display: flex; flex-direction: column; gap: 2px; }
 .v-row { display: grid; grid-template-columns: 128px 1fr; gap: 8px; align-items: start;
   padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
@@ -494,17 +509,17 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .v-v { color: var(--ink); line-height: 1.45; }
 .v-link { color: var(--water); font-weight: 700; text-decoration: none; }
 .v-pending {
-  display: inline-block; font-size: 11px; font-weight: 700; color: var(--muted);
-  background: #fff4e8; border: 1px dashed var(--sun); border-radius: 999px; padding: 2px 9px;
+  display: inline-block; font-size: 11px; font-weight: 700; color: var(--sun);
+  background: #fff6ea; border: 1px dashed var(--sun); border-radius: 999px; padding: 2px 9px;
 }
 .v-rules { margin: 0; padding-left: 20px; }
 .v-rules li { font-size: 13.5px; line-height: 1.55; padding: 2px 0; color: var(--ink); }
-.v-safety { border: 1px solid #f3d9c0; background: #fffaf4; }
+.v-safety { border: 1px solid rgba(250,184,20,0.45); background: #fffdf6; }
 .v-lost { font-size: 13.5px; line-height: 1.55; margin: 0 0 12px; }
 .v-emergency { display: flex; flex-wrap: wrap; gap: 8px; }
 .v-emg-btn {
   flex: 1; min-width: 140px; text-align: center; text-decoration: none;
-  background: #c0392b; color: #fff; font-weight: 800; font-size: 14px;
+  background: var(--red); color: #fff; font-weight: 800; font-size: 14px;
   padding: 12px; border-radius: 12px; box-shadow: var(--shadow);
 }
 .v-emg-reserve { background: var(--moss); }
@@ -1047,36 +1062,107 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .rf-add { flex: 0 0 auto; width: 72px; height: 54px; border-radius: 8px; font-size: 20px;
   border: 1px dashed var(--line, #b9c7b9); background: #f4f7f4; cursor: pointer; }
 
-/* ---- Nuestra Historia ---- */
-.hist-lead { font-style: italic; }
-.hist-panel h2 { margin-bottom: 6px; }
-.hist-panel p { line-height: 1.55; }
-.hist-list { margin: 6px 0 0 18px; line-height: 1.6; }
-.hist-timeline { list-style: none; margin: 6px 0 0; padding: 0; }
-.hist-timeline li { display: grid; grid-template-columns: 86px 1fr; gap: 10px;
-  padding: 9px 0; border-top: 1px solid var(--line, #e3e9e3); align-items: start; }
-.hist-timeline li:first-child { border-top: 0; }
-.ht-date { font-size: 12px; font-weight: 700; color: var(--moss, #52796f); }
-.ht-text { font-size: 14px; line-height: 1.5; }
 
-/* ---- Info comercial: servicios, tarifas, enlaces, reseñas ---- */
-.cm-list { display: grid; gap: 12px; }
-.cm-svc { border: 1px solid var(--line, #e3e9e3); border-radius: 12px; padding: 11px 12px; }
-.cm-svc-h { display: flex; align-items: center; gap: 7px; font-size: 15px; }
-.cm-emoji { font-size: 17px; }
-.cm-price { font-weight: 700; color: var(--moss, #52796f); margin-top: 3px; }
-.cm-when { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
-.cm-inc { margin: 4px 0 0 17px; font-size: 13px; line-height: 1.5; }
-.cm-sub { font-size: 14px; margin: 14px 0 4px; }
+/* ============ NUESTRA HISTORIA ============================================
+   Paleta del Brand Board (sin colores nuevos) y Meroche en los títulos, para
+   que la pestaña suene a la marca y no a una plantilla. Elemento firma: la
+   línea de tiempo — su riel va de azul (la búsqueda y la compra) a verde (la
+   siembra y la restauración), que es exactamente el arco de la historia.     */
+
+/* Cita de apertura: la frase del brochure, en la tipografía de marca. */
+.hist-quote { margin: 2px 0 18px; padding: 0 0 0 16px; border-left: 3px solid var(--gold); }
+.hist-quote blockquote {
+  margin: 0; font-family: var(--brand-font); font-weight: normal;
+  font-size: 19px; line-height: 1.45; color: var(--deep); letter-spacing: 0.2px;
+}
+.hist-panel { padding: 16px 16px 14px; }
+.hist-h {
+  font-family: var(--brand-font); font-weight: normal; font-size: 20px;
+  color: var(--deep); margin: 0 0 8px; letter-spacing: 0.2px;
+}
+/* Filete corto bajo el título: el mismo gesto en todas las secciones. */
+.hist-h::after {
+  content: ''; display: block; width: 34px; height: 2px; margin-top: 7px;
+  background: var(--green); border-radius: 2px;
+}
+.hist-p { font-size: 14.5px; line-height: 1.62; color: var(--ink); margin: 0 0 10px; }
+.hist-p:last-of-type { margin-bottom: 0; }
+.hist-pie { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 10px 0 0;
+  padding-top: 9px; border-top: 1px solid var(--line); }
+.hist-foto { width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+  border-radius: 12px; margin: -2px 0 12px; display: block; background: var(--mist); }
+
+/* ---- Línea de tiempo (elemento firma) ---- */
+.hist-tl-panel { padding-bottom: 6px; }
+.hist-timeline { list-style: none; margin: 4px 0 0; padding: 0; position: relative; }
+/* El riel: azul de marca arriba → verde bosque abajo. */
+.hist-timeline::before {
+  content: ''; position: absolute; left: 5px; top: 6px; bottom: 10px; width: 2px;
+  background: linear-gradient(to bottom, var(--sky) 0%, var(--sky) 28%, var(--green) 72%, var(--green) 100%);
+  border-radius: 2px; opacity: 0.55;
+}
+.hist-timeline li { position: relative; padding: 0 0 16px 24px; }
+.hist-timeline li:last-child { padding-bottom: 4px; }
+/* El nodo hereda el color del riel a su altura; los hitos mayores van en dorado. */
+.hist-timeline li::before {
+  content: ''; position: absolute; left: 0; top: 5px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--card);
+  border: 2px solid var(--sky); box-shadow: 0 0 0 3px var(--card);
+}
+.hist-timeline li:nth-child(n+6)::before { border-color: var(--green); }
+.hist-timeline li.is-key::before { background: var(--gold); border-color: var(--gold); }
+.ht-date {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--green); margin-bottom: 2px;
+}
+.hist-timeline li:nth-child(-n+5) .ht-date { color: var(--sky); }
+.ht-text { display: block; font-size: 14px; line-height: 1.55; color: var(--ink); }
+
+/* ============ INFO COMERCIAL ============================================== */
+.cm-list { display: grid; gap: 10px; }
+.cm-svc {
+  border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px;
+  background: linear-gradient(180deg, var(--mist) 0%, var(--card) 42%);
+}
+.cm-svc-h { display: flex; align-items: baseline; gap: 8px; }
+.cm-svc-h b { font-family: var(--brand-font); font-weight: normal; font-size: 17px; color: var(--deep); }
+.cm-emoji { font-size: 16px; }
+.cm-price { font-size: 15px; font-weight: 700; color: var(--green); margin-top: 4px; }
+.cm-when { font-size: 11.5px; color: var(--muted); margin-bottom: 7px; }
+.cm-inc { margin: 6px 0 0; padding-left: 16px; font-size: 13px; line-height: 1.55; color: var(--ink); }
+.cm-inc li::marker { color: var(--sky); }
+.cm-svc .tiny { margin: 8px 0 0; padding-top: 7px; border-top: 1px dashed var(--line); }
+.cm-sub { font-family: var(--brand-font); font-weight: normal; font-size: 16px;
+  color: var(--deep); margin: 16px 0 4px; }
+/* Enlaces: un solo botón fuerte (Airbnb, la acción principal); el resto, calmados. */
 .cm-links { display: flex; flex-wrap: wrap; gap: 8px; }
-.cm-btn { display: inline-block; padding: 10px 13px; border-radius: 10px; text-decoration: none;
-  background: #f4f7f4; border: 1px solid var(--line, #d9e2d9); color: inherit; font-size: 14px; }
-.cm-airbnb { background: #ff5a5f; color: #fff; border-color: transparent; font-weight: 600; }
-.cm-ig { background: linear-gradient(45deg, #f09433, #dc2743, #bc1888); color: #fff; border-color: transparent; }
-.cm-wa { background: #25d366; color: #fff; border-color: transparent; }
-.cm-rating { font-size: 20px; font-weight: 700; color: var(--moss, #52796f); margin-bottom: 8px; }
-.cm-revs { display: grid; gap: 10px; margin-bottom: 10px; }
-.cm-rev { margin: 0; padding: 10px 12px; border-left: 3px solid var(--moss, #52796f);
-  background: #f7faf7; border-radius: 0 8px 8px 0; }
-.cm-rev p { margin: 0 0 5px; font-size: 14px; line-height: 1.5; font-style: italic; }
-.cm-rev footer { font-size: 12px; color: var(--muted); }
+.cm-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 11px 14px;
+  border-radius: 11px; text-decoration: none; font-size: 14px; font-weight: 600;
+  background: var(--mist); border: 1px solid var(--line); color: var(--deep);
+}
+.cm-btn:active { transform: translateY(1px); }
+.cm-airbnb { background: var(--sun); color: #fff; border-color: transparent; }
+.cm-ig, .cm-wa { background: var(--mist); color: var(--deep); }
+/* Puntaje: el 5,0 en la tipografía de marca — el dato manda, no el adorno. */
+.cm-score { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin: 2px 0 12px; }
+.cm-score-n { font-family: var(--brand-font); font-weight: normal; font-size: 40px;
+  line-height: 1; color: var(--deep); }
+.cm-stars { color: var(--gold); font-size: 15px; letter-spacing: 2px; }
+.cm-score-c { font-size: 12.5px; color: var(--muted); }
+.cm-revs { display: grid; gap: 9px; margin-bottom: 10px; }
+.cm-rev {
+  margin: 0; padding: 12px 13px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--card);
+}
+.cm-rev.is-more { display: none; }
+.cm-rev p { margin: 0 0 7px; font-size: 13.5px; line-height: 1.58; color: var(--ink); }
+.cm-rev footer { font-size: 11.5px; color: var(--muted); }
+.cm-rev-who { font-weight: 700; color: var(--deep); }
+.cm-more {
+  width: 100%; padding: 11px; margin-bottom: 10px; cursor: pointer;
+  font-size: 13.5px; font-weight: 700; font-family: inherit; color: var(--deep);
+  background: var(--mist); border: 1px solid var(--line); border-radius: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) { .cm-btn:active { transform: none; } }

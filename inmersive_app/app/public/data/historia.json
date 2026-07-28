@@ -1,94 +1,91 @@
 {
   "_meta": {
-    "note": "Nuestra Historia — TODO el texto está transcrito de documentos que ya existen en la carpeta del proyecto; no se inventó contenido. Cada bloque lleva 'fuente' con el documento de origen. Para editar, cambia el texto aquí (o el documento fuente y vuelve a transcribir).",
+    "note": "Nuestra Historia. Para AÑADIR TEXTO no hay que tocar código: agrega un objeto a 'secciones' (o a 'hitos.items') y aparece solo, en orden. Los campos vacíos se omiten. El texto actual está transcrito de documentos de la carpeta; cada bloque lleva su 'fuente'.",
+    "plantilla_seccion": {
+      "titulo": "Título en español",
+      "titulo_en": "Title in English (opcional)",
+      "texto": "Uno o varios párrafos. Separa párrafos con una línea en blanco (\\n\\n).",
+      "texto_en": "English version (opcional)",
+      "pie": "Línea pequeña al pie, p. ej. un contacto (opcional)",
+      "foto": "img/…  (opcional; si la pones, sale arriba de la sección)",
+      "fuente": "documento de origen (opcional, no se muestra)"
+    },
+    "plantilla_hito": {
+      "fecha": "24 abr 2018",
+      "texto": "Qué pasó.",
+      "texto_en": "What happened (opcional).",
+      "hito": "true si quieres marcarlo como hito mayor (punto dorado)"
+    },
     "fuentes": [
       "info/nuestra_historia/CRONOLOGÍA DEL PROYECTO DE RESERVA.docx",
       "info/identidad_visual/BROCHURE revisado.docx",
-      "info/comercial/tarifas/servicios y tarifas 2024.docx",
       "Reserva natural cantares/reforestacion/relacion siembra arboles.xlsx",
-      "info/administrativo/compra predio/PODER ESPECIAL.docx"
+      "info/administrativo/compra predio/PODER ESPECIAL.docx",
+      "info/comercial/tarifas/servicios y tarifas 2024.docx"
     ]
   },
 
   "lead": "Cantares es un sueño que desafía la lógica del uso del aire, el agua y el suelo; un escenario privilegiado donde podemos disfrutar el espectáculo de la vida natural.",
   "lead_en": "Cantares is a dream that defies the logic of air, water, and soil use; a privileged stage where we can enjoy the spectacle of natural life.",
-  "lead_fuente": "BROCHURE revisado.docx",
 
-  "proyecto": {
-    "titulo": "El proyecto",
-    "titulo_en": "The project",
-    "texto": "Como una de las pocas Reservas de la Sociedad Civil en Manizales, nuestro proyecto se centra en la conservación de la biodiversidad de un bosque montano bajo en la cordillera de los Andes. Desde el 2017 hemos iniciado el proceso de restauración de hectáreas que antes se destinaban a la ganadería, mediante la siembra de árboles nativos. Gracias a esto y muchas otras acciones, el ecosistema ha comenzado a recuperarse y poco a poco hemos observado el repoblamiento de aves y otras especies de fauna.",
-    "texto_en": "As one of the few Civil Society Reserves in Manizales, our project focuses on conserving the biodiversity of a lower montane forest in the Andes. Since 2017 we have been restoring hectares formerly used for cattle ranching by planting native trees. Thanks to this and many other actions, the ecosystem has begun to recover and little by little we have seen birds and other wildlife return.",
-    "fuente": "BROCHURE revisado.docx"
-  },
-
-  "enfoque": {
-    "titulo": "Nuestro enfoque: cuidar la vida",
-    "titulo_en": "Our approach: caring for life",
-    "texto": "Los servicios de ecoturismo que ofrecemos están orientados a garantizar la sostenibilidad de este proyecto. Como nuestro principal objetivo es CUIDAR LA VIDA, evitamos prácticas que puedan afectar la vida natural tales como el uso de «playback». Por tanto, nuestro público está especialmente interesado en el turismo de naturaleza y el avistamiento espontáneo en comederos y en el bosque.",
-    "texto_en": "The ecotourism services we offer are designed to sustain this project. Because our main goal is TO CARE FOR LIFE, we avoid practices that can harm natural life, such as the use of playback. Our visitors are therefore especially interested in nature tourism and spontaneous sightings at the feeders and in the forest.",
-    "fuente": "BROCHURE revisado.docx"
-  },
-
-  "sentido": {
-    "titulo": "El sentido de comprar esta tierra",
-    "titulo_en": "Why buy this land",
-    "intro": "En junio de 2016, a mitad de la búsqueda, la familia escribió en la bitácora por qué valía la pena:",
-    "intro_en": "In June 2016, midway through the search, the family wrote in the logbook why it was worth it:",
-    "puntos": [
-      "Tierra pequeña que tenga un nacimiento de agua, bosque y en tierra fría.",
-      "Herencia para Miguel.",
-      "Proyecto alternativo a la universidad y para la jubilación.",
-      "Inversión para disfrutar también los ahorros; se puede valorizar.",
-      "Cambiar de ambiente, no caer en la rutina.",
-      "Despertar nuevos intereses y pasiones."
-    ],
-    "puntos_en": [
-      "A small piece of land with a water spring, forest, and a cold climate.",
-      "An inheritance for Miguel.",
-      "A project beyond the university and for retirement.",
-      "An investment to enjoy our savings; it can appreciate.",
-      "A change of setting, to avoid falling into routine.",
-      "To awaken new interests and passions."
-    ],
-    "fuente": "CRONOLOGÍA DEL PROYECTO DE RESERVA.docx"
-  },
-
-  "personas": {
-    "titulo": "Quiénes somos",
-    "titulo_en": "Who we are",
-    "texto": "La reserva es de cuatro propietarios: Nelvia Victoria Lugo Agudelo (Vicky) y Jorge Alberto González Correa, junto con sus socios María del Pilar Gómez Correa y Enrico Vincenzo Nasi Lignarolo. Compraron el predio juntos en 2018.",
-    "texto_en": "The reserve belongs to four owners: Nelvia Victoria Lugo Agudelo (Vicky) and Jorge Alberto González Correa, together with their partners María del Pilar Gómez Correa and Enrico Vincenzo Nasi Lignarolo. They bought the property together in 2018.",
-    "contacto": "Vicky Lugo (+57) 315 467 9940 · Jorge González (+57) 315 467 9650 · reservacantares@gmail.com",
-    "fuente": "PODER ESPECIAL.docx · Cantares-English (1).docx · servicios y tarifas 2024.docx"
-  },
+  "secciones": [
+    {
+      "id": "proyecto",
+      "titulo": "El proyecto",
+      "titulo_en": "The project",
+      "texto": "Como una de las pocas Reservas de la Sociedad Civil en Manizales, nuestro proyecto se centra en la conservación de la biodiversidad de un bosque montano bajo en la cordillera de los Andes.\n\nDesde que salió el ganado hemos venido restaurando las hectáreas que antes se destinaban a la ganadería, sembrando árboles nativos. Gracias a esto y a muchas otras acciones, el ecosistema ha comenzado a recuperarse y poco a poco hemos observado el repoblamiento de aves y otras especies de fauna.",
+      "texto_en": "As one of the few Civil Society Reserves in Manizales, our project focuses on conserving the biodiversity of a lower montane forest in the Andes.\n\nSince the cattle left we have been restoring the hectares once used for ranching by planting native trees. Thanks to this and many other actions, the ecosystem has begun to recover and little by little we have seen birds and other wildlife return.",
+      "foto": "",
+      "fuente": "BROCHURE revisado.docx"
+    },
+    {
+      "id": "personas",
+      "titulo": "Quiénes somos",
+      "titulo_en": "Who we are",
+      "texto": "La reserva es de cuatro propietarios: Nelvia Victoria Lugo Agudelo (Vicky) y Jorge Alberto González Correa, junto con sus socios María del Pilar Gómez Correa y Enrico Vincenzo Nasi Lignarolo. Compraron el predio juntos en 2018.",
+      "texto_en": "The reserve belongs to four owners: Nelvia Victoria Lugo Agudelo (Vicky) and Jorge Alberto González Correa, together with their partners María del Pilar Gómez Correa and Enrico Vincenzo Nasi Lignarolo. They bought the property together in 2018.",
+      "pie": "Vicky Lugo (+57) 315 467 9940 · Jorge González (+57) 315 467 9650 · reservacantares@gmail.com",
+      "foto": "",
+      "fuente": "PODER ESPECIAL.docx · Cantares-English (1).docx"
+    },
+    {
+      "id": "enfoque",
+      "titulo": "Cuidar la vida",
+      "titulo_en": "Caring for life",
+      "texto": "Los servicios de ecoturismo que ofrecemos están orientados a garantizar la sostenibilidad de este proyecto. Como nuestro principal objetivo es cuidar la vida, evitamos prácticas que puedan afectar la vida natural, como el uso de «playback».\n\nPor eso nuestro público está especialmente interesado en el turismo de naturaleza y en el avistamiento espontáneo, en los comederos y en el bosque.",
+      "texto_en": "The ecotourism services we offer are designed to sustain this project. Because our main goal is to care for life, we avoid practices that can harm natural life, such as the use of playback.\n\nOur visitors are therefore especially interested in nature tourism and spontaneous sightings, at the feeders and in the forest.",
+      "foto": "",
+      "fuente": "BROCHURE revisado.docx"
+    },
+    {
+      "id": "siembra",
+      "titulo": "Sembrar es recordar",
+      "titulo_en": "To plant is to remember",
+      "texto": "La reserva lleva una bitácora de siembra: fecha, especie, quién donó el árbol y una observación. Muchos árboles se sembraron en homenaje a alguien. Es el registro más personal del bosque que está volviendo.",
+      "texto_en": "The reserve keeps a planting logbook: date, species, who donated the tree, and a note. Many trees were planted in someone's memory. It is the most personal record of the forest coming back.",
+      "foto": "",
+      "fuente": "relacion siembra arboles.xlsx"
+    }
+  ],
 
   "hitos": {
-    "titulo": "Hitos de la reserva",
-    "titulo_en": "Reserve milestones",
-    "fuente": "CRONOLOGÍA DEL PROYECTO DE RESERVA.docx · relacion siembra arboles.xlsx · servicios y tarifas 2024.docx",
+    "titulo": "Línea de tiempo",
+    "titulo_en": "Timeline",
+    "fuente": "CRONOLOGÍA DEL PROYECTO DE RESERVA.docx · relacion siembra arboles.xlsx",
     "items": [
-      { "fecha": "15 jun 2015", "texto": "Inicia la búsqueda, después de conocer la hermosa finca de Clara. Entre las ideas sueltas: conservación de un bosque nativo, conservación de fuentes de agua, un sendero de avistamiento y un espacio para la guitarra.", "texto_en": "The search begins, after visiting Clara's beautiful farm. Among the early ideas: conserving a native forest, protecting water springs, a birdwatching trail, and a space for the guitar." },
-      { "fecha": "2015 – 2018", "texto": "Se visitan más de diez fincas (Alto del Castillo, Papayal, Termales del Otoño, Alto del Guamo…). En una de ellas aprendimos a revisar escrituras y linderos, y a descubrir que puede haber problemas legales como una sucesión no realizada.", "texto_en": "More than ten farms are visited. At one of them we learned to check deeds and boundaries, and to spot legal problems such as an unsettled estate." },
-      { "fecha": "18 feb 2018", "texto": "Recorrido por la vereda Pueblo Hondo y, esa misma tarde, hallazgo de la finca Boyra por internet.", "texto_en": "A trip through the Pueblo Hondo area and, that same afternoon, the Boyra farm is found online." },
-      { "fecha": "23 feb 2018", "texto": "Primera visita a la finca con el propietario, Marcelo Avendaño.", "texto_en": "First visit to the farm with its owner, Marcelo Avendaño." },
+      { "fecha": "15 jun 2015", "texto": "Inicia la búsqueda, después de conocer la hermosa finca de Clara. Entre las ideas sueltas: conservar un bosque nativo, proteger las fuentes de agua, abrir un sendero de avistamiento y dejar un espacio para la guitarra.", "texto_en": "The search begins, after visiting Clara's beautiful farm. Among the early ideas: conserving a native forest, protecting water springs, opening a birdwatching trail, and leaving a space for the guitar." },
+      { "fecha": "2015 – 2018", "texto": "Se visitan más de diez fincas. En una de ellas aprendimos a revisar escrituras y linderos, y a descubrir que puede haber problemas legales, como una sucesión no realizada.", "texto_en": "More than ten farms are visited. At one of them we learned to check deeds and boundaries, and to spot legal problems such as an unsettled estate." },
+      { "fecha": "18 feb 2018", "texto": "Recorrido por la vereda Pueblo Hondo y, esa misma tarde, hallazgo de la finca Boyra.", "texto_en": "A trip through the Pueblo Hondo area and, that same afternoon, the Boyra farm is found." },
+      { "fecha": "23 feb 2018", "texto": "Primera visita a la finca con su propietario, Marcelo Avendaño.", "texto_en": "First visit to the farm with its owner, Marcelo Avendaño." },
       { "fecha": "15 mar 2018", "texto": "Firma de la promesa de compraventa.", "texto_en": "The promise-of-sale agreement is signed." },
-      { "fecha": "17 mar 2018", "texto": "Se siembran un yarumo y un tulipán: los primeros árboles, donados por Jaime y Natalia. Del yarumo dice la bitácora: «se lo comió una vaca»; del tulipán: «criticado injustamente, se resiste a morir».", "texto_en": "A yarumo and a tulip tree are planted: the first trees, donated by Jaime and Natalia. The logbook says of the yarumo: 'a cow ate it'; of the tulip tree: 'unfairly criticised, it refuses to die'." },
-      { "fecha": "2 abr 2018", "texto": "Firma de las escrituras en la notaría cuarta.", "texto_en": "The deeds are signed at the fourth notary." },
+      { "fecha": "17 mar 2018", "texto": "Se siembran un yarumo y un tulipán: los primeros árboles, donados por Jaime y Natalia. Del yarumo dice la bitácora: «se lo comió una vaca»; del tulipán: «criticado injustamente, se resiste a morir».", "texto_en": "A yarumo and a tulip tree are planted: the first trees, donated by Jaime and Natalia. The logbook says of the yarumo: 'a cow ate it'; of the tulip tree: 'unfairly criticised, it refuses to die'.", "hito": true },
+      { "fecha": "2 abr 2018", "texto": "Firma de las escrituras en la notaría cuarta.", "texto_en": "The deeds are signed at the fourth notary.", "hito": true },
       { "fecha": "3 abr 2018", "texto": "Entrega de la finca por parte de Marcelo y Erika.", "texto_en": "Marcelo and Erika hand over the farm." },
-      { "fecha": "5–6 abr 2018", "texto": "Salida de las vacas. Empieza la restauración.", "texto_en": "The cows leave. Restoration begins." },
+      { "fecha": "5–6 abr 2018", "texto": "Salida de las vacas. Empieza la restauración.", "texto_en": "The cows leave. Restoration begins.", "hito": true },
       { "fecha": "24 abr 2018", "texto": "Se siembra un siete cueros en homenaje a Toñito, el papá de Jairo, y una acacia negra: el primer árbol sembrado por Miguel.", "texto_en": "A siete cueros is planted in memory of Toñito, Jairo's father, and a black acacia: the first tree planted by Miguel." },
       { "fecha": "17 ago 2018", "texto": "Se siembra un carbonero, donado por Beatriz Quintero, en homenaje a su mamá. La siembra se vuelve una forma de recordar.", "texto_en": "A carbonero donated by Beatriz Quintero is planted in memory of her mother. Planting becomes a way of remembering." },
-      { "fecha": "2021", "texto": "Censo de árboles de la reserva: se identifican y georreferencian los individuos del inventario, con sus fichas de ecología y morfología.", "texto_en": "Tree census of the reserve: individual trees are identified and georeferenced, with ecology and morphology fact sheets." },
-      { "fecha": "Hoy", "texto": "Reserva Natural de la Sociedad Civil RNSC 112-20, registrada mediante Resolución No. 201 del Ministerio de Medio Ambiente y Desarrollo Sostenible.", "texto_en": "Civil Society Natural Reserve RNSC 112-20, registered by Resolution No. 201 of the Ministry of Environment and Sustainable Development." }
+      { "fecha": "2021", "texto": "Censo de árboles: se identifican y georreferencian los individuos del inventario, con sus fichas de ecología y morfología.", "texto_en": "Tree census: individual trees are identified and georeferenced, with ecology and morphology fact sheets.", "hito": true },
+      { "fecha": "Hoy", "texto": "Reserva Natural de la Sociedad Civil RNSC 112-20, registrada mediante Resolución No. 201 del Ministerio de Medio Ambiente y Desarrollo Sostenible.", "texto_en": "Civil Society Natural Reserve RNSC 112-20, registered by Resolution No. 201 of the Ministry of Environment and Sustainable Development.", "hito": true }
     ]
-  },
-
-  "siembra": {
-    "titulo": "Sembrar es recordar",
-    "titulo_en": "To plant is to remember",
-    "texto": "La reserva lleva una bitácora de siembra: fecha, especie, quién donó el árbol y una observación. Muchos árboles se sembraron en homenaje a alguien. Es el registro más personal del bosque que está volviendo.",
-    "texto_en": "The reserve keeps a planting logbook: date, species, who donated the tree, and a note. Many trees were planted in someone's memory. It is the most personal record of the forest coming back.",
-    "fuente": "relacion siembra arboles.xlsx"
   }
 }
