@@ -51,10 +51,10 @@ ROUTES = DATA / "routes.json"
 
 # ---------- parámetros de imagen ----------
 FULL_MAX = 1600      # lado largo de la imagen principal (px)
-THUMB_MAX = 420      # lado largo de la miniatura (px)
+THUMB_MAX = 800      # lado largo de la miniatura (px) — nítida en la rejilla en retina
 WEBP_Q = 80
 JPG_Q = 82
-THUMB_Q = 72
+THUMB_Q = 80
 VALID_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 HEIC_EXT = {".heic", ".heif"}
 

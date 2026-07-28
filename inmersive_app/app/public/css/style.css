@@ -385,7 +385,7 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .species-card.has-thumb .species-sci,
 .species-card.has-thumb .species-meta { padding-left: 12px; padding-right: 12px; }
 .species-card.has-thumb .species-group-tag { margin-left: 12px; margin-bottom: 12px; }
-.sp-thumb { display: block; width: 100%; aspect-ratio: 3 / 2; background: #eef2ee; }
+.sp-thumb { display: block; width: 100%; aspect-ratio: 4 / 3; background: #eef2ee; }
 .sp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .species-card .star { position: absolute; top: 8px; right: 10px; font-size: 13px; z-index: 1;
   text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
