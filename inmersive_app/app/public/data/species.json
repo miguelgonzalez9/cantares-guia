@@ -35,7 +35,11 @@
       "zones": [],
       "photo": null,
       "notes": "Rana de torrente asociada a las peñas de las cascadas; indicadora de agua limpia.",
-      "common_name_en": "Cordillera Central Tree Frog"
+      "common_name_en": "Cordillera Central Tree Frog",
+      "description": "Rana arborícola de torrente asociada a quebradas rápidas, peñas y cascadas del bosque nublado. Presenta coloración parda con moteado, y sus renacuajos se desarrollan en aguas frías y bien oxigenadas. Es considerada indicadora de agua limpia y de ecosistemas ribereños en buen estado.",
+      "description_en": "A torrent-dwelling treefrog associated with fast streams, rock faces and waterfalls of cloud forest. It has mottled brown coloration, and its tadpoles develop in cold, well-oxygenated water. It is considered an indicator of clean water and healthy riparian ecosystems.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "accipiter-striatus",
@@ -147,7 +151,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/nan-4__1.webp",
       "notes": "",
       "source": "inventaro aves reserva cantares.xlsx",
       "order": "Apodiformes",
@@ -308,7 +312,11 @@
       "in_ebird_hotspot": true,
       "seen": true,
       "potential": true,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Tucán de montaña de tamaño grande (unos 46–51 cm), con pico negro largo, corona negra, dorso pardo oliváceo y partes inferiores de un característico azul grisáceo, con la rabadilla amarilla y las infracaudales rojas. Habita el dosel y los bordes del bosque nublado andino, entre los 1600 y 3300 m. Es principalmente frugívoro y actúa como importante dispersor de semillas de árboles del bosque montano; se desplaza en parejas o pequeños grupos.",
+      "description_en": "A large montane toucan (about 46–51 cm) with a long black bill, black crown, olive-brown back and distinctive blue-grey underparts, with a yellow rump and red undertail coverts. It lives in the canopy and edges of Andean cloud forest between 1600 and 3300 m. Mainly frugivorous, it is an important seed disperser of montane forest trees, moving in pairs or small groups.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "nan-8",
@@ -382,7 +390,11 @@
       "in_ebird_hotspot": true,
       "seen": true,
       "potential": true,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Tángara vistosa de partes inferiores amarillo intenso, cabeza negra, y alas y rabadilla azules. Frecuenta el bosque montano y sus bordes entre los 1500 y 2900 m, a menudo integrando bandadas mixtas. Se alimenta de frutos e insectos y visita comederos.",
+      "description_en": "A striking tanager with bright yellow underparts, a black head, and blue wings and rump. It frequents montane forest and its edges between 1500 and 2900 m, often joining mixed-species flocks. It feeds on fruit and insects and visits feeders.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "nan-10",
@@ -744,7 +756,7 @@
       "flagship": true,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/rumbito-pechiblanco__1.webp",
       "notes": "El colibrí más pequeño de Colombia; entre 16+ especies de colibríes del jardín.",
       "common_name_en": "White-bellied Woodstar",
       "order": "Apodiformes",
@@ -756,7 +768,11 @@
       "in_ebird_hotspot": true,
       "seen": true,
       "potential": true,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Uno de los colibríes más pequeños de Colombia (unos 8 cm). El macho tiene garganta violeta iridiscente, vientre blanco y una banda blanca en el pecho; la cola es corta y ahorquillada. Su vuelo rápido y zumbante recuerda al de un abejorro. Habita bordes de bosque, jardines y zonas arbustivas de la cordillera.",
+      "description_en": "One of the smallest hummingbirds in Colombia (about 8 cm). The male has an iridescent violet throat, a white belly and a white chest band; the tail is short and forked. Its fast, buzzing flight recalls that of a bumblebee. It inhabits forest edges, gardens and shrubby areas of the Andes.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "pava-maraquera",
@@ -1151,7 +1167,11 @@
       "in_ebird_hotspot": true,
       "seen": true,
       "potential": true,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Perico verde de tamaño mediano con penachos auriculares dorados y una mancha rojiza en el vientre. Es una especie amenazada (Vulnerable), asociada a bosques altoandinos con Podocarpáceas y palmas de cera. Tiene hábitos nómadas y sigue la fructificación del drago y otros árboles, por lo que su presencia es estacional.",
+      "description_en": "A medium-sized green parakeet with golden ear tufts and a reddish patch on the belly. It is a threatened species (Vulnerable), associated with high-Andean forests with Podocarpaceae and wax palms. It is nomadic, tracking the fruiting of drago and other trees, so its presence is seasonal.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "carpintero-de-los-robles",
@@ -1175,7 +1195,11 @@
       "in_ebird_hotspot": false,
       "seen": true,
       "potential": true,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Carpintero blanco y negro con corona roja y un patrón facial llamativo de aspecto payasesco. Está estrechamente asociado a robledales y bosques con encinos, donde almacena bellotas en 'graneros' perforados en troncos. Es una especie social que vive en grupos familiares.",
+      "description_en": "A black-and-white woodpecker with a red crown and a striking, clownish facial pattern. It is closely associated with oak forests, where it stores acorns in 'granaries' drilled into trunks. It is a social species that lives in family groups.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "nan-34",
@@ -1286,7 +1310,7 @@
       "flagship": true,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/barranquero__1.webp",
       "notes": "Ave emblemática, muy visible — buena bandera para el sendero de aves.",
       "ebird": true,
       "family": "Momotidae",
@@ -1299,7 +1323,11 @@
       "in_ebird_hotspot": true,
       "seen": true,
       "potential": true,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Ave grande y vistosa con corona turquesa, antifaz negro y una cola larga que a menudo termina en raquetas por el desgaste de las plumas centrales. Habita bordes de bosque y zonas semiabiertas de la cordillera. Anida en túneles que excava en taludes de tierra y se alimenta de insectos, frutos y pequeños vertebrados.",
+      "description_en": "A large, showy bird with a turquoise crown, black mask and a long tail that often ends in rackets from the wear of the central feathers. It inhabits forest edges and semi-open areas of the Andes. It nests in tunnels dug into earth banks and feeds on insects, fruit and small vertebrates.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "copeton-montanero",
@@ -1373,7 +1401,11 @@
       "in_ebird_hotspot": true,
       "seen": true,
       "potential": true,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Tinamú terrestre de pecho leonado y corona oscura, difícil de observar por sus hábitos discretos. Habita el suelo del bosque nublado, donde forrajea semillas, frutos caídos e invertebrados. Se detecta sobre todo por su vocalización al amanecer y al atardecer.",
+      "description_en": "A terrestrial tinamou with a tawny breast and dark cap, difficult to observe due to its secretive habits. It lives on the floor of cloud forest, where it forages for seeds, fallen fruit and invertebrates. It is detected mainly by its calls at dawn and dusk.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "perdiz-colorada",
@@ -1397,7 +1429,11 @@
       "in_ebird_hotspot": true,
       "seen": true,
       "potential": true,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Perdiz de bosque endémica de Colombia, con partes inferiores de color castaño rojizo y anillo ocular desnudo. Vive en el suelo del bosque andino, en pequeños grupos (coveys), y delata su presencia con duetos sonoros al amanecer. Está clasificada como Casi Amenazada por la pérdida de bosque.",
+      "description_en": "A forest wood-quail endemic to Colombia, with chestnut-rufous underparts and a bare eye-ring. It lives on the floor of Andean forest in small coveys and reveals its presence with loud duets at dawn. It is classified as Near Threatened due to forest loss.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "nan-38",
@@ -1459,7 +1495,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/nan-40__1.webp",
       "notes": "",
       "source": "inventaro aves reserva cantares.xlsx",
       "order": "Pelecaniformes",
@@ -1621,7 +1657,11 @@
       "in_ebird_hotspot": false,
       "seen": true,
       "potential": false,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Águila grande de dorso negro y partes inferiores castañas, con una cresta erecta prominente. Es un depredador tope del bosque andino y una de las rapaces más amenazadas de los Andes (En Peligro). Requiere grandes extensiones de bosque continuo, por lo que su presencia indica un ecosistema bien conservado.",
+      "description_en": "A large eagle with a black back and chestnut underparts, with a prominent erect crest. It is a top predator of Andean forest and one of the most threatened raptors of the Andes (Endangered). It requires large tracts of continuous forest, so its presence indicates a well-conserved ecosystem.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "azulejo-montanero",
@@ -1633,7 +1673,7 @@
       "flagship": true,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/azulejo-montanero__1.webp",
       "notes": "Visita comederos (prob. alta).",
       "common_name_en": "Blue-capped Tanager",
       "order": "Passeriformes",
@@ -1645,7 +1685,11 @@
       "in_ebird_hotspot": true,
       "seen": true,
       "potential": true,
-      "reserve_status": "seen"
+      "reserve_status": "seen",
+      "description": "Tángara robusta de corona azul y cuerpo gris oliváceo, con toques amarillos en algunas subespecies. Frecuenta bordes de bosque, zonas arboladas y jardines de la cordillera, donde visita comederos. Se alimenta de frutos e insectos, a menudo en bandadas mixtas.",
+      "description_en": "A robust tanager with a blue crown and olive-grey body, with yellow tones in some subspecies. It frequents forest edges, wooded areas and gardens of the Andes, where it visits feeders. It feeds on fruit and insects, often in mixed flocks.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "tangara-real",
@@ -1875,7 +1919,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/mirla__1.webp",
       "notes": "Muy común, canto conspicuo — buen candidato para Sound ID.",
       "common_name_en": "Great Thrush",
       "order": "Passeriformes",
@@ -2062,7 +2106,11 @@
       "zones": [],
       "photo": null,
       "notes": "Exótico usado en la restauración; ~8.7 ha en la reserva.",
-      "common_name_en": "Andean alder"
+      "common_name_en": "Andean alder",
+      "description": "Aliso andino de crecimiento rápido, con corteza gris y hojas simples aserradas. Fija nitrógeno atmosférico gracias a asociaciones radiculares, por lo que se emplea en la restauración y recuperación de suelos. En Cantares se ha sembrado en áreas de regeneración.",
+      "description_en": "A fast-growing Andean alder with grey bark and simple serrate leaves. It fixes atmospheric nitrogen through root associations, so it is used in restoration and soil recovery. At Cantares it has been planted in regeneration areas.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "sietecueros",
@@ -2076,7 +2124,11 @@
       "zones": [],
       "photo": null,
       "notes": "Flor morada llamativa; también citado como Andesanthus lepidotus. Sinónimo: Tibouchina lepidota.",
-      "common_name_en": "Andean Princess-flower"
+      "common_name_en": "Andean Princess-flower",
+      "description": "Arbusto o arbolito de la familia Melastomataceae (antes en el género Tibouchina), con flores moradas grandes y llamativas y hojas de nervadura marcada. Crece en bordes de bosque y zonas abiertas de la cordillera, y florece de forma vistosa. Atrae abejas y otros polinizadores.",
+      "description_en": "A shrub or small tree of the family Melastomataceae (formerly in the genus Tibouchina), with large, showy purple flowers and prominently veined leaves. It grows at forest edges and open areas of the Andes and flowers conspicuously. It attracts bees and other pollinators.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "anturio-negro",
@@ -2090,7 +2142,11 @@
       "zones": [],
       "photo": null,
       "notes": "Flor emblema de Manizales.",
-      "common_name_en": "Black Anthurium"
+      "common_name_en": "Black Anthurium",
+      "description": "Anturio de la familia Araceae con espata oscura y follaje robusto, considerado flor emblemática de Manizales. Crece en el sotobosque húmedo del bosque nublado, como planta terrestre o epífita. Su inflorescencia consiste en un espádice rodeado por la espata.",
+      "description_en": "An anthurium of the family Araceae with a dark spathe and robust foliage, considered an emblematic flower of Manizales. It grows in the humid understory of cloud forest, as a terrestrial or epiphytic plant. Its inflorescence consists of a spadix surrounded by the spathe.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "cariseco",
@@ -2130,7 +2186,11 @@
       "zones": [],
       "photo": null,
       "notes": "Pionera; sembrada en restauración. (Resolución dice Cecropiaceae → hoy Urticaceae.)",
-      "common_name_en": "Trumpet tree (Cecropia)"
+      "common_name_en": "Trumpet tree (Cecropia)",
+      "description": "Árbol pionero de crecimiento rápido, con tronco hueco anillado y grandes hojas peltadas de envés blanquecino. Mantiene una relación mutualista con hormigas que lo defienden. Coloniza claros y áreas perturbadas, y se emplea en la restauración; sus frutos alimentan a aves y mamíferos.",
+      "description_en": "A fast-growing pioneer tree with a hollow, ringed trunk and large peltate leaves with a whitish underside. It maintains a mutualistic relationship with ants that defend it. It colonizes gaps and disturbed areas and is used in restoration; its fruits feed birds and mammals.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "chrysochlamys-colombiana",
@@ -2145,7 +2205,12 @@
       "photo": null,
       "notes": "Árbol nativo del bosque de Cantares, familia Clusiaceae.",
       "source": "censo_arboles_2021",
-      "habit": "arbol"
+      "habit": "arbol",
+      "description": "Árbol que alcanza hasta los 18 m de altura y 40 cm de diámetro, madera rojiza. Exudado cristalino, amarillo, pegajoso. Hojas simples, opacas, lisas (glabras), alargadas, opuestas decusadas, elípticas a obovadas, enteras, coriáceas, sus pecíolos son cortos, gruesos y acanalados; no poseen estípulas, pero si una cicatriz en la unión de sus pecíolos. Inflorescencias masculinas y femeninas en individuos diferentes de la misma especie, en panícula terminal. Las flores provienen de una especie dioica, es decir que estan agrupadas, unisexuales; cáliz verde; corola blanca o amarillo claro. Fruto cápsula, hasta con 5 lóculos, ovoide, suculenta, amarillenta o verde claro al madurar, 4-5 estigmas en el ápice, semillas cubiertas por arilo naranja.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB). Rango altitudinal: 1800 y 2800 m. Origen: Nativo.\n\nUsos: Doméstico, alimenticio, el arilo de sus semillas es consumido por aves y pequeños mamíferos como roedores. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "chusque",
@@ -2214,7 +2279,11 @@
       "zones": [],
       "photo": null,
       "notes": "Resolución dice Cyclanthaceae (error) → Cyatheaceae. Emblemático de bosque húmedo.",
-      "common_name_en": "Tree fern"
+      "common_name_en": "Tree fern",
+      "description": "Helecho arbóreo de la familia Cyatheaceae, con un tronco erecto que puede alcanzar varios metros y una corona de frondas grandes y divididas. Crece en el bosque montano húmedo, en sitios sombreados y de alta humedad, a menudo cerca de quebradas. Es un elemento característico del sotobosque nublado.",
+      "description_en": "A tree fern of the family Cyatheaceae, with an erect trunk that can reach several meters and a crown of large, divided fronds. It grows in humid montane forest, in shaded, high-humidity sites, often near streams. It is a characteristic element of the cloud-forest understory.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "dendropanax",
@@ -2445,7 +2514,11 @@
       "zones": [],
       "photo": null,
       "notes": "Orquídea endémica de Colombia, flor emblema de Bogotá.",
-      "common_name_en": "Yellow-purple Oncidium"
+      "common_name_en": "Yellow-purple Oncidium",
+      "description": "Orquídea epífita endémica de Colombia, con flores de coloración amarilla y púrpura dispuestas en inflorescencias ramificadas. Crece sobre árboles del bosque nublado, en condiciones de alta humedad y luz filtrada. Como muchas orquídeas, es sensible a la perturbación del hábitat.",
+      "description_en": "An epiphytic orchid endemic to Colombia, with yellow-and-purple flowers arranged in branched inflorescences. It grows on trees of cloud forest, in conditions of high humidity and filtered light. Like many orchids, it is sensitive to habitat disturbance.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "palmicho",
@@ -2459,7 +2532,11 @@
       "zones": [],
       "photo": null,
       "notes": "Resolución: 'Oredoza frigida', Palmae → Arecaceae. Palma emblemática de niebla.",
-      "common_name_en": "Mountain palm"
+      "common_name_en": "Mountain palm",
+      "description": "Palma de montaña del bosque altoandino húmedo, de porte esbelto y follaje pinnado. El nombre 'Oreodoxa frigida' es un binomio antiguo cuya ubicación taxonómica actual conviene verificar. Las palmas de este tipo aportan frutos que alimentan a aves y mamíferos del bosque nublado.",
+      "description_en": "A montane palm of humid high-Andean forest, with a slender habit and pinnate foliage. The name 'Oreodoxa frigida' is an old binomial whose current taxonomic placement should be verified. Palms of this kind provide fruit that feeds birds and mammals of cloud forest.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "mano-de-oso",
@@ -2542,7 +2619,12 @@
       "notes": "Objeto de conservación; árboles de hasta 20 m en la zona alta.",
       "common_name_en": "Andean oak",
       "habit": "arbol",
-      "source": "3_Listado Especies Cantares.xlsx"
+      "source": "3_Listado Especies Cantares.xlsx",
+      "description": "El árbol alcanza los 30 mts de altura y más de un metros de diametro en su tronco; que es grueso y cilindrico, tiene corteza rugosa y fisurada de color negruzco, su copa es globosa. Hojas glabras, alternas, alargadas, estan agrupadas en manojos; deciduas, elípticas a lanceoladas u oblanceoladas pubescencia estrellada en la inserción de los nervios; su borde es ondulado y poseen pecíolos cortos; presentan estípulas libres que son largas, angostas y efímeras (caen pronto). Las flores están agrupadas en inflorescencias terminales masculinas y femeninas, en el mismo individuo; las masculinas están dispuestas en amentos pendulares, y las femeninas muy comprimidas de tonalidad verde oliva. Fruto incluido hasta una tercera parte de su longitud en un receptáculo de brácteas pubescentes y de ápice agudo, bellota que desprende con facilidad, cada fruto contiene una semilla.\n\nHábitat: Sembrada. Zona de vida: Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Rango altitudinal: 1300 y 3000 m. Origen: Nativo.\n\nUsos: Alimenticio, industrial, medicinal, ornamental, doméstico. Estado de conservación (UICN): Vulnerable (VU).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "VU"
     },
     {
       "id": "pino-colombiano",
@@ -2556,7 +2638,12 @@
       "zones": [],
       "photo": null,
       "notes": "Conífera nativa sembrada en la restauración; amenazada.",
-      "common_name_en": "Colombian Mountain Pine"
+      "common_name_en": "Colombian Mountain Pine",
+      "description": "Árbol que alcanza hasta 30 m de altura, tiene una corteza escamosa de color negro rojizo; su follaje es de color verde claro, es denso y uniforme. Las hojas son simples, opuestas están dispuestas en forma de peine (dísticas), se disponen de tal forma que las de un lado se observan por su frente y las del otro lado por su revés poseen un solo nervio central y terminan en una pequeña punta. Las flores son masculinas o femeninas localizadas en individuos diferentes de la misma especie (dioica); las masculinas se ubican en pequeños conos axilares (estróbilos) que son alargados, las femeninas son pequeñas, tienen forma redondeada. Los frutos tienen forma de drupa, terminan en punta, su color es verde y cada uno contiene una semilla. Las semillas tienen forma de óvalo, son carnosas y su color pude ser crema o marrón.\n\nHábitat: Sembrada. Zona de vida: Bosque muy húmedo premontano (bmh-PM), bosque húmedo montano bajo (bh-MB). Rango altitudinal: 1700 y 2900 m. Origen: Nativo.\n\nUsos: Industrial, ornamental, alimenticio, doméstico. Estado de conservación (UICN): En Peligro (EN).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "EN"
     },
     {
       "id": "dulumoco",
@@ -2694,7 +2781,12 @@
       "photo": null,
       "notes": "Árbol hasta 20 m de altura y 50 cm de diámetro, posee corteza del tallo agrietada y escamosa de color oscura; su copa tiene forma de cono, su follaje es de color verde blancuzco. Hojas alternas, adultas transformadas en filodios elípticos o lanceolados, de 6-12 cm de longitud, 3-5 nervios longitudinales, prominentes, estípulas, pulvínulo; tienen forma de sable, macen recompuestas y posteriormente",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta 20 m de altura y 50 cm de diámetro, posee corteza del tallo agrietada y escamosa de color oscura; su copa tiene forma de cono, su follaje es de color verde blancuzco. Hojas alternas, adultas transformadas en filodios elípticos o lanceolados, de 6-12 cm de longitud, 3-5 nervios longitudinales, prominentes, estípulas, pulvínulo; tienen forma de sable, macen recompuestas y posteriormente se convierten en simples. las flores están dispuestas en inflorescencias en cabezuelas redondas solitarias o agrupadas en racimos, axilares. Flores con numerosos estambres crema o blanquecinos. Fruto legumbre, linear hasta 14 cm de longitud, retorcido y enrollado y cada una contiene varias semillas, son de color pardo rojizo, semillas elipsoidales, negras brillantes.\n\nHábitat: Sembrada. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Rango altitudinal: 1800 y 3000 m. Origen: Australia.\n\nUsos: Ornamental, doméstico, restauración, recuperación de suelos. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "ageratina-tinifolia",
@@ -2739,7 +2831,12 @@
       "photo": null,
       "notes": "El árbol alcanza los 25 m de altura, tiene corteza lisa de color gris oscuro; su copa es irregular, normalmente tiene forma de piramide, sus ramas crecen de manera horizontal. Las hojas son simples, alternas, tienen forma elíptica, su borde es aserrado, su envés es de color verde grisáceo, su nerviación es pronunciadad, terminan en punta y su base tiene forma obtusa; presentan estípulas libres. La",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "El árbol alcanza los 25 m de altura, tiene corteza lisa de color gris oscuro; su copa es irregular, normalmente tiene forma de piramide, sus ramas crecen de manera horizontal. Las hojas son simples, alternas, tienen forma elíptica, su borde es aserrado, su envés es de color verde grisáceo, su nerviación es pronunciadad, terminan en punta y su base tiene forma obtusa; presentan estípulas libres. Las flores estan agrupadas en inflorescencias masculinas y femeninas en el mismo árbol, las inflorescencias masculinas están dispuestas en forma de amentos y las femeninas están dispuestas en forma de piñas. Los frutos son las inflorescencias femeninas que, al ser fecundadas, se tornan color marrón; cuando están maduros se abren para liberar las semillas.\n\nHábitat: Borde de bosque y quebrada. Zona de vida: Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Rango altitudinal: 1900 y 3000 m. Origen: Nativo.\n\nUsos: Industrial, medicinal, doméstico, restaurador, protector. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "axinaea-macrophylla",
@@ -2754,7 +2851,12 @@
       "photo": null,
       "notes": "Arbusto hasta 2.5 m de altura. Hojas simples, opuestas, margen ciliadodentado, base levemente cordada, envez con pubescencia corta, 5-7 nervaduras, unas saliendo un poco por encima de la base y llegando hasta el ápice, tricomas ciliados en pecíolos y ramas terminales. Inflorescencias en panículas terminales. Flores pentámeras, con pétalos blancos, filamentos y anteras amarillas. Fruto baya, rosado",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Arbusto hasta 2.5 m de altura. Hojas simples, opuestas, margen ciliadodentado, base levemente cordada, envez con pubescencia corta, 5-7 nervaduras, unas saliendo un poco por encima de la base y llegando hasta el ápice, tricomas ciliados en pecíolos y ramas terminales. Inflorescencias en panículas terminales. Flores pentámeras, con pétalos blancos, filamentos y anteras amarillas. Fruto baya, rosado tornándose morado-negro al madurar, semillas abundantes, diminutas.\n\nHábitat: Potreros en regeneración. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB), bosque humedo montano bajo (bh-MB) y (bmh-M). Rango altitudinal: 2400 y 3500 m. Origen: Nativo.\n\nUsos: Ornamental, doméstico, protectora. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "chilca",
@@ -2784,7 +2886,12 @@
       "photo": null,
       "notes": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol corpulento, de corteza lisa y oscura, con las ramas ligeramente angulares. Hojas simples, alternas, espiraladas, ampliamente ovadas a obovadas, enteras, base redondeada a levemente cuneada, con el envés blanquecino, coriáceas, ovada, base cordada a obtusa, ápice acuminado a redondeado, pecíolo de hasta 4 cm de longitud; inflorescencias paniculadas, axilares pero cerca de la parte terminal de las ramas; flores pequeñas, amarillentas, bisexuales, iguales, con las dos caras provistas de pelos cortos no erectos; fruto baya elipsoide verde, carente de cúpula, entre 2.5-3.5 cm de longitud y de color morado oscuro al madurar, presentan una constricción en la inserción del fruto con el pedicelo. Semilla de tonalidad marrón.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB). Rango altitudinal: 2200 y 2900 m. Origen: Nativo.\n\nUsos: Industrial, coméstible, doméstico. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "billia-rosea",
@@ -2799,7 +2906,12 @@
       "photo": null,
       "notes": "Árbol hasta de 25 m de altura y 50 cm de diámetro, parcialmente caducifolio, corteza de color negro rojizo desprendible, de ramificación abundante, follaje color verde oscuro. Hojas opuestas, decusadas, compuestas, trifoliadas, enteras, haz verde lustroso; las hojas nuevas y las más viejas rojizas, de textura coriácea, sus pecíolos son largos miden entre 2 y 4 cm. Inflorescencia en panículas cimos",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta de 25 m de altura y 50 cm de diámetro, parcialmente caducifolio, corteza de color negro rojizo desprendible, de ramificación abundante, follaje color verde oscuro. Hojas opuestas, decusadas, compuestas, trifoliadas, enteras, haz verde lustroso; las hojas nuevas y las más viejas rojizas, de textura coriácea, sus pecíolos son largos miden entre 2 y 4 cm. Inflorescencia en panículas cimosas, terminales. Flores vistosas pentámeras; sépalos verdes, marrón, unidos basalmente; corola blanca, con variegaciones amarillas y rojas, pistilo largo, rojo. Fruto cápsula trilocular, ovoide, con un lado aplanado, dehiscente, rojo–rosado al madurar; las semillas son carnosas, su tamaño es mediano, su sabor es amargo y tiene forma hemisférica o poligonal.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Rango altitudinal: 1000 y 2700 m. Origen: Nativo.\n\nUsos: Industrial, alimenticio, ornamental, doméstico. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "trompeto",
@@ -2859,7 +2971,12 @@
       "photo": null,
       "notes": "Árbol de hasta 15 metros de altura, con la corteza agrietada y las ramas tomentosas de color castaño; hojas lanceoladas, ápice agudo, margen suavemente aserrada, base atenuada con las márgenes revolutas, 17-20 cm de longitud y 5.8 de ancho; estípula representada por una línea interpeciolar, pecíolo tomentoso, 1.5-2 cm de longitud, curvado en la base, haz glabra, opaca, nervios impresos, envés dens",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol de hasta 15 metros de altura, con la corteza agrietada y las ramas tomentosas de color castaño; hojas lanceoladas, ápice agudo, margen suavemente aserrada, base atenuada con las márgenes revolutas, 17-20 cm de longitud y 5.8 de ancho; estípula representada por una línea interpeciolar, pecíolo tomentoso, 1.5-2 cm de longitud, curvado en la base, haz glabra, opaca, nervios impresos, envés densamente cubierto por pelos ramificados color castaño; inflorescencias terminales cimosas, con brácteas y bracteolas lineares; flores en cabezuelas densas, blancoamarillentas, muy fragantes, tetrámeras; fruto, una cápsula pequeña.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB). Rango altitudinal: 2000 y 2800 m. Origen: Nativo.\n\nUsos: Doméstico, alimenticio, protector, restaurador. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "camaedorea-linearis",
@@ -2889,7 +3006,12 @@
       "photo": null,
       "notes": "Árbol de hasta 20 m de altura y 50 cm de diámetro, tronco blanquecino, nudos prominentes, ramificación distal, cavidades en las ramas habitadas por insectos. Hojas alternas, digitadas con 9 lóbulos, peltadas, enteras, pubescentes, glaucas en el haz, venación palmeada, estípula cónica terminal, pubescente y morada. Flores unisexuales, reducidas y compactas, amarillas a marrón.Inflorescencia axilar,",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol de hasta 20 m de altura y 50 cm de diámetro, tronco blanquecino, nudos prominentes, ramificación distal, cavidades en las ramas habitadas por insectos. Hojas alternas, digitadas con 9 lóbulos, peltadas, enteras, pubescentes, glaucas en el haz, venación palmeada, estípula cónica terminal, pubescente y morada. Flores unisexuales, reducidas y compactas, amarillas a marrón.Inflorescencia axilar, amentos dispuestos en racimos, las inflorescencias masculinas se diferencian de las femeninas por que las primeras tienen 10 amentos y las segundas solo 4. Los frutos están dentro del amento femenino y contienen una sustancia mucosa en su interior, son muy pequeños, de color café oscuro. las semillas son de consistencia dura, tienen forma de elipse y son de color café claro.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo, (bmh-MB), y bosque secundario o en los claros. Rango altitudinal: 1800 y 2800 m. Origen: Nativo.\n\nUsos: Alimenticio, industrial, medicinal, ormamental, pionera en procesos de restauración. Estado de conservación (UICN): Preocupación Menor (LC).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "LC"
     },
     {
       "id": "cedrela-montana",
@@ -2904,7 +3026,12 @@
       "photo": null,
       "notes": "Árbol hasta 30 m de altura y 1 m de diámetro, fuste recto, corteza marrón a gris, fisurada y olorosa, caducifolio al fructificar, su copa tiene forma aparasolada, o irregular. Hojas alternas, compuestas, paripinnadas, hasta 22 pares de folíolos ovados-lanceolados, opuestos, glabros a tomentoso en el envés, su raquis es protuberante y abultado en su base, su ápice forma un ángulo recto. Las flores",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta 30 m de altura y 1 m de diámetro, fuste recto, corteza marrón a gris, fisurada y olorosa, caducifolio al fructificar, su copa tiene forma aparasolada, o irregular. Hojas alternas, compuestas, paripinnadas, hasta 22 pares de folíolos ovados-lanceolados, opuestos, glabros a tomentoso en el envés, su raquis es protuberante y abultado en su base, su ápice forma un ángulo recto. Las flores están dispuestas en inflorescencia panícular, terminal, muy ramificada, puberulenta; flores sésiles; cáliz cupuliforme, pentalobulado, pubérulos, blanco-verdoso; corola cinco pétalos, oblongos, cortamente pubescentes, blancos y se tornan de color amarillo al envejecer. Fruto cápsula, péndula, oblongo-elipsoide, grismarrón, lenticelada, se abren por sí solas de arriba hacia abajo dehiscente por 5 valvas cuyo interior es de color amarillo y parecen una flor abierta, semillas numerosas, aplanadas y lisas con alas, marrón claro.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Rango altitudinal: 1700 y 3000 m. Origen: Nativo.\n\nUsos: Alimenticio, industrial, ornamental, doméstico. Estado de conservación (UICN): Casi Amenazada (NT).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NT"
     },
     {
       "id": "cerca-quebrada",
@@ -2935,7 +3062,11 @@
       "notes": "Árbol nacional de Colombia; sembrada en la restauración.",
       "habit": "arbol",
       "common_name_en": "Quindío Wax Palm",
-      "source": "3_Listado Especies Cantares.xlsx"
+      "source": "3_Listado Especies Cantares.xlsx",
+      "description": "Palma de cera del Quindío, árbol nacional de Colombia y la palma más alta del mundo (puede superar los 60 m). Su tronco es cilíndrico, blanquecino y recubierto de cera. Habita el bosque altoandino y está clasificada En Peligro; en Cantares se ha sembrado en áreas de restauración.",
+      "description_en": "The Quindío wax palm, national tree of Colombia and the tallest palm in the world (it can exceed 60 m). Its trunk is cylindrical, whitish and coated in wax. It inhabits high-Andean forest and is classified as Endangered; at Cantares it has been planted in restoration areas.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "rapabarbo",
@@ -2965,7 +3096,12 @@
       "photo": null,
       "notes": "Árbol de hasta 20 metros de altura, de corteza gruesa y apariencia corchosa, con la cara interna amarillenta, ramitas pubescentes; su corteza viva posee sabor amargo.Hojas ovadas u orbiculares, su nerviación es de color rojo, pubescentes en el envés, rojas al madurar, ápice agudo, base aguda a cortada, margen entera, 15-30 cm de longitud, estípulas grandes, ovadas, con el ápice obtuso a agudo, gla",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol de hasta 20 metros de altura, de corteza gruesa y apariencia corchosa, con la cara interna amarillenta, ramitas pubescentes; su corteza viva posee sabor amargo.Hojas ovadas u orbiculares, su nerviación es de color rojo, pubescentes en el envés, rojas al madurar, ápice agudo, base aguda a cortada, margen entera, 15-30 cm de longitud, estípulas grandes, ovadas, con el ápice obtuso a agudo, glabras; inflorescencias paniculadas terminales o subterminales, con pubescencia suave; flores fragantes, conspicuas, subsésiles, cáliz tomentoso, 5-dentado, corola rojiza a rosado claro, serícea; fruto capsular, cilindrico rojizo, se abren por sí solos (dehiscentes), contiene muchas semillas, son de color negro al madurar por fuera y de color amarillo al interior, las semillas son aladas y cafés.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Rango altitudinal: 2000 y 3000 m. Origen: Nativo.\n\nUsos: Industrial, medicinal, ornamental, doméstico. Estado de conservación (UICN): Casi Amenazada (NT).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NT"
     },
     {
       "id": "citharexylum-subflavescens",
@@ -2980,7 +3116,12 @@
       "photo": null,
       "notes": "Árbol hasta 20 m de altura y 50 cm de diámetro, de corteza amarillenta escamosa la cual se desprende en tiras largas; su copa es amplia y sus ramas son escasas, gruesas. las Hojas son simples, opuestas, elípticas, enteras, envés con pubescencia grisácea o amarillenta; tiene largos pecíolos que las unen al tallo, son acuminadas y su base tiene forma obtusa, no presenta estípulas. Las flores son peq",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta 20 m de altura y 50 cm de diámetro, de corteza amarillenta escamosa la cual se desprende en tiras largas; su copa es amplia y sus ramas son escasas, gruesas. las Hojas son simples, opuestas, elípticas, enteras, envés con pubescencia grisácea o amarillenta; tiene largos pecíolos que las unen al tallo, son acuminadas y su base tiene forma obtusa, no presenta estípulas. Las flores son pequeñas; están dispuestas en inflorescencia en espigas, axilares. su cáliz es de color verde; corola blanca con forma tubular y termina en 5 lóbulos separados entre sí, hacia el ápice. Fruto baya, rojo brillante parecida a una cereza, cuelgan de sus ramas y cada una contiene dos semillas, amarillo-marrón, las cuales poseen una cara plana y otra redonda, su base tiene una entrada con dos puntas, su consistencia de dura.\n\nHábitat: Sembrada. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Rango altitudinal: 1900 y 2900 m. Origen: Nativo.\n\nUsos: Alimenticio, doméstico, ornamental, industrial, melífera. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "drago",
@@ -2996,7 +3137,12 @@
       "notes": "Nativa sembrada en restauración.",
       "habit": "arbol",
       "common_name_en": "Dragon's-blood tree",
-      "source": "3_Listado Especies Cantares.xlsx"
+      "source": "3_Listado Especies Cantares.xlsx",
+      "description": "Árbol que alcanza hasta los 20 m de altura y 50 cm de diámetro en su tronco, su corteza es de color gris oscuro, sus ramas y hojas jóvenes con indumento arenoso, exudado transparente que oxida a rojo. Hojas simples, alternas, ovadas con la base cordada, enteras, con estípulas; envés con un par de glándulas prominentes en la base de la lámina. Inflorescencia en espigas axilares, raquis verde. Flores unisexuales; las femeninas se ubican en la parte basal del eje y las masculinas en la parte terminal; cáliz y corola verde. Fruto cápsular, trilocular con cáliz persistente marrón e indumento marrón.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Rango altitudinal: 1000 y 2900 m. Origen: Nativo.\n\nUsos: Restauración, alimenticio, doméstico, industrial. Estado de conservación (UICN): Preocupación Menor (LC).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "LC"
     },
     {
       "id": "dulomoco-rojo",
@@ -3026,7 +3172,12 @@
       "photo": null,
       "notes": "Árbol hasta los 15 m de altura y los 60 cm de diámetro en su tronco, que posee aguijones cortos. Hojas compuestas, alternas, trifoliadas, tienen forma triangular, con estípulas libres en la base del pecíolo, están dispuestas en forma helicoidal, terminan en punta, son glabras; su borde es entero y su textura es coriácea. Flores de forma zigomorfas, conformadas por 4 pétalos rojonaranja, su androce",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta los 15 m de altura y los 60 cm de diámetro en su tronco, que posee aguijones cortos. Hojas compuestas, alternas, trifoliadas, tienen forma triangular, con estípulas libres en la base del pecíolo, están dispuestas en forma helicoidal, terminan en punta, son glabras; su borde es entero y su textura es coriácea. Flores de forma zigomorfas, conformadas por 4 pétalos rojonaranja, su androceo se encuentra localizado dentro de la quilla o carina con 9 estambres que forman un grupo y otro separado, el conjunto de flores forma una inflorescencia en racimo cónico y denso. Fruto en legumbre, caracterizado por presentar articulaciones en cada semilla, son pendulares y cada una contiene varias semillas, son de color café rojizo, tienen forma de riñon y sus cotiledones poseen consistencia carnosa.\n\nHábitat: Sembrada. Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque muy húmedo montano bajo (bmh-MB). Rango altitudinal: 1300 y 2800 m. Origen: Nativo.\n\nUsos: Alimenticio, ornamental, doméstico, restauración, recuperación de suelos. Estado de conservación (UICN): Preocupación Menor (LC).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "LC"
     },
     {
       "id": "palmicha",
@@ -3071,7 +3222,12 @@
       "photo": null,
       "notes": "",
       "habit": "arbol",
-      "source": "3_Listado Especies Cantares.xlsx"
+      "source": "3_Listado Especies Cantares.xlsx",
+      "description": "Árbol mediano de hasta 15 metros de altura, aromático, tiene corteza lisa y es de color grisáceo; su ramificación tiene nudos pronunciados, son gruesas y quebradizas. Hojas simples, opuestas y decusadas, elípticas, glabras, de ápice mucronado, base aguda, margen aserrada, su consistencia es carnosa, los pecíolos se unen y forman un tubo sobre el nudo de la rama donde se ubican 4 estípulas pequeñas. Las flores masculinas y femeninas están agrupadas es árboles diferentes de la misma especie, las masculinas tienen forma de amentos cónicos y las femeninas en panículas extendidas, en inflorescencias terminales. Los frutos son bayas de color blanco, jugosos, parecidas a una bola de granizo, son fragantes y acuosas, cada fruto contiene entre 4 y 8 semillas, son de color marrón, tienen forma elíptica y de consistencia dura y sabor amargo.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Rango altitudinal: 2000 y 3200 m. Origen: Nativo.\n\nUsos: Alimenticio, medicinal, ornamental, doméstico, restauración. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "silvo-silvo",
@@ -3132,7 +3288,12 @@
       "notes": "Especie amenazada (EN) en Colombia — alto valor de conservación.",
       "habit": "arbol",
       "common_name_en": "Andean walnut",
-      "source": "3_Listado Especies Cantares.xlsx"
+      "source": "3_Listado Especies Cantares.xlsx",
+      "description": "Árbol de hasta 30 metros de altura y 1 m o más de diámetro, corteza gruesa y grisácea, con fisuras longitudinales muy características; hojas de hasta 70 cm de longitud, pinnas alternas a subopuestas, de márgenes aserradas, base desigual, ápice acuminado, ovadas u oblongo-ovadas, vellosas; flores masculinas en amentos péndulos, de 10-15 cm de longitud, brácteas y flores verdes o verde-amarillentas, las femeninas en espigas cortas con pocas flores; Al acercarse la floración los árboles pierden completamente el follaje, hecho que sucede una vez al año y del cual resultan abundantes frutos de germinación lenta. Los frutos son drupas globosas de hasta 7 cm de diámetro y cubiertas con un indumento café claro, exocarpo suculento, endocarpo duro, leñoso y surcado longitudinalmente.\n\nHábitat: Sembrada. Zona de vida: Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Rango altitudinal: 1700 y 2800 m. Origen: Nativo.\n\nUsos: Industrial, artesanal, alimenticio, medicinal, doméstico, ornamental. Estado de conservación (UICN): En Peligro (EN).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "EN"
     },
     {
       "id": "arrayan-de-manizales",
@@ -3207,7 +3368,12 @@
       "photo": null,
       "notes": "Arbusto hasta 2.5 m de altura. Hojas simples, opuestas, margen ciliadodentado, base levemente cordada, envez con pubescencia corta, 5-7 nervaduras, unas saliendo un poco por encima de la base y llegando hasta el ápice, tricomas ciliados en pecíolos y ramas terminales. Inflorescencias en panículas terminales. Flores pentámeras, con pétalos blancos, filamentos y anteras amarillas. Fruto baya, rosado",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Arbusto hasta 2.5 m de altura. Hojas simples, opuestas, margen ciliadodentado, base levemente cordada, envez con pubescencia corta, 5-7 nervaduras, unas saliendo un poco por encima de la base y llegando hasta el ápice, tricomas ciliados en pecíolos y ramas terminales. Inflorescencias en panículas terminales. Flores pentámeras, con pétalos blancos, filamentos y anteras amarillas. Fruto baya, rosado tornándose morado-negro al madurar, semillas abundantes, diminutas.\n\nHábitat: Potreros en regeneración. Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Rango altitudinal: 1800 y 2900 m. Origen: Nativo.\n\nUsos: Doméstico, alimenticio, protector, restaurador. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "lippia-schlimii",
@@ -3222,7 +3388,12 @@
       "photo": null,
       "notes": "Árbol hasta 18 m de altura y 30 cm de diámetro, corteza interna aromática y de sabor amargo. Hojas simples, opuestas, agrupadas al final de las ramas, elípticas, crenadas, envés azulado y sin indumento. Inflorescencia en panícula, axilar. Botones florales verdes, flores agrupadas en capítulos verdes, corola blanca. Fruto múltiple, formado por bayas que se agrupan al final del pedúnculo, morado al",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta 18 m de altura y 30 cm de diámetro, corteza interna aromática y de sabor amargo. Hojas simples, opuestas, agrupadas al final de las ramas, elípticas, crenadas, envés azulado y sin indumento. Inflorescencia en panícula, axilar. Botones florales verdes, flores agrupadas en capítulos verdes, corola blanca. Fruto múltiple, formado por bayas que se agrupan al final del pedúnculo, morado al madurar, semillas pequeñas, negras.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Rango altitudinal: 1800 y 3000 m. Origen: Nativo.\n\nUsos: Doméstico, protector, restaurador. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "magnolio",
@@ -3267,7 +3438,12 @@
       "photo": null,
       "notes": "El árbol alcanza los 20 m de altura, tronco erecto y circular, de corteza amarilla, sus ramas son gruesas y terminan en ramitas angulosas de cuatro lados. Las hojas son simples, opuestas, estan dispuestas en forma de cruz (decusadas), su borde es entero, su pecíolo cae un poquito dentro del limbo, tienen forma ovoide, terminan en una corta punta, su pecíolo es largo y sus yemas son de color rojizo",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "El árbol alcanza los 20 m de altura, tronco erecto y circular, de corteza amarilla, sus ramas son gruesas y terminan en ramitas angulosas de cuatro lados. Las hojas son simples, opuestas, estan dispuestas en forma de cruz (decusadas), su borde es entero, su pecíolo cae un poquito dentro del limbo, tienen forma ovoide, terminan en una corta punta, su pecíolo es largo y sus yemas son de color rojizo. Flores de tamaño mediano su color es morado y se encuentran dispuestas en inflorescencias terminales en forma de panículas muy abundantes. Los frutos son cápsulas que se abren por sí solas (dehiscentes) mediante sus poros localizados en su ápice. Sus semillas son diminutas y de color marrón.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB). Rango altitudinal: 2000 y 2800 m. Origen: Nativo.\n\nUsos: Industrial, doméstico, ornamental. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "meriania-tomentosa",
@@ -3312,7 +3488,12 @@
       "photo": null,
       "notes": "Arbusto o árbol pequeño, hasta 10 m de altura y 15 cm de diámetro. Hojas simples, opuestas, decusadas, ciliado-denticuladas, 3 nervaduras principales que se extienden desde la base hasta el ápice. Inflorescencia en panículas, terminales. Flores pentámeras con cáliz y anteras crema, pétalos, filamentos y pistilo blanco. Fruto bayas verdes tornándose blancas al madurar, con vestigios de los verticil",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Arbusto o árbol pequeño, hasta 10 m de altura y 15 cm de diámetro. Hojas simples, opuestas, decusadas, ciliado-denticuladas, 3 nervaduras principales que se extienden desde la base hasta el ápice. Inflorescencia en panículas, terminales. Flores pentámeras con cáliz y anteras crema, pétalos, filamentos y pistilo blanco. Fruto bayas verdes tornándose blancas al madurar, con vestigios de los verticilos florales en el ápice, semillas diminutas.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB) - (bmh-MA). Rango altitudinal: 1500 - 3000 m. Origen: Nativo.\n\nUsos: Alimenticio, doméstico, restaurador. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "bodoquera",
@@ -3358,7 +3539,12 @@
       "notes": "Especie nativa sembrada en la Zona de Restauración.",
       "habit": "arbol",
       "common_name_en": "Daisy tree",
-      "source": "3_Listado Especies Cantares.xlsx"
+      "source": "3_Listado Especies Cantares.xlsx",
+      "description": "Árbol de hasta 15 metros de altura; de la parte baja del tronco, emergen varias ramificaciones basales, de ramas terminales cuadrangulares, verdes y pubescentes; tallos con médula corchosa blanca; hojas opuestas, ovadas, triangulares o pentagonales, margen entera a suavemente aserrada, ápice agudo a acuminado, base redondeada a cordada, haz glabra, envés pubescente, pecíolos delgados algunas veces cuadrangulares, redondo o acanalado, glabros; inflorescencias terminales paniculadas, 15-30 cm de longitud; las flores están dispuestas en una cabezuela o capítulo, en la cual se ubican hacia el centro las flores hermafroditas, tubulares de color amarillo, alrededor las ligulares blancas. Los frutos son aquenios, dispuestos en cabezuelas de color café crema y cada uno contiene una semilla, estas son triangulares y algo aplanadas.\n\nHábitat: Sembrada (Bosques secundarios, rastrojos altos, riberas de corrientes hídricas). Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque húmedo montano bajo (bh-MB). Rango altitudinal: 1300 y 2800 m. Origen: Nativo.\n\nUsos: Restauración, doméstico, protección, industrial, medicinal. Estado de conservación (UICN): Preocupación Menor (LC).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "LC"
     },
     {
       "id": "morella-pubescens",
@@ -3373,7 +3559,12 @@
       "photo": null,
       "notes": "Árbol hasta 8 m de altura, su tronco tiene forma torcida, es corto y su color es grisáceo; sus ramas son pubescentes, lenticeladas, comienzan su crecimiento a baja altura de su base. Hojas simples, alternas, estan dispuestas en forma de hélices, acuminadas, lanceoladas, aserradas, poseen ejes cortos y acanalados, coriáceas, envés densamente pubescente, haz con numerosas glándulas amarillas. Inflor",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta 8 m de altura, su tronco tiene forma torcida, es corto y su color es grisáceo; sus ramas son pubescentes, lenticeladas, comienzan su crecimiento a baja altura de su base. Hojas simples, alternas, estan dispuestas en forma de hélices, acuminadas, lanceoladas, aserradas, poseen ejes cortos y acanalados, coriáceas, envés densamente pubescente, haz con numerosas glándulas amarillas. Inflorescencias en amentos, axilares, unisexuales o bisexuales, erectos. Flores masculinas con 3-4 brácteas y las pistiladas con 5-6, rojizas-marrón, con puntuaciones y agrupadas densamente. Los frutos son drupas esféricas, de color marrón al madurar, pubescente, con cubierta cerosa, olorosa de color blanquecino y cada uno contiene una semilla esférica, su testa es de consistencia dura, su superficie es rugosa y son opacas.\n\nHábitat: Potreros en regeneración. Zona de vida: Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Rango altitudinal: 1700 a 3400 m. Origen: Nativo.\n\nUsos: Alimenticio, industrial, doméstico, restaurador. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "morus-insignis",
@@ -3388,7 +3579,12 @@
       "photo": null,
       "notes": "Árbol hasta 18 m de altura y 60 cm de diámetro, exudado acuoso blanco a crema, abundante en todas las estructuras de la planta, dioicos. Hojas simples, alternas, dísticas, pubescentes, elípticas a oblongas, ápice mucronado, base obtusa a redondeada, trinervadas, de textura cartácea, margen aserrada y tres nervios basales. Estípulas pareadas. Inflorescencias masculinas y femeninas en espigas, verde",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta 18 m de altura y 60 cm de diámetro, exudado acuoso blanco a crema, abundante en todas las estructuras de la planta, dioicos. Hojas simples, alternas, dísticas, pubescentes, elípticas a oblongas, ápice mucronado, base obtusa a redondeada, trinervadas, de textura cartácea, margen aserrada y tres nervios basales. Estípulas pareadas. Inflorescencias masculinas y femeninas en espigas, verdes. Flores unisexuales, apétalas, axilares solitarias, muy pequeñas. Fruto drupáceo incluído dentro del perianto, levemente suculento.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Rango altitudinal: 1900 y 3000 m. Origen: Nativo.\n\nUsos: Alimenticio, doméstico. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "myrcianthes-rhopaloides",
@@ -3433,7 +3629,12 @@
       "photo": null,
       "notes": "Árbol que alcanza los 25 m de altura y los 40 cm de diámetro, de tronco recto, tiene corteza de color gris pardusco, es ligeramente escamosa y agrietada; su copa es aparasolada. Las hojas son simples alternas, están dispuestas en forma helicoidal y en manojos terminales, su borde posee salientes aserradas parecidas a la palma de una mano, son glabras, sus pecíolos son de varios tamaños, poseen brá",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol que alcanza los 25 m de altura y los 40 cm de diámetro, de tronco recto, tiene corteza de color gris pardusco, es ligeramente escamosa y agrietada; su copa es aparasolada. Las hojas son simples alternas, están dispuestas en forma helicoidal y en manojos terminales, su borde posee salientes aserradas parecidas a la palma de una mano, son glabras, sus pecíolos son de varios tamaños, poseen brácteas de color rojizo, que protejen las hojas juveniles. Las flores son muy abundantes de color crema, poco vistosas y están agrupadas en forma de cabezuelas sobre densas panículas terminales. Los frutos son drupas brillantes subglobosas que son de color pardo a violáceo y se tornan de color rojizo al madurar y cada una contiene entre 4 y 5 semillas, son de consistencia dura, poseen dos caras aplanadas y una curva, su color es amarillo.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB) - (bs- MB). Rango altitudinal: 2000 y 2900 m. Origen: Nativo.\n\nUsos: Alimenticio, industrial, ormamental, doméstico, restauración. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "oreopanax-glabrifolium",
@@ -3493,7 +3694,12 @@
       "photo": null,
       "notes": "El árbol alcanza los 20 m de altura y los 60 cm de diámetro, tiene corteza lisa de color gris, produce una sustancia (látex) escasa que es de color rojizo, sus ramas son gruesas y arqueadas. Las hojas son simples, nacen varias en un mismo nudo (verticiladas), su has es de color verde oscuro opaco y su envés es de color claro, su nervio central es prominente, su borde es entero, son lisas y termina",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "El árbol alcanza los 20 m de altura y los 60 cm de diámetro, tiene corteza lisa de color gris, produce una sustancia (látex) escasa que es de color rojizo, sus ramas son gruesas y arqueadas. Las hojas son simples, nacen varias en un mismo nudo (verticiladas), su has es de color verde oscuro opaco y su envés es de color claro, su nervio central es prominente, su borde es entero, son lisas y terminan en punta. Flores con pétalos encorvados hacia afuera, de color blanco y dispuestas en inflorescencias terminales en forma de racimos. Los frutos son capsulares, tienen forma de globo, no se abren por sí solos, son de consistencia dura, su cáscara es gruesa y cada uno contiene una semilla, son de consistencia harinosa, su cubierta es delgada y de color café.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB). Rango altitudinal: 2200 y 3000 m. Origen: Nativo.\n\nUsos: Alimenticio, industrial, doméstico. Estado de conservación (UICN): Casi Amenazada (NT).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NT"
     },
     {
       "id": "piper-archeri",
@@ -3508,7 +3714,12 @@
       "photo": null,
       "notes": "Árbol hasta 8 m de altura, ramas muy cortas, verticales, ramificado en la base y a menudo con múltiples tallos, pubescentes en estadios juveniles, eventualmente glabros, verde ocres, nudos muy prominentes. Hojas simples, alternas, ovadas, casi 3.5 veces más largas que anchas, rugulosas en el haz, envés pubescente, basalmente lobuladas y equiláteras sobre los tallos principales pero corto lobuladas",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta 8 m de altura, ramas muy cortas, verticales, ramificado en la base y a menudo con múltiples tallos, pubescentes en estadios juveniles, eventualmente glabros, verde ocres, nudos muy prominentes. Hojas simples, alternas, ovadas, casi 3.5 veces más largas que anchas, rugulosas en el haz, envés pubescente, basalmente lobuladas y equiláteras sobre los tallos principales pero corto lobuladas sobre un lado y profundamente inequilátera en las ramas, pinnatinervias entre la base y el tercio superior, largo pecioladas, el pecíolo con márgenes prominentes que se extienden casi hasta la base de la hoja. Inflorescencias largas, blancas y erectas cuando inmaduras, eventualmente péndulas, verde ocre en fruto.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB). Rango altitudinal: 2000 y 2800 m. Origen: Nativa.\n\nUsos: Ornamental, protectora. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "prumnopitys-montana",
@@ -3523,7 +3734,12 @@
       "photo": null,
       "notes": "Árbol corpulento mayor de 25 m de altura y un diámetro de 1 m, tronco recto y cilíndrico, corteza oscura desprendiéndose en placas irregulares y delgadas que le dejan cicatrices. Hojas distribuidas espiraladamente y dísticas, lineares, ápice agudo o mucronado, base obtusa y subsésil, márgenes revolutas, haz lustrosa, envés opaco, con el nervio central poco notorio y acanalado; Las flores masculina",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol corpulento mayor de 25 m de altura y un diámetro de 1 m, tronco recto y cilíndrico, corteza oscura desprendiéndose en placas irregulares y delgadas que le dejan cicatrices. Hojas distribuidas espiraladamente y dísticas, lineares, ápice agudo o mucronado, base obtusa y subsésil, márgenes revolutas, haz lustrosa, envés opaco, con el nervio central poco notorio y acanalado; Las flores masculinas y femeninas se encuentran en el mismo individuo separadas entre ellas, las masculinas se disponen en forma de estróbilos delgados y alargados, las femeninas se localizan al final de las ramas; frutos drupáceos solitarios en ramas especializadas, de color verde y al madurar se tornan de color rojizo y cada uno contiene una semilla, la semilla es globosa, terminan en una pequeña punta y son de color amarillo.\n\nHábitat: Sembrada. Zona de vida: Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Rango altitudinal: 2500 y 3500 m. Origen: Nativo.\n\nUsos: Industrial, coméstible, ornamental, doméstico. Estado de conservación (UICN): En Peligro (EN).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "EN"
     },
     {
       "id": "prunus-integrifolia",
@@ -3538,7 +3754,12 @@
       "photo": null,
       "notes": "Árbol hasta de 18 m de altura, su tronco es de color grisáceo y suavemente agrietado; sus ramas son gruesas, crecen de manera horizontal a oblicua y muy resistentes. Hojas simples, alternas y alargadas, ovadas a elípitcas, terminan en punta, su base es redonda, su borde es entero, broquidódromas, péndulas en las ramas, con un par de glándulas basales circulares, glabras y con estípulas de temprana",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta de 18 m de altura, su tronco es de color grisáceo y suavemente agrietado; sus ramas son gruesas, crecen de manera horizontal a oblicua y muy resistentes. Hojas simples, alternas y alargadas, ovadas a elípitcas, terminan en punta, su base es redonda, su borde es entero, broquidódromas, péndulas en las ramas, con un par de glándulas basales circulares, glabras y con estípulas de temprana caída. Inflorescencia en espigas axilares y terminales, erectas. Flores con pétalos separados entre sí (dialipétalas), pentameras; cáliz verde; corola blanca, estambres numerosos. Los fruto son drupas verdes redondas que al madurar, se tornan de color marrón y cada uno contiene una semilla, estás son de color crema, opacas de consistencia dura.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Rango altitudinal: 2000 y 3000 m. Origen: Nativo.\n\nUsos: Industrial, alimenticio, doméstico, protector. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "pino-romero-pino-colombiano",
@@ -3628,7 +3849,12 @@
       "photo": null,
       "notes": "Arbusto hasta de 5 m de altura, profusamente ramificado, frecuente en bosques enanos y especialmente en zona de páramo . Hojas simples, opuestas, decusadas, con pubescencia densa, firmemente membranácea, elíptico-ovada, con la base redondeada a ligeramente cordada, ápice agudo, margen entera a finamente crenulada, de 5-7 nervios primarios. Inflorescencias en panículas terminales de pocas flores. F",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Arbusto hasta de 5 m de altura, profusamente ramificado, frecuente en bosques enanos y especialmente en zona de páramo. Hojas simples, opuestas, decusadas, con pubescencia densa, firmemente membranácea, elíptico-ovada, con la base redondeada a ligeramente cordada, ápice agudo, margen entera a finamente crenulada, de 5-7 nervios primarios. Inflorescencias en panículas terminales de pocas flores. Flores pentámeras, actinomorfas, de partes libres, pedicelos teretes y bractéolas deciduas. Frutos en cápsulas rojizas, con remanentes del cáliz persistiendo.\n\nHábitat: Potreros en regeneración. Zona de vida: Bosque andino, Bosque alto andino, Páramo. Rango altitudinal: 2500 y 4000 m. Origen: Nativa.\n\nUsos: Ornamental, doméstico, restaurador. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "tibouchina-lepidota",
@@ -3643,7 +3869,12 @@
       "photo": null,
       "notes": "Árbol hasta 15 m de altura y 25 cm de diámetro en su tronco, con corteza que se desprende en escamas y es de color rojizo. Hojas simples, opuestas, su borde es aserrado, decusadas, ciliado-denticuladas, 3 nervaduras principales marcadas y curvas que se extienden desde la base hasta el ápice, haz y envés provisto de escamas ciliadas, textura áspera al tacto. Inflorescencia dispuesta en dicasios axi",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta 15 m de altura y 25 cm de diámetro en su tronco, con corteza que se desprende en escamas y es de color rojizo. Hojas simples, opuestas, su borde es aserrado, decusadas, ciliado-denticuladas, 3 nervaduras principales marcadas y curvas que se extienden desde la base hasta el ápice, haz y envés provisto de escamas ciliadas, textura áspera al tacto. Inflorescencia dispuesta en dicasios axilares o terminales con 3-5 flores. Flores pentámeras, pétalos dispuestos de manera extendida y separados entre sí (dialipétalas), sus estambres son de color amarillo; filamentos y pistilo magenta a rosado. Fruto cápsula verde con forma de canastilla que liberan sus semillas por unos poros ubicados en su ápice, tornándose marrón al madurar, semillas numerosas muy pequeñas, parecidas a un caracol y de consistencia dura.\n\nHábitat: Potreros en regeneración. Zona de vida: Bosque muy húmedo premontano (bmh-PM) - (bmh- MB) - (bh-MB). Rango altitudinal: 2000 y 3200 m. Origen: Nativo.\n\nUsos: Ornamental, industrial, doméstico. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "tinto-lanoso",
@@ -3673,7 +3904,12 @@
       "photo": null,
       "notes": "Árbol pequeño hasta 7 m de altura y 10 cm de diámetro, tallos y ramas marrón. Hojas simples, opuestas o subopuestas, con pubescencia marrón, elíptica a oblonga, entera, papirácea, haz áspero al tacto, envés pubescente, verde brillante; pecíolo largo, pubescente. Inflorescencias en cimas, erectas, terminales, escorpioides, pubescentes. Flores pequeñas, numerosas, tubulares, sésiles; cáliz pentámero",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol pequeño hasta 7 m de altura y 10 cm de diámetro, tallos y ramas marrón. Hojas simples, opuestas o subopuestas, con pubescencia marrón, elíptica a oblonga, entera, papirácea, haz áspero al tacto, envés pubescente, verde brillante; pecíolo largo, pubescente. Inflorescencias en cimas, erectas, terminales, escorpioides, pubescentes. Flores pequeñas, numerosas, tubulares, sésiles; cáliz pentámero, pubescente, verde a blanco, con un sépalo más grande; corola gamopétala, blanca brillante. Fruto drupa esférica, blanca con cáliz persistente, cuatro semillas, ovoides a esféricas.\n\nHábitat: Borde de bosque. Zona de vida: Bosque muy húmedo premontano (bmh-PM) y bosque humedo montano bajo (bh-MB). Rango altitudinal: 2200 - 3600 m. Origen: Nativo.\n\nUsos: Alimenticio, ornamental, doméstico, protector. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "turpinia-occidentalis",
@@ -3688,7 +3924,12 @@
       "photo": null,
       "notes": "Árbol hasta 15 m de altura y 20 cm de diámetro, corteza de color gris, fisurada y delgada; glabros, con las ramitas teretes. Hojas compuestas, imparipinadas, con una línea interpeciolar notoria, opuestas con estípulas carnosas, cortas y deciduas, lámina elíptico-lanceolados, 5 - 11folíolos de margen aserrada, base redondeada y ápice agudo a redondeado, haz lustroso, envés verde claro. Inflorescenc",
       "habit": "arbol",
-      "source": "censo_arboles_2021"
+      "source": "censo_arboles_2021",
+      "description": "Árbol hasta 15 m de altura y 20 cm de diámetro, corteza de color gris, fisurada y delgada; glabros, con las ramitas teretes. Hojas compuestas, imparipinadas, con una línea interpeciolar notoria, opuestas con estípulas carnosas, cortas y deciduas, lámina elíptico-lanceolados, 5 - 11folíolos de margen aserrada, base redondeada y ápice agudo a redondeado, haz lustroso, envés verde claro. Inflorescencia en panícula terminal, hasta 30 cm de largo, verde claro, pubescente a glabra. Flores pequeñas, perianto blanco-verdoso, aromáticas. Frutos en bayas moradas al madurar, globoso, con varias espinitas en el ápice formando una pequeña corona. Semillas comprimidas y angulosas en su cara interna, de color café lechoso y superficie brillante y lisa.\n\nHábitat: Bosque. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB) - Bosque húmedo montano bajo (bh-MB). Rango altitudinal: 2000 y 2600 m. Origen: Nativo.\n\nUsos: Doméstico, industrial, restauración. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "camargo",
@@ -3749,7 +3990,12 @@
       "notes": "Nativa clave de la restauración y del rastrojo en regeneración.",
       "habit": "arbol",
       "common_name_en": "Encenillo",
-      "source": "3_Listado Especies Cantares.xlsx"
+      "source": "3_Listado Especies Cantares.xlsx",
+      "description": "El árbol alcanza hasta los 20 m de altura y los 60 cm de diámetro en su tronco, de corteza estriada de color gris; sus ramas son de color verde rojizo. Las hojas son opuestas, decusadas, compuestas, imparipinnadas, foliolos aserrados, pubescentes, raquis con proyecciones foliares, rosado o granate, estípulas interpeciolares, enrolladas, caedizas. Inflorescencias en racimos largos densos, pubescentes. Flores pequeñas; cáliz con 4 sépalos, reducidos, triangulares, pubescentes; corola con 4 pétalos amarillo-crema, numerosos estambres exsertos. Fruto cápsula, bilocular, septicida, marrón, estilo persistente, semillas pequeñas.\n\nHábitat: Potreros en regeneración. Zona de vida: Bosque muy húmedo montano bajo (bmh-MB). Rango altitudinal: 2000 y 3000 m. Origen: Nativo.\n\nUsos: Ornamental, doméstico. Estado de conservación (UICN): No Evaluado (NE).",
+      "description_en": null,
+      "description_source": "censo_2021",
+      "description_reviewed": true,
+      "iucn": "NE"
     },
     {
       "id": "palma-macana",
@@ -3807,7 +4053,11 @@
       "zones": [],
       "photo": null,
       "notes": "Indicadora de bosque bien conservado; nocturna.",
-      "common_name_en": "Mountain paca"
+      "common_name_en": "Mountain paca",
+      "description": "Roedor grande y nocturno, de pelaje pardo oscuro con hileras de manchas claras en los flancos. Habita el bosque altoandino y el páramo, donde se refugia en madrigueras y se alimenta de frutos, semillas y vegetación. Su presencia indica bosque bien conservado; es presa de felinos y del águila crestada.",
+      "description_en": "A large, nocturnal rodent with dark brown fur and rows of pale spots on the flanks. It inhabits high-Andean forest and páramo, where it shelters in burrows and feeds on fruit, seeds and vegetation. Its presence indicates well-conserved forest; it is prey for wild cats and the Black-and-chestnut Eagle.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "guatin",
@@ -3863,7 +4113,11 @@
       "zones": [],
       "photo": null,
       "notes": "Felino amenazado (VU) — especie bandera para cámaras trampa. No apto para avistamiento turístico.",
-      "common_name_en": "Oncilla"
+      "common_name_en": "Oncilla",
+      "description": "Felino pequeño y esbelto, de pelaje ocre con rosetas oscuras, más grácil que el ocelote. Es de hábitos discretos y mayormente nocturnos, y se registra principalmente por cámaras trampa. Está clasificado como Vulnerable y sirve como especie bandera para el monitoreo de mamíferos del bosque nublado.",
+      "description_en": "A small, slender cat with ochre fur and dark rosettes, more delicate than the ocelot. It is secretive and mostly nocturnal, recorded mainly by camera traps. It is classified as Vulnerable and serves as a flagship species for monitoring cloud-forest mammals.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "cusumbo",
@@ -3877,7 +4131,11 @@
       "zones": [],
       "photo": null,
       "notes": "Coatí andino; diurno y carismático — posible avistamiento.",
-      "common_name_en": "Mountain coati"
+      "common_name_en": "Mountain coati",
+      "description": "Cusumbo o coatí de montaña de pelaje pardo oliváceo, hocico alargado y cola larga anillada. Es diurno, ágil y carismático, y forrajea en el suelo y los árboles buscando invertebrados, frutos y pequeños vertebrados. Habita bosques altoandinos y bordes, a veces en grupos.",
+      "description_en": "A mountain coati with olive-brown fur, an elongated snout and a long ringed tail. It is diurnal, agile and charismatic, foraging on the ground and in trees for invertebrates, fruit and small vertebrates. It inhabits high-Andean forests and edges, sometimes in groups.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "perro-de-monte",
@@ -3905,7 +4163,11 @@
       "zones": [],
       "photo": null,
       "notes": "Registrado por cámaras trampa; comparte el tope de la red trófica con el águila crestada.",
-      "common_name_en": "Puma"
+      "common_name_en": "Puma",
+      "description": "El mayor felino de la reserva, de pelaje uniforme leonado y cuerpo esbelto y musculoso. Es solitario, territorial y depredador tope, y se registra en Cantares principalmente por cámaras trampa. Requiere amplias áreas de bosque y presas como pacas y venados, por lo que su presencia refleja un ecosistema funcional.",
+      "description_en": "The largest cat in the reserve, with uniform tawny fur and a slender, muscular body. It is solitary, territorial and an apex predator, recorded at Cantares mainly by camera traps. It requires large forest areas and prey such as pacas and deer, so its presence reflects a functioning ecosystem.",
+      "description_source": "llm_draft",
+      "description_reviewed": false
     },
     {
       "id": "ardilla",
@@ -4659,7 +4921,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/colibri-colihabano__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -6108,7 +6370,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/inca-acollarado__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -6223,7 +6485,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/colibri-verdemar-menor__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -7120,7 +7382,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/pinchaflor-azulado__1.webp",
       "notes": "",
       "source": "ebird_area",
       "ebird": true,
@@ -7143,7 +7405,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/pinchaflor-enmascarado__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -7212,7 +7474,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/rabudito-verde__1.webp",
       "notes": "",
       "source": "ebird_area",
       "ebird": true,
@@ -7373,7 +7635,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/fiofio-montano__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -8615,7 +8877,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/colibri-turmalina__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -8661,7 +8923,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/brillante-pechigamuza__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -10340,7 +10602,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/candelita-adornada__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -11352,7 +11614,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/paloma-torcaza__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -11559,7 +11821,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/quetzal-crestado__1.webp",
       "notes": "",
       "source": "ebird_area",
       "ebird": true,
@@ -12824,7 +13086,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/birro-chico__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -13031,7 +13293,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/busardo-caminero__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -14595,7 +14857,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/zafiro-coronado__1.webp",
       "notes": "",
       "source": "ebird_area",
       "ebird": true,
@@ -15009,7 +15271,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/trogon-acollarado__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -15032,7 +15294,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/trogon-enmascarado__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,
@@ -15423,7 +15685,7 @@
       "flagship": false,
       "id_tool": "merlin",
       "zones": [],
-      "photo": null,
+      "photo": "img/species/avefria-tero__1.webp",
       "notes": "",
       "source": "ebird_hotspot",
       "ebird": true,

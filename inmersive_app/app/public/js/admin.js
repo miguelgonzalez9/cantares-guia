@@ -585,7 +585,12 @@ export function openSpeciesEditor(id, onSaved) {
         <option value="documented" ${s.status !== 'possible' ? 'selected' : ''}>documentada</option>
         <option value="possible" ${s.status === 'possible' ? 'selected' : ''}>posible</option>
       </select>
-      <label>Notas / descripción</label><textarea id="se-notes" rows="3">${esc(s.notes)}</textarea>
+      <label>Nota corta (gancho, 1 frase)</label><textarea id="se-notes" rows="2">${esc(s.notes)}</textarea>
+      <label>Descripción técnica (ES)${s.description_source ? ` · fuente: ${esc(s.description_source)}${s.description_reviewed === false ? ' · SIN revisar' : ''}` : ''}</label>
+      <textarea id="se-desc" rows="6" placeholder="Morfología, hábitat, ecología, estado de conservación…">${esc(s.description)}</textarea>
+      <label>Technical description (EN)</label><textarea id="se-desc-en" rows="6" placeholder="Deja vacío para usar el español">${esc(s.description_en)}</textarea>
+      <label>UICN</label>
+      <select id="se-iucn">${['', 'LC', 'NT', 'VU', 'EN', 'CR', 'DD', 'NE'].map((c) => `<option value="${c}" ${(s.iucn || '') === c ? 'selected' : ''}>${c || '—'}</option>`).join('')}</select>
       <label class="admin-chk"><input type="checkbox" id="se-flag" ${s.flagship ? 'checked' : ''}> Destacada (★)</label>
       <label>Foto</label>
       <div class="admin-photo">
@@ -628,6 +633,15 @@ export function openSpeciesEditor(id, onSaved) {
       group: ov.querySelector('#se-group').value, status: ov.querySelector('#se-status').value,
       notes: ov.querySelector('#se-notes').value.trim() || null,
       flagship: ov.querySelector('#se-flag').checked, photo: photoUrl };
+    // Descripción técnica: editarla en la app cuenta como revisión.
+    const descVal = ov.querySelector('#se-desc').value.trim();
+    row.description = descVal || null;
+    row.description_en = ov.querySelector('#se-desc-en').value.trim() || null;
+    row.iucn = ov.querySelector('#se-iucn').value || null;
+    if (descVal) {
+      row.description_reviewed = true;
+      row.description_source = (s.description_source && s.description_source !== 'llm_draft') ? s.description_source : 'admin';
+    }
     ov.querySelector('#se-err').textContent = 'Guardando…';
     try {
       const res = await saveRow('species', row, photoBlob);

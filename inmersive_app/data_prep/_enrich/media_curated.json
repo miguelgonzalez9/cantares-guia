@@ -1,0 +1,56 @@
+[
+  {
+    "species_id": "barranquero",
+    "scientific_name": "Momotus aequatorialis",
+    "common_name": "Barranquero",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201804 P1160821.JPG",
+        "rel": "Fotos por fechas/2018/201804 P1160821.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.997,
+        "gps": null
+      }
+    ],
+    "n_available": 6
+  },
+  {
+    "species_id": "rumbito-pechiblanco",
+    "scientific_name": "Chaetocercus mulsant",
+    "common_name": "Rumbito pechiblanco",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1230439.JPG",
+        "rel": "Fotos por fechas/2021/P1230439.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      }
+    ],
+    "n_available": 4
+  },
+  {
+    "species_id": "azulejo-montanero",
+    "scientific_name": "Sporathraupis cyanocephala",
+    "common_name": "Azulejo montañero",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2024\\PHOTO-2024-06-30-18-18-56.jpg",
+        "rel": "Fotos por fechas/2024/PHOTO-2024-06-30-18-18-56.jpg",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.996,
+        "gps": null
+      }
+    ],
+    "n_available": 1
+  }
+]

@@ -1,0 +1,110 @@
+[
+  {
+    "species_id": "rabudito-verde",
+    "scientific_name": "Discosura conversii",
+    "common_name": "Rabudito Verde",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2024\\PHOTO-2024-07-28-18-57-50_2.jpg",
+        "rel": "Fotos por fechas/2024/PHOTO-2024-07-28-18-57-50_2.jpg",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.998,
+        "gps": null
+      }
+    ],
+    "n_available": 6
+  },
+  {
+    "species_id": "nan-40",
+    "scientific_name": "Phimosus infuscatus",
+    "common_name": "Ibis Afeitado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201902 P1180787.JPG",
+        "rel": "Fotos por fechas/2019/201902 P1180787.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.965,
+        "gps": null
+      }
+    ],
+    "n_available": 5
+  },
+  {
+    "species_id": "pinchaflor-azulado",
+    "scientific_name": "Diglossa caerulescens",
+    "common_name": "Pinchaflor Azulado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1210676.JPG",
+        "rel": "Fotos por fechas/2020/P1210676.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.997,
+        "gps": null
+      }
+    ],
+    "n_available": 5
+  },
+  {
+    "species_id": "pinchaflor-enmascarado",
+    "scientific_name": "Diglossa cyanea",
+    "common_name": "Pinchaflor Enmascarado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1220061.JPG",
+        "rel": "Fotos por fechas/2020/P1220061.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.964,
+        "gps": null
+      }
+    ],
+    "n_available": 4
+  },
+  {
+    "species_id": "busardo-caminero",
+    "scientific_name": "Rupornis magnirostris",
+    "common_name": "Busardo Caminero",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201903 P1180934.JPG",
+        "rel": "Fotos por fechas/2019/201903 P1180934.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.994,
+        "gps": null
+      }
+    ],
+    "n_available": 4
+  },
+  {
+    "species_id": "zafiro-coronado",
+    "scientific_name": "Thalurania colombica",
+    "common_name": "Zafiro Coronado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201806 P1170253.JPG",
+        "rel": "Fotos por fechas/2018/201806 P1170253.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.996,
+        "gps": null
+      }
+    ],
+    "n_available": 4
+  }
+]

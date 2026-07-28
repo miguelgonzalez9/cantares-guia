@@ -1,0 +1,74 @@
+[
+  {
+    "species_id": "candelita-adornada",
+    "scientific_name": "Myioborus ornatus",
+    "common_name": "Candelita Adornada",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201905 P1190263.JPG",
+        "rel": "Fotos por fechas/2019/201905 P1190263.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.994,
+        "gps": null
+      }
+    ],
+    "n_available": 3
+  },
+  {
+    "species_id": "fiofio-montano",
+    "scientific_name": "Elaenia frantzii",
+    "common_name": "Fiofío Montano",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201902 P1180863.JPG",
+        "rel": "Fotos por fechas/2019/201902 P1180863.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.985,
+        "gps": null
+      }
+    ],
+    "n_available": 3
+  },
+  {
+    "species_id": "paloma-torcaza",
+    "scientific_name": "Patagioenas fasciata",
+    "common_name": "Paloma Torcaza",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1230293.JPG",
+        "rel": "Fotos por fechas/2021/P1230293.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.992,
+        "gps": null
+      }
+    ],
+    "n_available": 3
+  },
+  {
+    "species_id": "quetzal-crestado",
+    "scientific_name": "Pharomachrus antisianus",
+    "common_name": "Quetzal Crestado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201905 P1190243.JPG",
+        "rel": "Fotos por fechas/2019/201905 P1190243.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.995,
+        "gps": null
+      }
+    ],
+    "n_available": 3
+  }
+]

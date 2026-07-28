@@ -1,0 +1,200 @@
+[
+  {
+    "species_id": "colibri-colihabano",
+    "scientific_name": "Boissonneaua flavescens",
+    "common_name": "Colibrí Colihabano",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201911 P1200324.JPG",
+        "rel": "Fotos por fechas/2019/201911 P1200324.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 1.0,
+        "gps": null
+      }
+    ],
+    "n_available": 27
+  },
+  {
+    "species_id": "mirla",
+    "scientific_name": "Turdus fuscater",
+    "common_name": "Mirla / Mirlo negro",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201812 P1180454.JPG",
+        "rel": "Fotos por fechas/2018/201812 P1180454.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      }
+    ],
+    "n_available": 22
+  },
+  {
+    "species_id": "brillante-pechigamuza",
+    "scientific_name": "Heliodoxa rubinoides",
+    "common_name": "Brillante Pechigamuza",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201904 P1190128.JPG",
+        "rel": "Fotos por fechas/2019/201904 P1190128.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 1.0,
+        "gps": null
+      }
+    ],
+    "n_available": 16
+  },
+  {
+    "species_id": "colibri-turmalina",
+    "scientific_name": "Heliangelus exortis",
+    "common_name": "Colibrí Turmalina",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201908 P1190779.JPG",
+        "rel": "Fotos por fechas/2019/201908 P1190779.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      }
+    ],
+    "n_available": 15
+  },
+  {
+    "species_id": "nan-4",
+    "scientific_name": "Aglaiocercus kingii",
+    "common_name": "Silfo de King",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201911 P1200349.JPG",
+        "rel": "Fotos por fechas/2019/201911 P1200349.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      }
+    ],
+    "n_available": 12
+  },
+  {
+    "species_id": "birro-chico",
+    "scientific_name": "Pyrrhomyias cinnamomeus",
+    "common_name": "Birro Chico",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2022\\Calendario 2022\\informacion y fotos calendario jacobo\\P1180543.JPG",
+        "rel": "Fotos por fechas/2022/Calendario 2022/informacion y fotos calendario jacobo/P1180543.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.998,
+        "gps": null
+      }
+    ],
+    "n_available": 12
+  },
+  {
+    "species_id": "trogon-enmascarado",
+    "scientific_name": "Trogon personatus",
+    "common_name": "Trogón Enmascarado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201902 P1180854.JPG",
+        "rel": "Fotos por fechas/2019/201902 P1180854.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.998,
+        "gps": null
+      }
+    ],
+    "n_available": 10
+  },
+  {
+    "species_id": "avefria-tero",
+    "scientific_name": "Vanellus chilensis",
+    "common_name": "Avefría Tero",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1210717.JPG",
+        "rel": "Fotos por fechas/2020/P1210717.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.994,
+        "gps": null
+      }
+    ],
+    "n_available": 10
+  },
+  {
+    "species_id": "inca-acollarado",
+    "scientific_name": "Coeligena torquata",
+    "common_name": "Inca Acollarado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1220959.JPG",
+        "rel": "Fotos por fechas/2021/P1220959.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 1.0,
+        "gps": null
+      }
+    ],
+    "n_available": 8
+  },
+  {
+    "species_id": "colibri-verdemar-menor",
+    "scientific_name": "Colibri cyanotus",
+    "common_name": "Colibrí Verdemar Menor",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1230463.JPG",
+        "rel": "Fotos por fechas/2021/P1230463.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      }
+    ],
+    "n_available": 8
+  },
+  {
+    "species_id": "trogon-acollarado",
+    "scientific_name": "Trogon collaris",
+    "common_name": "Trogón Acollarado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201911 P1190947.JPG",
+        "rel": "Fotos por fechas/2019/201911 P1190947.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.996,
+        "gps": null
+      }
+    ],
+    "n_available": 8
+  }
+]

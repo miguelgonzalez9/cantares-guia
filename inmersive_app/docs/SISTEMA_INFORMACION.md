@@ -138,3 +138,31 @@ Quitar:                powershell -File data_prep/setup_scheduler.ps1 -Remove
 - **Cuando exista el backend (Supabase)**: el flujo de vuelta puede volverse
   automático (la app sube las fotos y un script las baja a Dropbox), sin el paso
   manual de exportar/soltar el JSON.
+
+---
+
+## 7. Enriquecimiento del inventario de especies
+
+Todas las fuentes (censo de árboles, eBird, catálogos de fotos) identifican la
+especie por **nombre científico** (clave de unión universal); la app la identifica
+por `id` (slug del nombre común). Dos scripts cierran esa unión:
+
+- **`22_species_descriptions.py`** — añade una **descripción técnica** a `species.json`
+  (`description`/`description_en`/`iucn`). Dos fuentes: (1) la hoja de ecología del
+  censo 2021 (`3_Listado Especies Cantares.xlsx` → "Especies+Ecología y Morfología"),
+  autoritativa, `reviewed=True`; (2) borradores por IA para especies bandera
+  (`_enrich/descriptions_flagship.json`), `reviewed=False` — **revisar antes de confiar**.
+  Requiere la migración `data/21_species_description.sql`.
+- **`23_catalog_to_media.py`** — **puente foto→app**: resuelve `nombre científico → id`
+  desde un catálogo del clasificador y vuelve foto curada de la app (WebP en
+  `img/species/` + `media.json`). Por defecto genera un **manifiesto** no destructivo;
+  `--apply` materializa; `--curated <archivo>` aplica selección revisada a mano;
+  `--rollback` deshace.
+
+> **Trampa importante (curaduría de fotos):** el clasificador acierta la *categoría*
+> pero NO garantiza (a) los **derechos** de la foto — el archivo mezcla fotos propias
+> con imágenes de terceros descargadas (con marca de agua); ni (b) la **especie exacta**
+> en la cola — BioCLIP es de conjunto cerrado, así que una planta que no está en el
+> inventario cae en la especie *más parecida* del inventario (una margarita amarilla
+> se volvió "orquídea"). **Las aves salieron confiables; la flora no.** Regla: **excluir
+> terceros/marca de agua** y verificar la especie con ojo humano antes de publicar.

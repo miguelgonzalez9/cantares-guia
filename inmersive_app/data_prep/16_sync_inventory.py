@@ -32,7 +32,8 @@ XLSX = ROOT.parent / "info" / "censos_inventarios" / "inventario_maestro.xlsx"
 # Orden de columnas (todas las claves que usa la app). group y habit al frente.
 COLS = ["id", "group", "habit", "status", "scientific_name", "common_name",
         "common_name_en", "family", "flagship", "id_tool", "zones", "photo",
-        "source", "notes"]
+        "source", "notes", "description", "description_en", "description_source",
+        "description_reviewed", "iucn"]
 GROUPS = {"flora", "ave", "mamifero", "anfibio", "insecto", "reptil"}
 
 

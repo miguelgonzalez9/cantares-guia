@@ -1356,11 +1356,12 @@ function speciesGroup(s) {
 }
 
 let speciesFilter = 'all';
-// Capa vista/potencial (aves): eBird distingue lo REGISTRADO en la reserva ('seen')
-// de lo que PODRÍA verse (unión montana, 'potential'). Todo lo no-ave (flora, fauna
-// del censo) cuenta como 'seen' (confirmado en la reserva). Default: sólo vistas.
+// Capa vista/potencial: eBird distingue lo REGISTRADO en la reserva ('seen') de lo
+// que PODRÍA verse (unión montana, 'potential'). La distinción vale para CUALQUIER
+// grupo (aves y árboles/flora): lo del censo confirmado es 'seen', lo marcado
+// 'potential' es potencial. Sin reserve_status → 'seen' (confirmado). Default: vistas.
 let seenFilter = 'seen';
-function speciesTier(s) { return (s.group === 'ave' && s.reserve_status) ? s.reserve_status : 'seen'; }
+function speciesTier(s) { return s.reserve_status || 'seen'; }
 function renderSpeciesFilters() {
   const wrap = $('#species-filters');
   // Sólo los grupos presentes (según el grupo derivado), en el orden canónico.
@@ -1375,12 +1376,15 @@ function renderSpeciesFilters() {
     b.onclick = () => { speciesFilter = key; renderSpeciesFilters(); renderSpeciesGrid(); };
     wrap.appendChild(b);
   });
-  // Segunda fila: capa vistas / potenciales. Sólo se muestra si hay aves potenciales.
+  // Segunda fila: capa vistas / potenciales, en INTERSECCIÓN con el filtro de grupo
+  // de arriba. Los conteos reflejan sólo el grupo elegido; el toggle sólo aparece si
+  // ese grupo tiene potenciales (p. ej. Aves; Flora sin potenciales no lo muestra).
   const tw = $('#species-tier');
   if (!tw) return;
-  const nPot = state.species.filter((s) => speciesTier(s) === 'potential').length;
-  if (!nPot) { tw.innerHTML = ''; return; }   // sin lista potencial → sin toggle
-  const nSeen = state.species.length - nPot;
+  const base = groupFiltered();
+  const nPot = base.filter((s) => speciesTier(s) === 'potential').length;
+  if (!nPot) { tw.innerHTML = ''; return; }   // sin potenciales en este grupo → sin toggle
+  const nSeen = base.length - nPot;
   const tiers = [['seen', `${t('f_seen')} (${nSeen})`], ['potential', `${t('f_potential')} (${nPot})`], ['all', t('f_bothtier')]];
   tw.innerHTML = '';
   tiers.forEach(([key, label]) => {
@@ -1391,12 +1395,19 @@ function renderSpeciesFilters() {
     tw.appendChild(b);
   });
 }
+// Filtro de grupo solo (independiente de la capa vistas/potenciales).
+function groupFiltered() {
+  return state.species.filter((s) =>
+    speciesFilter === 'all' ? true
+    : speciesFilter === 'flagship' ? s.flagship
+    : speciesGroup(s) === speciesFilter);
+}
 function filteredSpecies() {
-  return state.species.filter((s) => {
-    const groupOk = speciesFilter === 'all' ? true : speciesFilter === 'flagship' ? s.flagship : speciesGroup(s) === speciesFilter;
-    const tierOk = seenFilter === 'all' ? true : speciesTier(s) === seenFilter;
-    return groupOk && tierOk;
-  });
+  const base = groupFiltered();
+  // La capa vistas/potenciales sólo aplica si el grupo actual tiene potenciales;
+  // si no, se ignora para no dejar la rejilla vacía al cambiar de grupo.
+  if (!base.some((s) => speciesTier(s) === 'potential')) return base;
+  return base.filter((s) => seenFilter === 'all' || speciesTier(s) === seenFilter);
 }
 function renderSpeciesGrid(highlightId) {
   const grid = $('#species-grid');
@@ -1502,6 +1513,18 @@ function drawSpeciesMap(wps, size = 560) {
   wps.forEach((w) => { const c = w.geometry.coordinates, m = typeMeta(w.properties.tipo); g.beginPath(); g.arc(X(c[0]), Y(c[1]), 6, 0, 7); g.fillStyle = m.color; g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke(); });
   return cv.toDataURL('image/png');
 }
+// Texto multi-párrafo (separado por línea en blanco) → un <p> por párrafo, escapado.
+function paraHtml(text, cls) {
+  return String(text).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+    .map((p) => `<p class="${cls}">${escapeHtml(p)}</p>`).join('');
+}
+// Colores de categoría UICN (badge de conservación). Amarillos → texto oscuro.
+const IUCN_COLOR = { EX: '#000', EW: '#542344', CR: '#c0392b', EN: '#e67e22', VU: '#f1c40f', NT: '#8aa63a', LC: '#2e7d32', DD: '#95a5a6', NE: '#bdc3c7' };
+function iucnBadge(code) {
+  if (!code || !IUCN_COLOR[code]) return '';
+  const dark = ['VU', 'DD', 'NE'].includes(code);
+  return `<span class="badge" title="UICN ${code}" style="background:${IUCN_COLOR[code]};color:${dark ? '#222' : '#fff'}">${code}</span>`;
+}
 function showSpecies(s) {
   if (!s) return;
   const wps = speciesWaypoints(s);
@@ -1519,11 +1542,13 @@ function showSpecies(s) {
           : `<div class="wp-photo-hdr" style="background-image:url('${escapeHtml(coverBg)}');background-position:${(cover.focal_x * 100).toFixed(0)}% ${(cover.focal_y * 100).toFixed(0)}%"></div>`)
       : `<div class="wp-photo-hdr wp-no-photo" style="background:linear-gradient(135deg, var(--green), var(--deep))"><span class="wp-hdr-emoji">${groupMeta(speciesGroup(s)).emoji}</span></div>`}
     <div class="wp-inner">
-      <div class="wp-theme-badges"><span class="species-group-tag" style="background:${groupMeta(speciesGroup(s)).color}">${escapeHtml(groupLabel(speciesGroup(s)))}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}</div>
+      <div class="wp-theme-badges"><span class="species-group-tag" style="background:${groupMeta(speciesGroup(s)).color}">${escapeHtml(groupLabel(speciesGroup(s)))}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}${iucnBadge(s.iucn)}</div>
       <h2 class="wp-title">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
       ${s.scientific_name ? `<p class="wp-sci"><em>${escapeHtml(s.scientific_name)}</em>${s.family ? ` · ${escapeHtml(s.family)}` : ''}</p>` : ''}
       ${gallery.length > 1 ? `<div class="sp-gallery">${gallery.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
-      ${s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : ''}
+      ${L(s, 'description')
+        ? paraHtml(L(s, 'description'), 'wp-desc')
+        : (s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : '')}
       <div class="sp-where">📍 ${wps.length ? `${wps.length} ${wps.length === 1 ? t('sp_here_1') : t('sp_here_n')}` : t('sp_nowhere')}</div>
       ${wps.length ? `${mapImg ? `<img class="sp-map" src="${mapImg}" alt="">` : ''}
         <div class="sp-locs">${wps.map((w) => `<button class="chip" data-wp="${escapeHtml(w.properties.id)}">${escapeHtml(L(w.properties, 'title') || w.properties.title)}</button>`).join('')}</div>` : ''}
