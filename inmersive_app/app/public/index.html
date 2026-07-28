@@ -85,7 +85,10 @@
     <!-- RESTAURACIÓN -->
     <section id="view-restauracion" class="view">
       <div class="scroll">
-        <h1 data-i18n="rest_title">Restauración</h1>
+        <h1 data-i18n="hist_title">Nuestra Historia</h1>
+        <!-- Historia, personas e hitos — se llenan desde data/historia.json -->
+        <div id="historia"></div>
+        <h2 data-i18n="rest_title" style="margin-top:22px">Restauración</h2>
         <p class="lead" data-i18n-html="rest_lead"></p>
         <div class="panel" id="carbon-panel">
           <h2 data-i18n="carbon_h">🌳 Carbono capturado</h2>
@@ -143,6 +146,9 @@
         <!-- Planea tu visita — se llena desde data/reserve_info.json -->
         <div id="visit-info"></div>
 
+        <!-- Servicios, tarifas, Airbnb, redes y reseñas — desde data/comercial.json -->
+        <div id="comercial"></div>
+
         <h2 data-i18n="map_illus" style="margin-top:18px">Mapa ilustrado de senderos</h2>
         <img class="illus-map" src="img/mapa_senderos.png" alt="Mapa de senderos" loading="lazy" />
         <div id="offline-status" class="offline-status" style="margin-top:14px"></div>
@@ -161,7 +167,7 @@
 
   <nav class="tabbar" role="tablist">
     <button class="tab is-active" data-view="recorridos"><span>🥾</span><span data-i18n="tab_recorridos">Recorridos</span></button>
-    <button class="tab" data-view="restauracion"><span>🌱</span><span data-i18n="tab_restauracion">Restauración</span></button>
+    <button class="tab" data-view="restauracion"><span>🌱</span><span data-i18n="tab_restauracion">Historia</span></button>
     <button class="tab" data-view="especies"><span>🦋</span><span data-i18n="tab_especies">Especies</span></button>
     <button class="tab" data-view="info"><span>ℹ️</span><span data-i18n="tab_info">Info</span></button>
   </nav>

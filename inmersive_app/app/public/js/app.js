@@ -21,6 +21,7 @@ const CONFIG = {
     trees: 'data/trees.geojson',
     routes: 'data/routes.json', species: 'data/species.json',
     reserveInfo: 'data/reserve_info.json', media: 'data/media.json',
+    historia: 'data/historia.json', comercial: 'data/comercial.json',
     speciesGroups: 'data/species_groups.json',
   },
   // Base imagery time-slider stops. Esri Wayback = free, keyless, sub-meter.
@@ -188,7 +189,7 @@ function mediaFullTag(m, cls, alt) {
 // ---------- i18n ----------
 const I18N = {
   es: {
-    subtitle: 'Reserva Natural', tab_recorridos: 'Recorridos', tab_restauracion: 'Restauración',
+    subtitle: 'Reserva Natural', tab_recorridos: 'Recorridos', tab_restauracion: 'Historia',
     tab_especies: 'Especies', tab_info: 'Info', tab_cuenta: 'Cuenta', all_routes: 'Todos',
     dash_guest: 'Invitado', dash_guest_sub: 'Sin cuenta — tu progreso solo vive en este dispositivo',
     dash_visitor: 'Visitante', dash_admin: 'Administrador', dash_logout: 'Cerrar sesión',
@@ -212,6 +213,13 @@ const I18N = {
     free_walk: 'Recorrido libre', free_stop: 'Terminar', my_walks: 'Mis recorridos',
     sp_here_1: 'lugar en la reserva', sp_here_n: 'lugares en la reserva', sp_nowhere: 'Aún sin puntos asociados en el mapa',
     sp_edit: 'Editar', sp_dl: 'Descargar foto', sp_new: 'Nueva especie', sp_frame: 'Encuadrar foto',
+    hist_title: 'Nuestra Historia',
+    cm_services_h: '🎟️ Servicios y tarifas', cm_extra_h: 'Servicios adicionales',
+    cm_rates_note: 'Tarifas tomadas del documento de servicios y tarifas de la reserva',
+    cm_book_h: '📅 Reservar y seguirnos', cm_airbnb: 'Ver en Airbnb',
+    cm_reviews_h: '⭐ Comentarios de huéspedes', cm_reviews_n: 'comentarios',
+    cm_reviews_empty: 'Aún no hemos copiado los comentarios de Airbnb aquí. Puedes leerlos en el anuncio.',
+    cm_reviews_link: 'Leer los comentarios en Airbnb',
     tree_photo: 'Árbol', leaf_photo: 'Hoja',
     lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
@@ -263,7 +271,7 @@ const I18N = {
     key_trees: 'árboles clave', agb: 'biomasa aérea',
   },
   en: {
-    subtitle: 'Nature Reserve', tab_recorridos: 'Trails', tab_restauracion: 'Restoration',
+    subtitle: 'Nature Reserve', tab_recorridos: 'Trails', tab_restauracion: 'Story',
     tab_especies: 'Species', tab_info: 'Info', tab_cuenta: 'Account', all_routes: 'All',
     dash_guest: 'Guest', dash_guest_sub: 'No account — your progress stays only on this device',
     dash_visitor: 'Visitor', dash_admin: 'Administrator', dash_logout: 'Log out',
@@ -287,6 +295,13 @@ const I18N = {
     free_walk: 'Free walk', free_stop: 'Finish', my_walks: 'My walks',
     sp_here_1: 'spot in the reserve', sp_here_n: 'spots in the reserve', sp_nowhere: 'No map points linked yet',
     sp_edit: 'Edit', sp_dl: 'Download photo', sp_new: 'New species', sp_frame: 'Frame photo',
+    hist_title: 'Our Story',
+    cm_services_h: '🎟️ Services & rates', cm_extra_h: 'Add-on services',
+    cm_rates_note: 'Rates taken from the reserve services & rates document',
+    cm_book_h: '📅 Book & follow us', cm_airbnb: 'View on Airbnb',
+    cm_reviews_h: '⭐ Guest reviews', cm_reviews_n: 'reviews',
+    cm_reviews_empty: 'We have not copied the Airbnb reviews here yet. You can read them on the listing.',
+    cm_reviews_link: 'Read the reviews on Airbnb',
     tree_photo: 'Tree', leaf_photo: 'Leaf',
     lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
@@ -1652,6 +1667,76 @@ function renderVisitInfo() {
       </div>
     </div>`;
 }
+// ---------- Nuestra Historia (data/historia.json) ----------
+// TODO el texto viene transcrito de documentos de la reserva; la app sólo lo pinta.
+function renderHistoria() {
+  const el = $('#historia'); if (!el) return;
+  const h = state.historia;
+  if (!h) { el.innerHTML = ''; return; }
+  const blk = (b) => b ? `<div class="panel hist-panel">
+      <h2>${escapeHtml(L(b, 'titulo'))}</h2>
+      <p>${escapeHtml(L(b, 'texto'))}</p>
+      ${b.contacto ? `<p class="tiny muted">${escapeHtml(b.contacto)}</p>` : ''}
+    </div>` : '';
+  const sentido = h.sentido ? `<div class="panel hist-panel">
+      <h2>${escapeHtml(L(h.sentido, 'titulo'))}</h2>
+      <p>${escapeHtml(L(h.sentido, 'intro'))}</p>
+      <ul class="hist-list">${(L(h.sentido, 'puntos') || []).map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul>
+    </div>` : '';
+  const hitos = h.hitos ? `<div class="panel hist-panel">
+      <h2>${escapeHtml(L(h.hitos, 'titulo'))}</h2>
+      <ol class="hist-timeline">${(h.hitos.items || []).map((it) => `<li>
+        <span class="ht-date">${escapeHtml(it.fecha)}</span>
+        <span class="ht-text">${escapeHtml(L(it, 'texto'))}</span></li>`).join('')}</ol>
+    </div>` : '';
+  el.innerHTML = `${h.lead ? `<p class="lead hist-lead">${escapeHtml(L(h, 'lead'))}</p>` : ''}
+    ${blk(h.proyecto)}${blk(h.personas)}${sentido}${hitos}${blk(h.enfoque)}${blk(h.siembra)}`;
+}
+// ---------- Info comercial: servicios, tarifas, Airbnb, redes, reseñas ----------
+function renderComercial() {
+  const el = $('#comercial'); if (!el) return;
+  const c = state.comercial;
+  if (!c) { el.innerHTML = ''; return; }
+  const svc = (s) => `<div class="cm-svc">
+      <div class="cm-svc-h"><span class="cm-emoji">${s.emoji || '•'}</span>
+        <b>${escapeHtml(LANG === 'en' && s.nombre_en ? s.nombre_en : s.nombre)}</b></div>
+      <div class="cm-price">${escapeHtml(s.tarifa || '')}</div>
+      <div class="cm-when">${escapeHtml(LANG === 'en' && s.horario_en ? s.horario_en : (s.horario || ''))}</div>
+      ${(s.incluye || []).length ? `<ul class="cm-inc">${s.incluye.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>` : ''}
+      ${s.nota ? `<p class="tiny muted">${escapeHtml(s.nota)}</p>` : ''}
+    </div>`;
+  const wa = (c.whatsapp || '').replace(/\D/g, '');
+  const rm = c.resenas_meta || {};
+  const revs = c.resenas || [];
+  el.innerHTML = `
+    <div class="panel">
+      <h2>${t('cm_services_h')}</h2>
+      <div class="cm-list">${(c.servicios || []).map(svc).join('')}</div>
+      ${(c.adicionales || []).length ? `<h3 class="cm-sub">${t('cm_extra_h')}</h3>
+        <ul class="cm-inc">${c.adicionales.map((a) => `<li>${escapeHtml(a)}</li>`).join('')}</ul>` : ''}
+      <p class="tiny muted">${t('cm_rates_note')}${c._meta && c._meta.vigencia ? ` (${escapeHtml(c._meta.vigencia)})` : ''}</p>
+    </div>
+    <div class="panel">
+      <h2>${t('cm_book_h')}</h2>
+      <div class="cm-links">
+        ${c.airbnb_url ? `<a class="cm-btn cm-airbnb" href="${escapeAttr(c.airbnb_url)}" target="_blank" rel="noopener">🏡 ${t('cm_airbnb')}</a>` : ''}
+        ${wa ? `<a class="cm-btn cm-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
+        ${c.email ? `<a class="cm-btn" href="mailto:${escapeAttr(c.email)}">✉️ ${escapeHtml(c.email)}</a>` : ''}
+        ${c.instagram_url ? `<a class="cm-btn cm-ig" href="${escapeAttr(c.instagram_url)}" target="_blank" rel="noopener">📸 ${escapeHtml(c.instagram_handle || 'Instagram')}</a>` : ''}
+      </div>
+    </div>
+    <div class="panel">
+      <h2>${t('cm_reviews_h')}</h2>
+      ${rm.rating ? `<div class="cm-rating">★ ${escapeHtml(String(rm.rating))}${rm.total ? ` <span class="muted">· ${escapeHtml(String(rm.total))} ${t('cm_reviews_n')}</span>` : ''}</div>` : ''}
+      ${revs.length
+        ? `<div class="cm-revs">${revs.map((r) => `<blockquote class="cm-rev">
+            <p>${escapeHtml(r.texto || '')}</p>
+            <footer>${escapeHtml(r.autor || '')}${r.fecha ? ` · ${escapeHtml(r.fecha)}` : ''}${r.estrellas ? ` · ★${escapeHtml(String(r.estrellas))}` : ''}</footer>
+          </blockquote>`).join('')}</div>`
+        : `<p class="muted">${t('cm_reviews_empty')}</p>`}
+      ${c.airbnb_url ? `<a class="cm-btn cm-airbnb" href="${escapeAttr(c.airbnb_url)}" target="_blank" rel="noopener">${t('cm_reviews_link')}</a>` : ''}
+    </div>`;
+}
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s); }
 
@@ -1954,7 +2039,7 @@ function applyStaticI18n() {
 function setLang(lang) {
   LANG = lang; localStorage.setItem('cantares_lang', lang);
   applyStaticI18n(); renderRouteBar(); selectRoute(state.activeRoute);
-  renderSpeciesFilters(); renderSpeciesGrid(); renderCarbon(); renderOfflineStatus(); renderLegend(); refreshGameUI(); renderVisitInfo();
+  renderSpeciesFilters(); renderSpeciesGrid(); renderCarbon(); renderOfflineStatus(); renderLegend(); refreshGameUI(); renderVisitInfo(); renderHistoria(); renderComercial();
   $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
   if (state.openWaypointId) { const wp = state.waypoints.find((w) => w.properties.id === state.openWaypointId); if (wp) showWaypoint(wp); }
   if (state.watchId == null) setGps('off', t('gps'));
@@ -2004,12 +2089,16 @@ async function main() {
     baseSwapTimer = setTimeout(() => setBaseLayer(i), 130);          // debounce the heavy layer swap
   };
 
-  const [routesDoc, speciesDoc, reserveInfo, mediaDoc, groupsDoc] = await Promise.all([
+  const [routesDoc, speciesDoc, reserveInfo, mediaDoc, groupsDoc, historiaDoc, comercialDoc] = await Promise.all([
     loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species),
     loadJSON(CONFIG.data.reserveInfo).catch(() => null),
     loadJSON(CONFIG.data.media).catch(() => null),
     loadJSON(CONFIG.data.speciesGroups).catch(() => null),
+    loadJSON(CONFIG.data.historia).catch(() => null),
+    loadJSON(CONFIG.data.comercial).catch(() => null),
   ]);
+  state.historia = historiaDoc;
+  state.comercial = comercialDoc;
   state.speciesGroups = (groupsDoc && Array.isArray(groupsDoc.groups) && groupsDoc.groups.length) ? groupsDoc.groups : SPECIES_GROUPS_FALLBACK;
   state.routes = routesDoc.routes;
   state.staticRoutes = routesDoc.routes;   // respaldo para el merge con la nube
@@ -2033,7 +2122,7 @@ async function main() {
   state.waypoints = state.staticWaypoints.slice();
 
   applyStaticI18n();
-  renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend(); renderVisitInfo();
+  renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend(); renderVisitInfo(); renderHistoria(); renderComercial();
   $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
 
   // El resto del arranque ocurre DESPUÉS de la puerta de entrada (login/invitado).

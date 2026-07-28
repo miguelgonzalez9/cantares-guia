@@ -1,0 +1,100 @@
+{
+  "_meta": {
+    "note": "Información comercial. Las tarifas están transcritas de 'info/comercial/tarifas/servicios y tarifas 2024.docx' (14/11/2024). Actualízalas aquí cuando cambien. Las reseñas de Airbnb NO se pueden descargar automáticamente (Airbnb bloquea el acceso automatizado), así que se copian a mano en 'resenas'.",
+    "fuente_tarifas": "info/comercial/tarifas/servicios y tarifas 2024.docx",
+    "vigencia": "2024"
+  },
+
+  "airbnb_url": "https://www.airbnb.com.co/rooms/844318982540990515",
+  "instagram_url": "https://www.instagram.com/cantaresreservanatural/",
+  "instagram_handle": "@cantaresreservanatural",
+  "email": "reservacantares@gmail.com",
+  "telefono": "+57 315 467 9940",
+  "whatsapp": "573154679940",
+
+  "servicios": [
+    {
+      "id": "aves",
+      "emoji": "🦜",
+      "nombre": "Tour de observación / fotografía de aves",
+      "nombre_en": "Birdwatching & bird photography tour",
+      "horario": "5:30 a.m. – 12:30 p.m. · grupos hasta 12 personas",
+      "horario_en": "5:30 a.m. – 12:30 p.m. · groups up to 12",
+      "tarifa": "US$40 (COP $170.000) por persona",
+      "incluye": [
+        "Desayuno y snack de media mañana",
+        "Zona común y estación permanente de café, agua aromática y té",
+        "Jardín de colibríes con bebederos",
+        "Observación de aves en comederos y senderos",
+        "Seguro personal"
+      ],
+      "nota": "La guianza especializada es obligatoria y se paga aparte: español US$25 (COP $120.000) o inglés US$35 (COP $150.000) por todo el grupo."
+    },
+    {
+      "id": "nocturno",
+      "emoji": "🦉",
+      "nombre": "Tour de observación nocturno",
+      "nombre_en": "Night wildlife tour",
+      "horario": "6:30 – 9:00 p.m. · grupos hasta 12 personas",
+      "horario_en": "6:30 – 9:00 p.m. · groups up to 12",
+      "tarifa": "US$20 (COP $90.000) por persona",
+      "incluye": [
+        "Cena",
+        "Zona común y estación permanente de café, agua aromática y té",
+        "Senderos cercanos a la casa para buscar búhos, guardacaminos y la Ranita de Chocolate",
+        "Seguro personal"
+      ],
+      "nota": "La guianza especializada es obligatoria y se paga aparte: español US$25 (COP $120.000) o inglés US$35 (COP $150.000) por todo el grupo."
+    },
+    {
+      "id": "senderismo",
+      "emoji": "🥾",
+      "nombre": "Senderismo (pasadía)",
+      "nombre_en": "Hiking (day pass)",
+      "horario": "5:30 a.m. – 12:30 p.m. · grupos hasta 12 personas",
+      "horario_en": "5:30 a.m. – 12:30 p.m. · groups up to 12",
+      "tarifa": "US$25 (COP $120.000) por persona",
+      "incluye": [
+        "Desayuno y snack de media mañana",
+        "Zona común y estación permanente de café, agua aromática y té",
+        "Caminata por 5 kilómetros de senderos",
+        "Visita a la cascada",
+        "Visita al jardín de colibríes",
+        "Visita al sendero de las orquídeas",
+        "Seguro personal"
+      ],
+      "nota": "La guianza es opcional: guianza personal de la reserva US$18 (COP $80.000)."
+    },
+    {
+      "id": "cabana",
+      "emoji": "🏡",
+      "nombre": "Alojamiento — Cabaña",
+      "nombre_en": "Lodging — Cabin",
+      "horario": "Check-in hasta 3:00 p.m. · Check-out hasta 12:00 m.",
+      "horario_en": "Check-in until 3:00 p.m. · Check-out by 12:00 noon",
+      "tarifa": "US$100 (COP $440.000) por 1 o 2 personas",
+      "incluye": [
+        "Cabaña exclusiva hasta 4 personas (2 camas dobles: 1 en habitación y 1 sofá-cama en la sala)",
+        "Cocina, jacuzzi, fogatero, estufa de leña y wifi",
+        "Acceso a senderos y cascada",
+        "Visita al jardín de colibríes y a los comederos",
+        "Seguro personal"
+      ],
+      "nota": "US$25 (COP $120.000) por persona adicional (máx. 2). No incluye alimentación. No se reciben mascotas."
+    }
+  ],
+
+  "adicionales": [
+    "Transporte Manizales – Cantares – Manizales (hasta 4 personas): US$45 (COP $200.000), previa reserva",
+    "Desayuno no incluido en el tour: US$10 (COP $45.000), previa reserva",
+    "Almuerzo no incluido en el tour: US$15 (COP $65.000), previa reserva",
+    "Cena no incluida en el tour: US$10 (COP $45.000), previa reserva"
+  ],
+
+  "resenas_meta": {
+    "rating": null,
+    "total": null,
+    "nota": "Airbnb no permite descargar las reseñas automáticamente. Copia aquí las que quieras mostrar (autor, fecha, texto, estrellas) y aparecerán en la app."
+  },
+  "resenas": []
+}

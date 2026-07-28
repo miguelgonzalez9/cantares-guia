@@ -1,5 +1,5 @@
 // Cantares service worker — offline app shell + data, runtime-cache map tiles + fotos.
-const VERSION = 'cantares-v52';
+const VERSION = 'cantares-v53';
 const SHELL = `${VERSION}-shell`;
 const TILES = `${VERSION}-tiles`;
 const IMAGES = `${VERSION}-img`;
@@ -38,6 +38,8 @@ const SHELL_ASSETS = [
   'data/species_groups.json',
   'data/reserve_info.json',
   'data/media.json',
+  'data/historia.json',
+  'data/comercial.json',
 ];
 
 // Recorta un caché a `max` entradas (FIFO): borra las más viejas.

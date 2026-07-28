@@ -1046,3 +1046,37 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
   text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
 .rf-add { flex: 0 0 auto; width: 72px; height: 54px; border-radius: 8px; font-size: 20px;
   border: 1px dashed var(--line, #b9c7b9); background: #f4f7f4; cursor: pointer; }
+
+/* ---- Nuestra Historia ---- */
+.hist-lead { font-style: italic; }
+.hist-panel h2 { margin-bottom: 6px; }
+.hist-panel p { line-height: 1.55; }
+.hist-list { margin: 6px 0 0 18px; line-height: 1.6; }
+.hist-timeline { list-style: none; margin: 6px 0 0; padding: 0; }
+.hist-timeline li { display: grid; grid-template-columns: 86px 1fr; gap: 10px;
+  padding: 9px 0; border-top: 1px solid var(--line, #e3e9e3); align-items: start; }
+.hist-timeline li:first-child { border-top: 0; }
+.ht-date { font-size: 12px; font-weight: 700; color: var(--moss, #52796f); }
+.ht-text { font-size: 14px; line-height: 1.5; }
+
+/* ---- Info comercial: servicios, tarifas, enlaces, reseñas ---- */
+.cm-list { display: grid; gap: 12px; }
+.cm-svc { border: 1px solid var(--line, #e3e9e3); border-radius: 12px; padding: 11px 12px; }
+.cm-svc-h { display: flex; align-items: center; gap: 7px; font-size: 15px; }
+.cm-emoji { font-size: 17px; }
+.cm-price { font-weight: 700; color: var(--moss, #52796f); margin-top: 3px; }
+.cm-when { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+.cm-inc { margin: 4px 0 0 17px; font-size: 13px; line-height: 1.5; }
+.cm-sub { font-size: 14px; margin: 14px 0 4px; }
+.cm-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.cm-btn { display: inline-block; padding: 10px 13px; border-radius: 10px; text-decoration: none;
+  background: #f4f7f4; border: 1px solid var(--line, #d9e2d9); color: inherit; font-size: 14px; }
+.cm-airbnb { background: #ff5a5f; color: #fff; border-color: transparent; font-weight: 600; }
+.cm-ig { background: linear-gradient(45deg, #f09433, #dc2743, #bc1888); color: #fff; border-color: transparent; }
+.cm-wa { background: #25d366; color: #fff; border-color: transparent; }
+.cm-rating { font-size: 20px; font-weight: 700; color: var(--moss, #52796f); margin-bottom: 8px; }
+.cm-revs { display: grid; gap: 10px; margin-bottom: 10px; }
+.cm-rev { margin: 0; padding: 10px 12px; border-left: 3px solid var(--moss, #52796f);
+  background: #f7faf7; border-radius: 0 8px 8px 0; }
+.cm-rev p { margin: 0 0 5px; font-size: 14px; line-height: 1.5; font-style: italic; }
+.cm-rev footer { font-size: 12px; color: var(--muted); }
