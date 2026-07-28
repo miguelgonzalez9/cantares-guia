@@ -1,0 +1,684 @@
+[
+  {
+    "species_id": "avefria-tero",
+    "scientific_name": "Vanellus chilensis",
+    "common_name": "Avefría Tero",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201804 P1160676.JPG",
+        "rel": "Fotos por fechas/2018/201804 P1160676.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.983,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1210718.JPG",
+        "rel": "Fotos por fechas/2020/P1210718.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.983,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1210720.JPG",
+        "rel": "Fotos por fechas/2020/P1210720.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.973,
+        "gps": null
+      }
+    ],
+    "n_available": 10
+  },
+  {
+    "species_id": "birro-chico",
+    "scientific_name": "Pyrrhomyias cinnamomeus",
+    "common_name": "Birro Chico",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2022\\Calendario 2022\\P1180543.JPG",
+        "rel": "Fotos por fechas/2022/Calendario 2022/P1180543.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.998,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201808 P1170709.JPG",
+        "rel": "Fotos por fechas/2018/201808 P1170709.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.993,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201808 P1170717.JPG",
+        "rel": "Fotos por fechas/2018/201808 P1170717.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.993,
+        "gps": null
+      }
+    ],
+    "n_available": 12
+  },
+  {
+    "species_id": "brillante-pechigamuza",
+    "scientific_name": "Heliodoxa rubinoides",
+    "common_name": "Brillante Pechigamuza",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201904 P1190156.JPG",
+        "rel": "Fotos por fechas/2019/201904 P1190156.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 1.0,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201906 P1190698.JPG",
+        "rel": "Fotos por fechas/2019/201906 P1190698.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 1.0,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1230374.JPG",
+        "rel": "Fotos por fechas/2021/P1230374.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 1.0,
+        "gps": null
+      }
+    ],
+    "n_available": 16
+  },
+  {
+    "species_id": "busardo-caminero",
+    "scientific_name": "Rupornis magnirostris",
+    "common_name": "Busardo Caminero",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201903 P1180933.JPG",
+        "rel": "Fotos por fechas/2019/201903 P1180933.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.991,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1220961.JPG",
+        "rel": "Fotos por fechas/2021/P1220961.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.986,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201805 P1170045.JPG",
+        "rel": "Fotos por fechas/2018/201805 P1170045.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.98,
+        "gps": null
+      }
+    ],
+    "n_available": 4
+  },
+  {
+    "species_id": "candelita-adornada",
+    "scientific_name": "Myioborus ornatus",
+    "common_name": "Candelita Adornada",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201807 P1170516.JPG",
+        "rel": "Fotos por fechas/2018/201807 P1170516.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.986,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201910 P1200249.JPG",
+        "rel": "Fotos por fechas/2019/201910 P1200249.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.931,
+        "gps": null
+      }
+    ],
+    "n_available": 3
+  },
+  {
+    "species_id": "colibri-colihabano",
+    "scientific_name": "Boissonneaua flavescens",
+    "common_name": "Colibrí Colihabano",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201809 P1170845.JPG",
+        "rel": "Fotos por fechas/2018/201809 P1170845.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201901 P1180702.JPG",
+        "rel": "Fotos por fechas/2019/201901 P1180702.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201908 P1190776.JPG",
+        "rel": "Fotos por fechas/2019/201908 P1190776.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      }
+    ],
+    "n_available": 27
+  },
+  {
+    "species_id": "colibri-turmalina",
+    "scientific_name": "Heliangelus exortis",
+    "common_name": "Colibrí Turmalina",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201911 P1200358.JPG",
+        "rel": "Fotos por fechas/2019/201911 P1200358.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201911 P1200360.JPG",
+        "rel": "Fotos por fechas/2019/201911 P1200360.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201911 P1200361.JPG",
+        "rel": "Fotos por fechas/2019/201911 P1200361.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      }
+    ],
+    "n_available": 15
+  },
+  {
+    "species_id": "colibri-verdemar-menor",
+    "scientific_name": "Colibri cyanotus",
+    "common_name": "Colibrí Verdemar Menor",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1230526.JPG",
+        "rel": "Fotos por fechas/2021/P1230526.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.996,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2022\\Calendario 2022\\P1230526.JPG",
+        "rel": "Fotos por fechas/2022/Calendario 2022/P1230526.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.996,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2024\\PHOTO-2024-05-10-17-04-30.jpg",
+        "rel": "Fotos por fechas/2024/PHOTO-2024-05-10-17-04-30.jpg",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.994,
+        "gps": null
+      }
+    ],
+    "n_available": 8
+  },
+  {
+    "species_id": "fiofio-montano",
+    "scientific_name": "Elaenia frantzii",
+    "common_name": "Fiofío Montano",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201902 P1180862.JPG",
+        "rel": "Fotos por fechas/2019/201902 P1180862.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.98,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201902 P1180864.JPG",
+        "rel": "Fotos por fechas/2019/201902 P1180864.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.977,
+        "gps": null
+      }
+    ],
+    "n_available": 3
+  },
+  {
+    "species_id": "inca-acollarado",
+    "scientific_name": "Coeligena torquata",
+    "common_name": "Inca Acollarado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201905 P1190200.JPG",
+        "rel": "Fotos por fechas/2019/201905 P1190200.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1220958.JPG",
+        "rel": "Fotos por fechas/2021/P1220958.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1220960.JPG",
+        "rel": "Fotos por fechas/2021/P1220960.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      }
+    ],
+    "n_available": 8
+  },
+  {
+    "species_id": "mirla",
+    "scientific_name": "Turdus fuscater",
+    "common_name": "Mirla / Mirlo negro",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201804 P1160800.JPG",
+        "rel": "Fotos por fechas/2018/201804 P1160800.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.998,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201811 P1180181.JPG",
+        "rel": "Fotos por fechas/2018/201811 P1180181.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.997,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201812 P1180453.JPG",
+        "rel": "Fotos por fechas/2018/201812 P1180453.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.997,
+        "gps": null
+      }
+    ],
+    "n_available": 22
+  },
+  {
+    "species_id": "nan-4",
+    "scientific_name": "Aglaiocercus kingii",
+    "common_name": "Silfo de King",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1220149.JPG",
+        "rel": "Fotos por fechas/2020/P1220149.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1220160.JPG",
+        "rel": "Fotos por fechas/2020/P1220160.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1220161.JPG",
+        "rel": "Fotos por fechas/2020/P1220161.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.999,
+        "gps": null
+      }
+    ],
+    "n_available": 12
+  },
+  {
+    "species_id": "nan-40",
+    "scientific_name": "Phimosus infuscatus",
+    "common_name": "Ibis Afeitado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\2020 126.JPG",
+        "rel": "Fotos por fechas/2020/2020 126.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.95,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201902 P1180786.JPG",
+        "rel": "Fotos por fechas/2019/201902 P1180786.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.938,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201902 P1180785.JPG",
+        "rel": "Fotos por fechas/2019/201902 P1180785.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.936,
+        "gps": null
+      }
+    ],
+    "n_available": 5
+  },
+  {
+    "species_id": "paloma-torcaza",
+    "scientific_name": "Patagioenas fasciata",
+    "common_name": "Paloma Torcaza",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1230296.JPG",
+        "rel": "Fotos por fechas/2021/P1230296.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.976,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1230298.JPG",
+        "rel": "Fotos por fechas/2021/P1230298.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.961,
+        "gps": null
+      }
+    ],
+    "n_available": 3
+  },
+  {
+    "species_id": "pinchaflor-azulado",
+    "scientific_name": "Diglossa caerulescens",
+    "common_name": "Pinchaflor Azulado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1210740.JPG",
+        "rel": "Fotos por fechas/2020/P1210740.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.991,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1210678.JPG",
+        "rel": "Fotos por fechas/2020/P1210678.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.988,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2021\\P1220735.JPG",
+        "rel": "Fotos por fechas/2021/P1220735.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.975,
+        "gps": null
+      }
+    ],
+    "n_available": 5
+  },
+  {
+    "species_id": "pinchaflor-enmascarado",
+    "scientific_name": "Diglossa cyanea",
+    "common_name": "Pinchaflor Enmascarado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1220060.JPG",
+        "rel": "Fotos por fechas/2020/P1220060.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.959,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1220059.JPG",
+        "rel": "Fotos por fechas/2020/P1220059.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.952,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1220062.JPG",
+        "rel": "Fotos por fechas/2020/P1220062.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.93,
+        "gps": null
+      }
+    ],
+    "n_available": 4
+  },
+  {
+    "species_id": "quetzal-crestado",
+    "scientific_name": "Pharomachrus antisianus",
+    "common_name": "Quetzal Crestado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201905 P1190236.JPG",
+        "rel": "Fotos por fechas/2019/201905 P1190236.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.972,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201905 P1190237.JPG",
+        "rel": "Fotos por fechas/2019/201905 P1190237.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.964,
+        "gps": null
+      }
+    ],
+    "n_available": 3
+  },
+  {
+    "species_id": "rabudito-verde",
+    "scientific_name": "Discosura conversii",
+    "common_name": "Rabudito Verde",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201910 P1200193.JPG",
+        "rel": "Fotos por fechas/2019/201910 P1200193.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.997,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201910 P1200190.JPG",
+        "rel": "Fotos por fechas/2019/201910 P1200190.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.993,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201910 P1200194.JPG",
+        "rel": "Fotos por fechas/2019/201910 P1200194.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.993,
+        "gps": null
+      }
+    ],
+    "n_available": 6
+  },
+  {
+    "species_id": "trogon-acollarado",
+    "scientific_name": "Trogon collaris",
+    "common_name": "Trogón Acollarado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201911 P1190949.JPG",
+        "rel": "Fotos por fechas/2019/201911 P1190949.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.995,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201902 P1180851.JPG",
+        "rel": "Fotos por fechas/2019/201902 P1180851.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.993,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\2020 128.JPG",
+        "rel": "Fotos por fechas/2020/2020 128.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.992,
+        "gps": null
+      }
+    ],
+    "n_available": 8
+  },
+  {
+    "species_id": "trogon-enmascarado",
+    "scientific_name": "Trogon personatus",
+    "common_name": "Trogón Enmascarado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201905 P1190253.JPG",
+        "rel": "Fotos por fechas/2019/201905 P1190253.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.998,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2019\\201911 P1190951.JPG",
+        "rel": "Fotos por fechas/2019/201911 P1190951.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.998,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2022\\Calendario 2022\\informacion y fotos calendario jacobo\\P1180854.JPG",
+        "rel": "Fotos por fechas/2022/Calendario 2022/informacion y fotos calendario jacobo/P1180854.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.998,
+        "gps": null
+      }
+    ],
+    "n_available": 10
+  },
+  {
+    "species_id": "zafiro-coronado",
+    "scientific_name": "Thalurania colombica",
+    "common_name": "Zafiro Coronado",
+    "group": "ave",
+    "has_photo": false,
+    "picks": [
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2018\\201808 P1170577.JPG",
+        "rel": "Fotos por fechas/2018/201808 P1170577.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.977,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2024\\PHOTO-2024-04-19-11-16-37_1.jpg",
+        "rel": "Fotos por fechas/2024/PHOTO-2024-04-19-11-16-37_1.jpg",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.97,
+        "gps": null
+      },
+      {
+        "src": "C:\\Users\\migol\\Dropbox\\Cantares\\Reserva natural cantares\\fotos Reserva Cantares\\Fotos por fechas\\2020\\P1210666.JPG",
+        "rel": "Fotos por fechas/2020/P1210666.JPG",
+        "kind": "photo",
+        "category": "ave",
+        "confidence": 0.941,
+        "gps": null
+      }
+    ],
+    "n_available": 4
+  }
+]

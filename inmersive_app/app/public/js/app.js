@@ -4,7 +4,7 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout } from './auth-ui.js';
-import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor } from './admin.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe } from './admin.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps, saveRow } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
@@ -137,9 +137,13 @@ function normMedia(r) {
   };
 }
 function indexMedia(doc, cloud) {
-  const all = [];
-  ((doc && doc.photos) || []).forEach((p) => all.push(normMedia(p)));
-  (cloud || []).forEach((r) => all.push(normMedia(r)));
+  // Dedup por id: una edición en la nube (mismo id) REEMPLAZA a la foto estática
+  // del build (media.json) en vez de duplicar la tarjeta. La nube va después, así
+  // gana. Esto permite reencuadrar/cambiar la portada de fotos empacadas.
+  const byIdMap = new Map();
+  ((doc && doc.photos) || []).forEach((p) => { const m = normMedia(p); byIdMap.set(m.id, m); });
+  (cloud || []).forEach((r) => { const m = normMedia(r); byIdMap.set(m.id, m); });
+  const all = [...byIdMap.values()];
   const bySubject = {}, byId = {}, unclassified = [];
   all.forEach((m) => {
     byId[m.id] = m;
@@ -207,7 +211,7 @@ const I18N = {
     nav_by_trail: 'por los senderos', nav_direct: 'en línea recta', nav_follow: '▶ Seguir',
     free_walk: 'Recorrido libre', free_stop: 'Terminar', my_walks: 'Mis recorridos',
     sp_here_1: 'lugar en la reserva', sp_here_n: 'lugares en la reserva', sp_nowhere: 'Aún sin puntos asociados en el mapa',
-    sp_edit: 'Editar', sp_dl: 'Descargar foto', sp_new: 'Nueva especie',
+    sp_edit: 'Editar', sp_dl: 'Descargar foto', sp_new: 'Nueva especie', sp_frame: 'Encuadrar foto',
     tree_photo: 'Árbol', leaf_photo: 'Hoja',
     lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
@@ -282,7 +286,7 @@ const I18N = {
     nav_by_trail: 'along the trails', nav_direct: 'straight line', nav_follow: '▶ Follow',
     free_walk: 'Free walk', free_stop: 'Finish', my_walks: 'My walks',
     sp_here_1: 'spot in the reserve', sp_here_n: 'spots in the reserve', sp_nowhere: 'No map points linked yet',
-    sp_edit: 'Edit', sp_dl: 'Download photo', sp_new: 'New species',
+    sp_edit: 'Edit', sp_dl: 'Download photo', sp_new: 'New species', sp_frame: 'Frame photo',
     tree_photo: 'Tree', leaf_photo: 'Leaf',
     lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
@@ -1066,9 +1070,13 @@ function showWaypoint(wp) {
       ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
       ${p.tipo === 'arbol' ? `<p class="tiny muted" style="margin-top:10px">${t('tree_note')}${p.tag ? ` · ${t('tree_tag')} ${escapeHtml(p.tag)}` : ''}${p.altitude ? ` · ${escapeHtml(p.altitude)}` : ''}</p>` : ''}
       ${p.approx ? `<p class="tiny muted" style="margin-top:10px">${t('approx_note')}</p>` : ''}
+      ${isAdminUser() ? `<div class="sp-admin-actions">
+        <button class="wp-nav" id="wp-frame" style="background:var(--moss)">🖼️ ${t('sp_frame')}</button>
+      </div>` : ''}
     </div>`;
   $('#waypoint-card').classList.remove('hidden');
   const navBtn = $('#wp-nav'); if (navBtn) navBtn.onclick = () => navigateTo(wp);
+  const wpFr = $('#wp-frame'); if (wpFr) wpFr.onclick = () => openReframe('waypoint', p.id);
   $$('#wp-content .sp-gallery .sp-fig').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
   $$('#wp-content .route-badge').forEach((b) =>
     b.onclick = () => { const rid = b.dataset.route; closeWaypoint(); selectRoute(rid); });
@@ -1554,6 +1562,7 @@ function showSpecies(s) {
         <div class="sp-locs">${wps.map((w) => `<button class="chip" data-wp="${escapeHtml(w.properties.id)}">${escapeHtml(L(w.properties, 'title') || w.properties.title)}</button>`).join('')}</div>` : ''}
       ${admin ? `<div class="sp-admin-actions">
         <button class="wp-nav" id="sp-edit" style="background:var(--deep)">✏️ ${t('sp_edit')}</button>
+        <button class="wp-nav" id="sp-frame" style="background:var(--moss)">🖼️ ${t('sp_frame')}</button>
         ${cover ? `<button class="wp-nav" id="sp-dl" style="background:var(--muted)">⬇️ ${t('sp_dl')}</button>` : ''}
       </div>` : ''}
     </div>`;
@@ -1563,6 +1572,7 @@ function showSpecies(s) {
   $$('#wp-content .sp-gallery .sp-fig').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
   $$('#wp-content .sp-locs .chip').forEach((c) => c.onclick = () => { const w = wpById(c.dataset.wp); closeWaypoint(); if (w) selectSearch(w.properties.id); });
   const ed = $('#sp-edit'); if (ed) ed.onclick = () => { closeWaypoint(); openSpeciesEditor(s.id, () => { refreshSpecies(); renderSpeciesGrid(); }); };
+  const fr = $('#sp-frame'); if (fr) fr.onclick = () => openReframe('species', s.id);
   const dl = $('#sp-dl'); if (dl) dl.onclick = () => downloadPhoto(cover.full, L(s, 'common_name') || s.scientific_name);
 }
 // Visor a pantalla completa para una foto/video de la galería.

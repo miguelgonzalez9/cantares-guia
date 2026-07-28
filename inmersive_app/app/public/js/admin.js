@@ -886,6 +886,108 @@ function assignPicker(m) {
 }
 
 // Abre el clasificador directamente en un punto/especie (desde sus editores).
+// ---- Encuadrar / cambiar la foto (portada) de una especie o punto ----
+// Editor de punto focal (arrastrar sobre un recorte 4:3, como la rejilla) + tira
+// del stock de fotos de ESE sujeto; para puntos, además las fotos de sus especies
+// linkeadas (p. ej. un árbol usa el stock clasificado de su especie).
+function reframeMakePrimary(m, type, id) {
+  return Promise.all(subjectMedia(type, id).map(async (s) => {
+    const want = s.id === m.id;
+    if (s.is_primary === want || s.source === 'curated') return;
+    try { const r = await saveRow('media', mediaRow(s, { is_primary: want })); CTX.applyLocalRow('media', r.row); }
+    catch (e) { /* queda en la cola offline */ }
+  }));
+}
+function linkedSpeciesMediaFor(pointId) {
+  const w = (CTX.state.waypoints || []).find((x) => x.properties.id === pointId);
+  const ids = w ? (w.properties.species_ids || []).map((x) => String(x).trim().toLowerCase()) : [];
+  if (!ids.length) return [];
+  const specIds = (CTX.state.species || []).filter((s) =>
+    ids.includes(String(s.id).toLowerCase()) || ids.includes(String(s.scientific_name || '').toLowerCase())).map((s) => s.id);
+  const seen = new Set(), out = [];
+  specIds.forEach((sid) => subjectMedia('species', sid).forEach((m) => { if (!seen.has(m.id)) { seen.add(m.id); out.push(m); } }));
+  return out;
+}
+// "Usar" una foto de la especie como portada del punto: nueva fila de media del
+// punto que apunta a la MISMA imagen (no duplica el archivo en disco).
+async function reframeBorrow(m, pointId) {
+  await reframeMakePrimary({ id: '__none__' }, 'waypoint', pointId);   // baja las portadas actuales
+  const row = { id: rid('media'), kind: m.kind || 'photo', url: m.full, thumb: (m.thumb && m.thumb !== m.full) ? m.thumb : null,
+    poster: m.poster || null, subject_type: 'waypoint', subject_id: pointId, is_primary: true, sort: 0,
+    focal_x: m.focal_x, focal_y: m.focal_y, caption: m.caption || null, caption_en: m.caption_en || null,
+    credit: m.credit || null, source: 'admin', status: 'classified' };
+  try { const r = await saveRow('media', row); CTX.applyLocalRow('media', r.row); } catch (e) { /* cola */ }
+}
+export function openReframe(type, id) {
+  if (!id) { CTX && CTX.toast('Guarda primero.'); return; }
+  let ov = document.getElementById('rf-ov');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'rf-ov'; ov.className = 'rf-ov'; document.body.appendChild(ov); }
+  const own = () => subjectMedia(type, id);
+  let cur = own().find((m) => m.is_primary) || own()[0] || null;
+  let fx = cur ? cur.focal_x : 0.5, fy = cur ? cur.focal_y : 0.5;
+  const close = () => ov.remove();
+  function render() {
+    const borrow = type === 'waypoint' ? linkedSpeciesMediaFor(id).filter((m) => !own().some((o) => o.full === m.full)) : [];
+    const chip = (m, tag) => `<button class="rf-chip ${cur && m.id === cur.id ? 'sel' : ''}" data-id="${esc(m.id)}" data-tag="${tag}" style="background-image:url('${esc(m.thumb || m.full)}')">${m.is_primary ? '<span class="rf-star">★</span>' : ''}</button>`;
+    ov.innerHTML = `<div class="rf-box">
+      <div class="rf-head"><b>Encuadrar / cambiar foto</b><button class="rf-x" aria-label="Cerrar">✕</button></div>
+      ${cur ? `<div class="rf-frame"><img class="rf-img" src="${esc(cur.full)}" draggable="false" style="object-position:${(fx * 100).toFixed(1)}% ${(fy * 100).toFixed(1)}%"></div>
+      <p class="rf-hint">Arrastra la foto para encuadrarla (se recorta a 4:3 como en la rejilla).</p>
+      <div class="rf-actions"><button class="rf-center">Centrar</button><button class="rf-save">Guardar encuadre</button></div>`
+        : '<p class="rf-hint">Aún no hay fotos. Sube una con ＋ o clasifícala en 🖼️ Fotos.</p>'}
+      <div class="rf-stock-h">Fotos de ${type === 'species' ? 'esta especie' : 'esta ficha'}${own().length ? ` (${own().length})` : ''}</div>
+      <div class="rf-stock">${own().map((m) => chip(m, 'own')).join('')}<button class="rf-add" title="Subir foto">＋</button></div>
+      ${borrow.length ? `<div class="rf-stock-h">De sus especies (stock clasificado)</div>
+      <div class="rf-stock">${borrow.map((m) => chip(m, 'borrow')).join('')}</div>` : ''}
+    </div>`;
+    wire(borrow);
+  }
+  function wire(borrow) {
+    ov.querySelector('.rf-x').onclick = close;
+    ov.onclick = (e) => { if (e.target === ov) close(); };
+    const img = ov.querySelector('.rf-img');
+    if (img) {
+      const frame = ov.querySelector('.rf-frame');
+      let drag = null;
+      const set = (x, y) => { fx = Math.min(1, Math.max(0, x)); fy = Math.min(1, Math.max(0, y)); img.style.objectPosition = `${(fx * 100).toFixed(1)}% ${(fy * 100).toFixed(1)}%`; };
+      frame.onpointerdown = (e) => { drag = { x: e.clientX, y: e.clientY }; try { frame.setPointerCapture(e.pointerId); } catch (_) { /* ok */ } };
+      frame.onpointermove = (e) => { if (!drag) return; const r = frame.getBoundingClientRect(); set(fx - (e.clientX - drag.x) / r.width, fy - (e.clientY - drag.y) / r.height); drag = { x: e.clientX, y: e.clientY }; };
+      frame.onpointerup = frame.onpointercancel = () => { drag = null; };
+      ov.querySelector('.rf-center').onclick = () => set(0.5, 0.5);
+      ov.querySelector('.rf-save').onclick = async () => {
+        try { const r = await saveRow('media', mediaRow(cur, { focal_x: +fx.toFixed(3), focal_y: +fy.toFixed(3) })); CTX.applyLocalRow('media', r.row); CTX.toast('✓ Encuadre guardado'); }
+        catch (e) { CTX.toast(friendlyErr(e)); }
+        close();
+      };
+    }
+    ov.querySelectorAll('.rf-chip').forEach((c) => c.onclick = async () => {
+      const tag = c.dataset.tag, pool = tag === 'borrow' ? borrow : own();
+      const m = pool.find((x) => x.id === c.dataset.id); if (!m) return;
+      CTX.toast('Actualizando portada…');
+      if (tag === 'borrow') await reframeBorrow(m, id);
+      else if (!m.is_primary) await reframeMakePrimary(m, type, id);
+      cur = own().find((x) => x.is_primary) || own()[0] || m;
+      fx = cur ? cur.focal_x : 0.5; fy = cur ? cur.focal_y : 0.5; render();
+    });
+    const add = ov.querySelector('.rf-add');
+    if (add) add.onclick = () => {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = async () => {
+        const f = inp.files[0]; if (!f) return; CTX.toast('Preparando…');
+        try {
+          const blob = await compressImage(f);
+          const row = { id: rid('media'), kind: 'photo', url: null, subject_type: type, subject_id: id,
+            is_primary: !own().length, sort: Date.now() % 100000, focal_x: 0.5, focal_y: 0.5,
+            source: 'admin', status: 'classified', caption: null, caption_en: null, credit: null };
+          const r = await saveRow('media', row, { url: blob }); CTX.applyLocalRow('media', r.row);
+          cur = own().find((x) => x.is_primary) || own()[0]; fx = cur ? cur.focal_x : 0.5; fy = cur ? cur.focal_y : 0.5; render();
+        } catch (e) { CTX.toast(friendlyErr(e)); }
+      };
+      inp.click();
+    };
+  }
+  render();
+}
 export function openMediaFor(type, id) {
   if (!id) { CTX && CTX.toast('Guarda primero para poder añadir fotos/videos.'); return; }
   tab = 'fotos'; mediaMode = 'subject'; mediaSubject = { type, id };
