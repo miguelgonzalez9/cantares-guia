@@ -1,5 +1,5 @@
 // Cantares service worker — offline app shell + data, runtime-cache map tiles + fotos.
-const VERSION = 'cantares-v55';
+const VERSION = 'cantares-v56';
 const SHELL = `${VERSION}-shell`;
 const TILES = `${VERSION}-tiles`;
 const IMAGES = `${VERSION}-img`;

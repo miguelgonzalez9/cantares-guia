@@ -2,7 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- Sin zoom de página: la app es una interfaz fija (el mapa tiene su propio
+       zoom). Antes, un pellizco por error dejaba el header y la barra torcidos. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0e1d" />
   <title>Cantares — Reserva Natural</title>
   <link rel="manifest" href="manifest.webmanifest" />

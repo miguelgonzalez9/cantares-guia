@@ -1079,6 +1079,7 @@ function showWaypoint(wp) {
   const speciesChips = linked.map((s) => { const c = L(s, 'common_name'); const nm = (c && s.scientific_name) ? `${c} (${s.scientific_name})` : (c || s.scientific_name || ''); return `<span class="chip" data-species="${s.id}">${escapeHtml(nm)}</span>`; }).join('');
   const photo = realPhoto(wp);
   const gallery = waypointGallery(wp);
+  const rest = photo ? gallery.filter((m) => m.full !== photo && m.poster !== photo) : gallery;
   const tm = typeMeta(p.tipo);
   const desc = L(p, 'description');
   // Nombre científico/familia: del waypoint (árboles estáticos) o, si no, de la
@@ -1094,7 +1095,7 @@ function showWaypoint(wp) {
       <h2 class="wp-title">${escapeHtml(L(p, 'title') || p.title)}</h2>
       ${sci ? `<p class="wp-sci"><em>${escapeHtml(sci)}</em>${family ? ` · ${escapeHtml(family)}` : ''}</p>` : ''}
       <button class="wp-nav" id="wp-nav">🧭 ${t('nav_how')}</button>
-      ${gallery.length > 1 ? `<div class="sp-gallery">${gallery.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(p, 'title'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
+      ${rest.length ? `<div class="sp-gallery">${rest.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(p, 'title'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
       ${desc ? `<p class="wp-desc">${escapeHtml(desc)}</p>` : ''}
       ${speciesChips ? `<div class="wp-species">${speciesChips}</div>` : ''}
       ${p.tipo === 'arbol' ? `<p class="tiny muted" style="margin-top:10px">${t('tree_note')}${p.tag ? ` · ${t('tree_tag')} ${escapeHtml(p.tag)}` : ''}${p.altitude ? ` · ${escapeHtml(p.altitude)}` : ''}</p>` : ''}
@@ -1104,6 +1105,7 @@ function showWaypoint(wp) {
       </div>` : ''}
     </div>`;
   $('#waypoint-card').classList.remove('hidden');
+  pushBack('card', closeWaypoint);   // el botón atrás del teléfono cierra la ficha
   const navBtn = $('#wp-nav'); if (navBtn) navBtn.onclick = () => navigateTo(wp);
   const wpFr = $('#wp-frame'); if (wpFr) wpFr.onclick = () => openReframe('waypoint', p.id);
   $$('#wp-content .sp-gallery .sp-fig').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
@@ -1113,6 +1115,7 @@ function showWaypoint(wp) {
     chip.onclick = () => { switchView('especies'); highlightSpecies(chip.dataset.species); });
 }
 function closeWaypoint() {
+  popBack('card');
   $('#waypoint-card').classList.add('hidden'); state.openWaypointId = null; state.openSpeciesId = null;
   if (state._riWasOpen && state.activeRoute) $('#route-info').classList.remove('hidden');
   state._riWasOpen = false;
@@ -1448,6 +1451,7 @@ function filteredSpecies() {
 }
 function renderSpeciesGrid(highlightId) {
   const grid = $('#species-grid');
+  const ptIdx = pointsBySpeciesKey();
   // Grupo derivado precomputado (evita recalcular el lookup de árbol en el sort).
   const grpOf = new Map(state.species.map((s) => [s.id, speciesGroup(s)]));
   const gOf = (s) => grpOf.get(s.id) || 'planta';
@@ -1484,12 +1488,16 @@ function renderSpeciesGrid(highlightId) {
     card.id = `sp-${s.id}`;
     const ph = primaryPhoto('species', s.id);
     card.classList.toggle('has-thumb', !!ph);
+    // Nº de puntos del mapa asignados a esta especie. Sin esto, dos especies con
+    // el mismo nombre común (p. ej. dos «Yolombo») son indistinguibles en la
+    // rejilla y no se ve a cuál quedaron asignados los puntos tras reasignarlos.
+    const nPts = countPoints(ptIdx, s);
     card.innerHTML = `
       ${ph ? pictureTag(ph, 'sp-thumb', L(s, 'common_name')) : ''}
       ${s.flagship ? '<span class="star">★</span>' : ''}
-      <p class="species-common">${L(s, 'common_name')}</p>
-      <p class="species-sci">${s.scientific_name}</p>
-      <p class="species-meta">${s.family}${s.status === 'possible' ? ' · ' + t('possible') : ''}</p>
+      <p class="species-common">${escapeHtml(L(s, 'common_name') || s.scientific_name || s.id)}</p>
+      <p class="species-sci">${escapeHtml(s.scientific_name || '')}</p>
+      <p class="species-meta">${escapeHtml(s.family || '')}${nPts ? `${s.family ? ' · ' : ''}📍 ${nPts}` : ''}${s.status === 'possible' ? ' · ' + t('possible') : ''}</p>
       <span class="species-group-tag" style="background:${gm.color}">${escapeHtml(groupLabel(gg))}</span>
       ${capturedBadge(s.id)}`;
     card.onclick = () => showSpecies(s);
@@ -1510,6 +1518,24 @@ function highlightSpecies(id) {
 function speciesWaypoints(s) {
   const keys = new Set([String(s.id).toLowerCase(), (s.scientific_name || '').toLowerCase()].filter(Boolean));
   return state.waypoints.filter((w) => (w.properties.species_ids || []).some((sid) => keys.has(String(sid).trim().toLowerCase())));
+}
+// Índice clave-de-especie → ids de puntos, en UNA pasada. La rejilla tiene ~740
+// tarjetas: preguntar punto por punto en cada una era O(especies × puntos).
+function pointsBySpeciesKey() {
+  const m = new Map();
+  (state.waypoints || []).forEach((w) => (w.properties.species_ids || []).forEach((sid) => {
+    const k = String(sid).trim().toLowerCase();
+    (m.get(k) || m.set(k, new Set()).get(k)).add(w.properties.id);
+  }));
+  return m;
+}
+// Nº de puntos de una especie usando ese índice (unión de sus dos claves: el id
+// y el nombre científico; los árboles del censo se linkean por nombre).
+function countPoints(idx, s) {
+  const ids = new Set();
+  [String(s.id).toLowerCase(), (s.scientific_name || '').toLowerCase()].filter(Boolean)
+    .forEach((k) => (idx.get(k) || []).forEach((wid) => ids.add(wid)));
+  return ids.size;
 }
 // Galería de una especie (registros normalizados): media de la nube + curadas
 // (media.json) + su foto directa + COMPARTIDAS de los puntos asociados. Así, si
@@ -1566,7 +1592,10 @@ function showSpecies(s) {
   if (!s) return;
   const wps = speciesWaypoints(s);
   const gallery = speciesGallery(s);
+  // La primera foto es la PORTADA (cabecera). La rejilla muestra sólo el resto:
+  // antes salía también arriba y la foto aparecía repetida al abrir la especie.
   const cover = gallery[0] || null;
+  const rest = gallery.slice(1);
   const admin = isAdminUser();
   const statusTxt = s.status === 'possible' ? t('possible') : '';
   let mapImg = '';   // el mini-mapa nunca debe impedir que abra la ficha
@@ -1582,7 +1611,7 @@ function showSpecies(s) {
       <div class="wp-theme-badges"><span class="species-group-tag" style="background:${groupMeta(speciesGroup(s)).color}">${escapeHtml(groupLabel(speciesGroup(s)))}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}${iucnBadge(s.iucn)}</div>
       <h2 class="wp-title">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
       ${s.scientific_name ? `<p class="wp-sci"><em>${escapeHtml(s.scientific_name)}</em>${s.family ? ` · ${escapeHtml(s.family)}` : ''}</p>` : ''}
-      ${gallery.length > 1 ? `<div class="sp-gallery">${gallery.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
+      ${rest.length ? `<div class="sp-gallery">${rest.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
       ${L(s, 'description')
         ? paraHtml(L(s, 'description'), 'wp-desc')
         : (s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : '')}
@@ -1597,6 +1626,7 @@ function showSpecies(s) {
     </div>`;
   $('#wp-content').innerHTML = html;
   $('#waypoint-card').classList.remove('hidden');
+  pushBack('card', closeWaypoint);   // el botón atrás del teléfono cierra la ficha
   state.openWaypointId = null; state.openSpeciesId = s.id;
   $$('#wp-content .sp-gallery .sp-fig').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
   $$('#wp-content .sp-locs .chip').forEach((c) => c.onclick = () => { const w = wpById(c.dataset.wp); closeWaypoint(); if (w) selectSearch(w.properties.id); });
@@ -1613,7 +1643,8 @@ function openLightbox(url, kind) {
     ? `<video src="${escapeHtml(url)}" controls autoplay playsinline class="lb-media"></video><button class="lb-close" aria-label="Cerrar">×</button>`
     : `<img src="${escapeHtml(url)}" class="lb-media" alt=""><button class="lb-close" aria-label="Cerrar">×</button>`;
   ov.classList.add('open');
-  const close = () => ov.classList.remove('open');
+  const close = () => { popBack('lightbox'); ov.classList.remove('open'); };
+  pushBack('lightbox', () => ov.classList.remove('open'));
   ov.onclick = (e) => { if (e.target === ov || e.target.classList.contains('lb-close')) close(); };
 }
 
@@ -1803,8 +1834,49 @@ async function renderDashboard() {
   $$('#dashboard .rec-dl').forEach((b) => b.onclick = () => { const w = walks.find((x) => x.id === b.dataset.id); if (w) downloadWalk(w); });
 }
 
+// ---------- botón «atrás» del teléfono ----------
+// Sin esto, «atrás» sale de la app aunque haya una ficha abierta o estés en otra
+// pestaña. Modelo: una pila de cosas que atrás debe deshacer + UNA entrada
+// "centinela" en el historial. Al pulsar atrás se consume el centinela, se
+// deshace un paso y se vuelve a armar. Con la pila vacía no se arma: el
+// siguiente atrás sí sale de la app (que es lo que el usuario espera en el mapa).
+const backStack = [];       // [{ name, undo }] — el tope es lo último abierto
+let _sentinel = false;      // ¿hay entrada centinela en el historial?
+let _undoing = false;       // dentro de popstate: no re-empujar historial
+function armBack() {
+  if (_sentinel) return;
+  try { history.pushState({ cantares: 1 }, ''); _sentinel = true; } catch (e) { /* file:// */ }
+}
+function pushBack(name, undo) {
+  if (_undoing) return;
+  const i = backStack.findIndex((b) => b.name === name);
+  if (i >= 0) backStack.splice(i, 1);   // reabrir la misma capa no la duplica
+  backStack.push({ name, undo });
+  armBack();
+}
+// Cierre programático (botón ×, tap fuera, cambio de pestaña): sólo saca la capa
+// de la pila; el cierre visual lo hace quien llama. El centinela se queda armado
+// a propósito: consumirlo con history.back() aquí es asíncrono y pisaba el
+// pushState del cambio de pestaña que ocurre justo después (atrás rebotaba solo).
+// Coste: tras cerrar la última capa con ×, el primer atrás no hace nada visible
+// y el segundo sale de la app.
+function popBack(name) {
+  const i = backStack.findIndex((b) => b.name === name);
+  if (i >= 0) backStack.splice(i, 1);
+}
+window.addEventListener('popstate', () => {
+  _sentinel = false;                       // el centinela se acaba de consumir
+  const it = backStack.pop();
+  if (!it) return;                         // nada que deshacer → atrás sale de la app
+  _undoing = true;
+  try { it.undo(); } catch (e) { console.warn('back', e && e.message); }
+  finally { _undoing = false; }
+  if (backStack.length) armBack();         // aún queda algo que deshacer: rearmar
+});
+
 // ---------- navigation ----------
 function switchView(name) {
+  const prev = currentView();
   // La ficha es un overlay de nivel superior: al cambiar de pestaña, ciérrala
   // (antes vivía dentro de Recorridos y se ocultaba sola con la vista).
   if (state.openWaypointId || state.openSpeciesId) closeWaypoint();
@@ -1814,14 +1886,24 @@ function switchView(name) {
   const acc = $('#account-btn'); if (acc) acc.classList.toggle('active', name === 'cuenta');
   if (name === 'recorridos' && state.map) setTimeout(() => state.map.resize(), 60);
   if (name === 'cuenta') renderDashboard();
+  // Atrás vuelve a la pestaña anterior. Volver a Recorridos (la de inicio) no
+  // apila nada: desde ahí atrás debe salir de la app.
+  if (prev === name) return;
+  if (name === 'recorridos') popBack('view');
+  else pushBack('view', () => switchView(prev));
+}
+function currentView() {
+  const v = $$('.view').find((x) => x.classList.contains('is-active'));
+  return v ? v.id.replace('view-', '') : 'recorridos';
 }
 
 // ---------- búsqueda de puntos ----------
 function openSearch() {
   $('#search-panel').classList.remove('hidden');
+  pushBack('search', closeSearch);
   const inp = $('#search-input'); inp.value = ''; renderSearch(''); setTimeout(() => inp.focus(), 60);
 }
-function closeSearch() { $('#search-panel').classList.add('hidden'); }
+function closeSearch() { popBack('search'); $('#search-panel').classList.add('hidden'); }
 function renderSearch(q) {
   const box = $('#search-results');
   const query = (q || '').trim().toLowerCase();
@@ -2093,6 +2175,11 @@ async function main() {
   if (window.matchMedia && window.matchMedia('(max-width: 560px)').matches) $('#legend').classList.add('collapsed');
   makeDraggable($('#base-slider-box'), $('#base-toggle'), 'cantares_pos_base', () => $('#base-slider-box').classList.toggle('collapsed'));
   makeDraggable($('#locate-btn'), $('#locate-btn'), 'cantares_pos_locate', locate);
+  // iOS ignora user-scalable=no en el viewport: hay que bloquear sus gestos de
+  // pellizco a mano. Son eventos propios de WebKit; MapLibre usa touch* y no se
+  // ve afectado, así que el zoom DEL MAPA sigue funcionando igual.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach((ev) =>
+    document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
   window.addEventListener('online', renderOfflineStatus);
   window.addEventListener('offline', renderOfflineStatus);
   window.addEventListener('cantares:recstate', renderRouteBar);   // refresca el chip "Recorrido libre"
@@ -2173,7 +2260,7 @@ async function main() {
       initAdmin({ state, map: state.map, t, L, LANG, toast, makeDraggable,
         typeColor: (tp) => typeMeta(tp).color,
         refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails,
-        applyLocalRow, removeLocalRow,
+        applyLocalRow, removeLocalRow, pushBack, popBack,
         showPointPopup: (id) => { const w = wpById(id); if (w) miniPopup(w); },   // mismo popup que fuera del modo edición (con "más info" + "Editar")
         pointTypes: () => Object.keys(TYPE_META).map((tp) => ({ tipo: tp, emoji: TYPE_META[tp].emoji, color: TYPE_META[tp].color, label: typeLabel(tp), es: TYPE_META[tp].es, en: TYPE_META[tp].en })),
         registerPointType, savePointType,
@@ -2302,6 +2389,7 @@ async function refreshWaypoints() {
     const src = state.map && state.map.getSource('waypoints');
     if (src) src.setData({ type: 'FeatureCollection', features: state.waypoints });
     renderLegend(); applyWaypointFilter();
+    renderSpeciesGrid(); refreshOpenCard();   // los puntos por especie cambiaron
     if (state.activeRoute) selectRoute(state.activeRoute);
   } catch (e) { console.warn('[cloud] refreshWaypoints', e && e.message); }
 }
@@ -2329,11 +2417,21 @@ function applyLocalRow(table, row) {
     if (table === 'waypoints') {
       const fc = { type: 'FeatureCollection', features: [cloudWaypointToFeature(row)] };
       normalizeFeatures(fc);
+      const f = fc.features[0];
+      // Conservar los atributos que sólo viven en el estático (sci, family, tag,
+      // altitud): la fila de la nube no los guarda y, sin este merge, editar un
+      // árbol le borraba el nombre científico hasta recargar. Mismo criterio que
+      // applyCloudWaypoints.
+      const base = (state.staticWaypoints || []).find((w) => w.properties.id === row.id);
+      if (base) f.properties = { ...base.properties, ...cleanProps(f.properties) };
       const i = state.waypoints.findIndex((w) => w.properties.id === row.id);
-      if (i >= 0) state.waypoints[i] = fc.features[0]; else state.waypoints.push(fc.features[0]);
+      if (i >= 0) state.waypoints[i] = f; else state.waypoints.push(f);
       const src = state.map && state.map.getSource('waypoints');
       if (src) src.setData({ type: 'FeatureCollection', features: state.waypoints });
       renderLegend(); applyWaypointFilter();
+      // Cambiar los species_ids de un punto cambia QUÉ especies tienen puntos:
+      // la pestaña Especies (y la ficha abierta) deben reflejarlo al instante.
+      renderSpeciesGrid(); refreshOpenCard();
     } else if (table === 'trails') {
       const fc = { type: 'FeatureCollection', features: [cloudTrailToFeature(row)] };
       normalizeFeatures(fc);
@@ -2374,6 +2472,7 @@ function removeLocalRow(table, id) {
       const src = state.map && state.map.getSource('waypoints');
       if (src) src.setData({ type: 'FeatureCollection', features: state.waypoints });
       renderLegend(); applyWaypointFilter();
+      renderSpeciesGrid(); refreshOpenCard();   // el punto ya no cuenta para su especie
     } else if (table === 'trails') {
       state.trails = state.trails.filter((t) => t.properties.id !== id);
       state._trailGraph = null;

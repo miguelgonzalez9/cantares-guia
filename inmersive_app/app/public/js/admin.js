@@ -92,8 +92,12 @@ function panelEl() {
   return el;
 }
 let tab = 'puntos';
-function openPanel() { renderPanel(); panelEl().classList.remove('hidden'); document.body.classList.add('admin-open'); }
+function openPanel() {
+  renderPanel(); panelEl().classList.remove('hidden'); document.body.classList.add('admin-open');
+  if (CTX.pushBack) CTX.pushBack('admin', closePanel);   // atrás cierra el panel, no la app
+}
 function closePanel() {
+  if (CTX.popBack) CTX.popBack('admin');
   panelEl().classList.add('hidden'); document.body.classList.remove('admin-open');
   if (selMarker) { selMarker.remove(); selMarker = null; }   // limpia el resaltado de selección
   _selId = null; try { clearHighlight(); } catch (e) { /* estilo transitorio */ }

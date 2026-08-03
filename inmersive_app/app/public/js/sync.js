@@ -141,6 +141,10 @@ export async function patchRow(table, id, fields, fullRowFn = null) {
   return saveRow(table, fullRowFn ? fullRowFn() : { id, ...fields });
 }
 export async function deleteRow(table, id) {
+  // Una tabla sin entrada en REMOVE no se puede borrar en la nube: encolar la
+  // operación la dejaría reintentando para siempre (la cola nunca vacía y el
+  // contador de pendientes crece sin remedio). Mejor fallar fuerte y visible.
+  if (!REMOVE[table]) throw new Error(`No hay borrado en la nube para la tabla '${table}' (falta en REMOVE de sync.js).`);
   if (cloudConfigured() && navigator.onLine) {
     try { await withTimeout(REMOVE[table](id), WRITE_TIMEOUT); return { queued: false }; }
     catch (e) { /* red o servidor: se encola igual, no se pierde la operación */ }

@@ -36,12 +36,23 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; margin: 0; }
+/* «Deslizar hacia arriba recarga la página»: es el pull-to-refresh de Chrome
+   Android. Sólo el elemento RAÍZ propaga overscroll-behavior al viewport — en
+   body no hace nada (por eso seguía recargando). */
+html, body { height: 100%; margin: 0; overscroll-behavior: none; }
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
   background: var(--bg);
-  overscroll-behavior: none;
+  /* manipulation = sin zoom por doble toque (los gestos del mapa no se tocan:
+     el canvas de MapLibre declara su propio touch-action). */
+  touch-action: manipulation;
+}
+/* Cada panel con scroll propio contiene su rebote: al llegar al tope, el gesto
+   NO se encadena al documento (que es donde nace el pull-to-refresh). */
+.scroll, #wp-content, .ri-scroll, .admin-body, .ce-scroll, .search-results,
+.rf-box, .sp-editor-box, .fm-assign-box, .rec-sheet, .admin-sp-list {
+  overscroll-behavior-y: contain;
 }
 
 /* ---------- Header ---------- */
