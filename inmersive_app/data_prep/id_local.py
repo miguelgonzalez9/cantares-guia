@@ -80,6 +80,17 @@ CATEGORY_PROMPTS = {
         "a building or cabin", "a wooden house in the countryside",
         "a trail sign or fence", "a road or construction site",
     ],
+    # MADERA CORTADA — clase sumidero, añadida tras auditar el bulk (2026-08-03).
+    # CLIP no distingue «árbol» de «madera»: una MESA puntuaba arbol 0.83 con el 2º
+    # a 0.06, así que ni el umbral ni el margen podían atajarla. Cinco de los siete
+    # falsos positivos de `arbol` eran madera aserrada (mesa, tablones, contrachapado).
+    # Una clase real sin etiqueta propia contamina a su vecina más cercana: dársela
+    # es el arreglo, no subir el umbral. Va en AUTO_EXCLUDE → cae en _sin_clasificar.
+    "madera": [
+        "a wooden table", "a plank of sawn timber", "stacked wooden boards",
+        "a plywood panel", "a wooden floor or ceiling", "cut logs stacked in a pile",
+        "wooden furniture", "a carpentry workshop",
+    ],
     "paisaje": [
         "a scenic landscape of mountains", "an aerial view of forested hills",
         "a panoramic view of a valley", "a drone photo of the countryside",
@@ -111,7 +122,9 @@ DEFAULT_THRESHOLD = 0.70        # categorías sin umbral propio
 # Excluidas del auto (sin ground-truth fiable / no separables) → siempre _sin_clasificar.
 # Se curan a mano, como eco_turismo y nuestra_historia. (infraestructura: se confunde
 # con flora/paisaje en las tomas de la reserva, precisión <0.5 → mejor _sin_clasificar.)
-AUTO_EXCLUDE = {"infraestructura"}
+# `madera` es una clase SUMIDERO: existe sólo para que la madera aserrada deje de
+# caer en `arbol`. Nunca se publica como categoría — su destino es _sin_clasificar.
+AUTO_EXCLUDE = {"infraestructura", "madera"}
 
 
 def decide_category(scores):

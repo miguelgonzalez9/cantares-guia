@@ -22,9 +22,13 @@ Uso:
   python data_prep/24_eval_bulk.py sample                    # 30 por categoría
   python data_prep/24_eval_bulk.py sample --per-category 40
   python data_prep/24_eval_bulk.py report
+  python data_prep/24_eval_bulk.py rescore --write           # ¿mejoró la calibración?
   python data_prep/24_eval_bulk.py selftest                  # sin modelos ni fotos
 
-No toca el catálogo ni mueve archivos: solo escribe en `_archive_work/eval/`.
+`rescore` re-puntúa desde los ORIGINALES con la config actual de id_local y compara
+contra los mismos veredictos humanos: es la prueba de que tocar prompts o umbrales
+mejoró algo. No toca el catálogo ni mueve archivos; escribe en `_archive_work/eval/`
+y los informes publicables en `docs/`.
 """
 
 import argparse
@@ -411,6 +415,107 @@ def cmd_report(args):
     print(f"\n✓ {REPORT}")
 
 
+def cmd_rescore(args):
+    """Re-puntúa las miniaturas ya auditadas con la configuración ACTUAL de
+    id_local y compara contra los veredictos. Es la prueba de que un cambio de
+    prompts o umbrales mejora de verdad: mismas imágenes, mismas etiquetas
+    humanas, antes y después. Sin esto, tocar la calibración es a ciegas."""
+    from PIL import Image
+    sys.path.insert(0, str(HERE))
+    import id_local
+
+    verdicts = json.loads(VERDICTS.read_text(encoding="utf-8"))
+    sample = json.loads(SAMPLE_JSON.read_text(encoding="utf-8"))
+    by_i = {it["i"]: it for it in sample["items"]}
+    base = Path(json.loads(CATALOG.read_text(encoding="utf-8"))["base"])
+    judged = [v for v in verdicts if v.get("verdict") in ("ok", "bad")]
+    print(f"re-puntuando {len(judged)} imágenes auditadas (carga el modelo una vez)…\n")
+
+    def image_for(it):
+        """El ORIGINAL, no la miniatura. Puntuar la miniatura mete un re-muestreo
+        extra (4000→400→224 en vez de 4000→224) que mueve la confianza unas
+        centésimas — suficiente para cruzar un umbral y hacer creer que el cambio
+        de calibración causó algo que en realidad causó el JPEG intermedio.
+        Sólo los videos caen a la miniatura, que ya es un frame extraído."""
+        src = base / it["file"]
+        if it.get("kind") == "video" or not src.exists():
+            return Image.open(THUMBS / f'{it["i"]:04d}.jpg')
+        from PIL import ImageOps
+        return ImageOps.exif_transpose(Image.open(src))
+
+    moved, kept_fp, lost_ok, still = [], [], [], 0
+    for n, v in enumerate(judged):
+        it = by_i.get(v["i"])
+        if not it:
+            continue
+        scores = id_local.category_scores_from_embedding(id_local.embed_pil(image_for(it)))
+        new_cat, reason = id_local.decide_category(scores)
+        was_ok = v["verdict"] == "ok"
+        if was_ok and new_cat == it["category"]:
+            still += 1
+        elif was_ok:
+            lost_ok.append((v["i"], it["category"], new_cat, reason))
+        elif new_cat is None or new_cat != it["category"]:
+            moved.append((v["i"], it["category"], new_cat, reason))
+        else:
+            kept_fp.append((v["i"], it["category"], v.get("truth"), reason))
+        if (n + 1) % 40 == 0:
+            print(f"  {n+1}/{len(judged)}…", flush=True)
+
+    n_fp = sum(1 for v in judged if v["verdict"] == "bad")
+    n_ok = len(judged) - n_fp
+    print(f"\n{'='*66}\nFALSOS POSITIVOS ({n_fp} auditados)")
+    print(f"  corregidos (ya no se publican): {len(moved)}")
+    for i, old, new, why in moved:
+        print(f"    #{i:<4} {old:14s} → {new or '_sin_clasificar':16s} {why}")
+    print(f"  siguen mal: {len(kept_fp)}")
+    for i, old, truth, why in kept_fp:
+        print(f"    #{i:<4} {old:14s} (era {truth}) {why}")
+    print(f"\nACIERTOS ({n_ok} auditados)")
+    print(f"  se mantienen: {still}   perdidos a _sin_clasificar/otra: {len(lost_ok)}")
+    for i, old, new, why in lost_ok[:15]:
+        print(f"    #{i:<4} {old:14s} → {new or '_sin_clasificar':16s} {why}")
+    if len(lost_ok) > 15:
+        print(f"    … y {len(lost_ok)-15} más")
+    published = still + len(kept_fp)
+    prec = still / published if published else 0
+    print(f"\nPrecisión de lo que SEGUIRÍA publicándose: {prec:.0%} "
+          f"({still} correctos / {published} publicados)")
+    print(f"Cobertura: {published}/{len(judged)} "
+          f"({published/len(judged):.0%} — el resto se revisa a mano)")
+
+    if args.write:
+        L = ["# Recalibración del clasificador\n",
+             "Generado por `24_eval_bulk.py rescore --write`: re-puntúa desde los "
+             "ORIGINALES las mismas imágenes auditadas y aplica la configuración "
+             "actual de `id_local.py`. Compara contra los veredictos humanos, así "
+             "que mide el efecto real de un cambio de prompts o umbrales.\n",
+             f"Base: **{len(judged)}** imágenes auditadas "
+             f"({n_ok} correctas, {n_fp} falsos positivos).\n",
+             "\n## Resultado\n",
+             "| | antes | después |", "|---|---:|---:|",
+             f"| falsos positivos publicados | {n_fp} | {len(kept_fp)} |",
+             f"| aciertos publicados | {n_ok} | {still} |",
+             f"| precisión de lo publicado | {n_ok/len(judged):.0%} | **{prec:.0%}** |",
+             f"| cobertura | 100% | **{published/len(judged):.0%}** |",
+             "\nLo que sale de «publicado» no se pierde: cae en `_sin_clasificar` y "
+             "se revisa a mano. Un error con confianza alta sí es una pérdida.\n",
+             f"\n## Falsos positivos corregidos ({len(moved)})\n",
+             "| # | etiqueta vieja | ahora | por qué |", "|---:|---|---|---|"]
+        L += [f"| {i} | `{old}` | `{new or '_sin_clasificar'}` | {why} |" for i, old, new, why in moved]
+        L += [f"\n## Falsos positivos que siguen ({len(kept_fp)})\n",
+              "| # | etiqueta | era en realidad | confianza |", "|---:|---|---|---|"]
+        L += [f"| {i} | `{old}` | `{truth}` | {why} |" for i, old, truth, why in kept_fp]
+        L += [f"\n## Aciertos perdidos a revisión manual ({len(lost_ok)})\n",
+              "Coste de la recalibración. Cada línea es una foto correcta que ahora "
+              "hay que clasificar a mano.\n",
+              "| # | era | ahora | por qué |", "|---:|---|---|---|"]
+        L += [f"| {i} | `{old}` | `{new or '_sin_clasificar'}` | {why} |" for i, old, new, why in lost_ok]
+        p = ROOT / "docs" / "EVAL_RECALIBRACION.md"
+        p.write_text("\n".join(L) + "\n", encoding="utf-8")
+        print(f"\n✓ {p}")
+
+
 def cmd_selftest(args):
     """Comprueba la lógica pura sin modelos, sin fotos y sin red."""
     p, lo, hi = wilson(30, 30)
@@ -453,6 +558,9 @@ def main():
     s.set_defaults(fn=cmd_sample)
     r = sub.add_parser("report", help="veredictos marcados → EVAL.md")
     r.set_defaults(fn=cmd_report)
+    rs = sub.add_parser("rescore", help="re-puntúa lo auditado con la config actual")
+    rs.add_argument("--write", action="store_true", help="escribe docs/EVAL_RECALIBRACION.md")
+    rs.set_defaults(fn=cmd_rescore)
     t = sub.add_parser("selftest", help="lógica pura, sin modelos ni fotos")
     t.set_defaults(fn=cmd_selftest)
     args = ap.parse_args()
