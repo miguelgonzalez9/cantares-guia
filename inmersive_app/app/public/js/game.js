@@ -9,13 +9,14 @@
 // foto (comprimida), jugador y desglose de puntos.
 
 import { saveRow } from './sync.js';
+import { identifyPlant, idAvailable, verdictText } from './idengine.js';
 
 // ---------- configuración del juego ----------
 const GAME_CFG = {
-  // Clave de Pl@ntNet (gratis en https://my.plantnet.org, 500 peticiones/día).
-  // Vacía → el botón de identificación automática no aparece y se usa el
-  // identificador manual asistido.
-  plantnetApiKey: '',
+  // La identificación automática vive en js/idengine.js → Edge Function
+  // `identify`, que guarda la clave de Pl@ntNet del lado del SERVIDOR. Antes
+  // había aquí un `plantnetApiKey` que se llamaba desde el navegador: este repo
+  // es público, así que rellenarlo habría publicado la clave. Ver docs/ID_COMUNIDAD.md.
   photoMaxPx: 1280, photoQuality: 0.82,
   // Puntos base por grupo. La fauna vale más: es más difícil de fotografiar
   // y en Cantares toda la fauna está aún SIN confirmar en campo.
@@ -51,7 +52,7 @@ export const GAME_I18N = {
     g_locating: 'Obteniendo ubicación…', g_loc_ok: 'Ubicación registrada', g_loc_none: 'Sin ubicación (puedes guardar igual)',
     g_step_id: 'Paso 2 · ¿Qué es?', g_auto_id: '🔮 Identificar automáticamente (Pl@ntNet)',
     g_auto_wait: 'Consultando Pl@ntNet…', g_auto_fail: 'No se pudo identificar automáticamente. Usa el buscador.',
-    g_auto_pick: 'Sugerencias — toca la correcta:',
+    g_auto_pick: 'Sugerencias — toca la correcta:', g_auto_outside: 'fuera del inventario',
     g_search_ph: 'Busca por nombre común o científico…',
     g_group_q: 'Tipo de ser vivo:', g_g_flora: '🌳 Planta', g_g_ave: '🐦 Ave', g_g_mamifero: '🐾 Mamífero', g_g_anfibio: '🐸 Anfibio', g_g_otro: '🦋 Otro',
     g_not_listed: '➕ No está en la lista — registrar hallazgo nuevo',
@@ -96,7 +97,7 @@ export const GAME_I18N = {
     g_locating: 'Getting location…', g_loc_ok: 'Location recorded', g_loc_none: 'No location (you can still save)',
     g_step_id: 'Step 2 · What is it?', g_auto_id: '🔮 Identify automatically (Pl@ntNet)',
     g_auto_wait: 'Asking Pl@ntNet…', g_auto_fail: 'Automatic ID failed. Use the search box.',
-    g_auto_pick: 'Suggestions — tap the right one:',
+    g_auto_pick: 'Suggestions — tap the right one:', g_auto_outside: 'not in inventory',
     g_search_ph: 'Search by common or scientific name…',
     g_group_q: 'Kind of living thing:', g_g_flora: '🌳 Plant', g_g_ave: '🐦 Bird', g_g_mamifero: '🐾 Mammal', g_g_anfibio: '🐸 Amphibian', g_g_otro: '🦋 Other',
     g_not_listed: '➕ Not on the list — log a new finding',
@@ -134,6 +135,9 @@ export const GAME_I18N = {
 // ---------- estado del módulo ----------
 let CTX = null;          // { state, t, L, toast, rerenderSpecies }
 let T = (k) => k;        // atajo a t()
+// El idioma actual. game.js no recibe LANG en su contexto; el <html lang> lo
+// mantiene app.js (applyStaticI18n) y ya se usa así en los premios.
+const lang = () => (document.documentElement.lang === 'en' ? 'en' : 'es');
 let allObs = [];         // todos los registros (todos los jugadores), sin blobs pesados en memoria aparte
 let allPlayers = [];     // todos los jugadores históricos del dispositivo
 let capMap = new Map();  // speciesId → nº capturas del jugador actual (para el grid)
@@ -319,31 +323,6 @@ function snapLocation() {
   });
 }
 
-// ---------- Pl@ntNet (identificación automática de flora) ----------
-async function plantnetIdentify(blob) {
-  const fd = new FormData();
-  fd.append('images', blob, 'photo.jpg');
-  fd.append('organs', 'auto');
-  const url = `https://my-api.plantnet.org/v2/identify/all?api-key=${encodeURIComponent(GAME_CFG.plantnetApiKey)}&lang=${document.documentElement.lang || 'es'}`;
-  const res = await fetch(url, { method: 'POST', body: fd });
-  if (!res.ok) throw new Error('plantnet ' + res.status);
-  const json = await res.json();
-  return (json.results || []).slice(0, 5).map((r) => ({
-    sci: r.species?.scientificNameWithoutAuthor || '',
-    common: (r.species?.commonNames || [])[0] || '',
-    score: Math.round((r.score || 0) * 100),
-  }));
-}
-// Empareja un nombre científico con el inventario (exacto → mismo género).
-function matchInventory(sci) {
-  const list = CTX.state.species;
-  const s = (sci || '').trim().toLowerCase();
-  if (!s) return null;
-  let hit = list.find((x) => x.scientific_name.toLowerCase() === s);
-  if (hit) return hit;
-  const genus = s.split(' ')[0];
-  return list.find((x) => x.scientific_name.toLowerCase().split(' ')[0] === genus) || null;
-}
 
 // ---------- modales ----------
 function closeModal() { document.querySelectorAll('.gm-overlay').forEach((n) => n.remove()); }
@@ -427,7 +406,7 @@ function renderWizardPhoto(body) {
 
 function renderWizardId(body) {
   const groups = [['flora', T('g_g_flora')], ['ave', T('g_g_ave')], ['mamifero', T('g_g_mamifero')], ['anfibio', T('g_g_anfibio')], ['otro', T('g_g_otro')]];
-  const canAuto = !!GAME_CFG.plantnetApiKey && navigator.onLine;
+  const canAuto = idAvailable();
   body.innerHTML = `
     <h2>${T('g_step_id')}</h2>
     <div class="gm-mini"><img src="${wiz.photoUrl}" alt=""></div>
@@ -482,21 +461,30 @@ function renderWizardId(body) {
     body.querySelector('#gm-auto').onclick = async () => {
       const out = body.querySelector('#gm-auto-out');
       out.innerHTML = `<p class="tiny muted">⏳ ${T('g_auto_wait')}</p>`;
-      try {
-        const sug = await plantnetIdentify(wiz.photoBlob);
-        if (!sug.length) throw new Error('empty');
-        out.innerHTML = `<p class="tiny">${T('g_auto_pick')}</p>` + sug.map((s, i) => `
-          <button class="gm-cand gm-sug" data-i="${i}"><b>${s.common || s.sci}</b> <i>${s.sci}</i> <span class="gm-score">${s.score}%</span></button>`).join('');
-        out.querySelectorAll('.gm-sug').forEach((b) => b.onclick = () => {
-          const s = sug[+b.dataset.i];
-          const hit = matchInventory(s.sci);
-          if (hit) { wiz.species = hit; wiz.isFinding = false; }
-          else { wiz.isFinding = true; wiz.species = null; wiz.findingName = `${s.common || ''} (${s.sci})`.trim(); }
-          renderWizardConfirm(body);
-        });
-      } catch (e) {
-        out.innerHTML = `<p class="tiny muted">⚠️ ${T('g_auto_fail')}</p>`;
+      // El motor NO lanza: un fallo de identificación es normal, no excepcional.
+      // Devuelve siempre un veredicto, y «no sé» es una respuesta válida.
+      const r = await identifyPlant(wiz.photoBlob, CTX.state.species, lang());
+      if (r.verdict !== 'ok' && !(r.candidates || []).length) {
+        out.innerHTML = `<p class="tiny muted">⚠️ ${verdictText(r, lang()) || T('g_auto_fail')}</p>`;
+        return;
       }
+      // Se muestran los candidatos aunque el veredicto sea abstenerse: el
+      // visitante decide, y ver la duda es más honesto que ocultarla.
+      const sug = (r.candidates || []).slice(0, 5);
+      const note = r.verdict === 'ok' ? '' : `<p class="tiny muted">${verdictText(r, lang())}</p>`;
+      out.innerHTML = note + `<p class="tiny">${T('g_auto_pick')}</p>` + sug.map((s, i) => `
+        <button class="gm-cand gm-sug" data-i="${i}"><b>${s.common || s.sci}</b> <i>${s.sci}</i>
+          <span class="gm-score">${Math.round((s.score || 0) * 100)}%</span>
+          ${s.speciesId ? '' : `<span class="gm-tripla">${T('g_auto_outside')}</span>`}</button>`).join('');
+      out.querySelectorAll('.gm-sug').forEach((b) => b.onclick = () => {
+        const s = sug[+b.dataset.i];
+        // Sólo se acepta como especie del inventario lo que la función resolvió
+        // contra species.json; lo demás entra como hallazgo, sin inventarse un id.
+        const hit = s.speciesId && CTX.state.species.find((x) => x.id === s.speciesId);
+        if (hit) { wiz.species = hit; wiz.isFinding = false; }
+        else { wiz.isFinding = true; wiz.species = null; wiz.findingName = `${s.common || ''} (${s.sci})`.trim(); }
+        renderWizardConfirm(body);
+      });
     };
   }
   renderCandidates();
