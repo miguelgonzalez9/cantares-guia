@@ -21,6 +21,9 @@ function decide(candidates, inventory) {
   const ranked = candidates.map((c) => ({ ...c, speciesId: inventory.get(normSci(c.sci)) ?? null }));
   const inHouse = ranked.filter((c) => c.speciesId);
   if (!inHouse.length) {
+    if (ranked[0].score < SCORE_MIN) {
+      return { verdict: 'abstain', reason: 'score bajo, nada del inventario', candidates: ranked.slice(0, 5) };
+    }
     return { verdict: 'outside-inventory', reason: `«${ranked[0].sci}» no está en el inventario de la reserva`,
              candidates: ranked.slice(0, 5) };
   }
@@ -96,4 +99,18 @@ assert.strictEqual(normSci('  Panópsis   SUAVEOLENS '), 'panopsis suaveolens');
   assert.strictEqual(num('MARGIN_MIN'), MARGIN_MIN, 'MARGIN_MIN divergió de index.ts');
 }
 
-console.log('identify: 8/8 OK');
+// 9. Un candidato de fuera con score ínfimo NO es un hallazgo: Pl@ntNet está
+//    diciendo «no sé». Medido en vivo: devolvía Pelargonium a 0.26 y Euphorbia
+//    a 0.03 como «posibles hallazgos», que es ruido disfrazado de señal.
+{
+  const r = decide([{ sci: 'Euphorbia leucocephala', common: '', score: 0.03 }], INV);
+  assert.strictEqual(r.verdict, 'abstain', 'score 0.03 no puede ser un hallazgo');
+}
+
+// 10. Pero uno de fuera CON confianza sí merece revisión humana.
+{
+  const r = decide([{ sci: 'Monstera deliciosa', common: '', score: 0.88 }], INV);
+  assert.strictEqual(r.verdict, 'outside-inventory');
+}
+
+console.log('identify: 10/10 OK');

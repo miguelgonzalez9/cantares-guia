@@ -57,6 +57,14 @@ export function decide(
   const inHouse = ranked.filter((c) => c.speciesId);
 
   if (!inHouse.length) {
+    // Un candidato de fuera del inventario sólo es un HALLAZGO si Pl@ntNet está
+    // seguro. Con score 0.03 no dice «hay una especie nueva», dice «no sé»:
+    // anunciarlo como hallazgo hace perder el tiempo revisando ruido y devalúa
+    // los avisos que sí importan.
+    if (ranked[0].score < SCORE_MIN) {
+      return { verdict: "abstain", reason: `score bajo (${ranked[0].score.toFixed(2)} < ${SCORE_MIN}), nada del inventario`,
+               candidates: ranked.slice(0, 5) };
+    }
     return {
       verdict: "outside-inventory",
       reason: `«${ranked[0].sci}» no está en el inventario de la reserva`,
