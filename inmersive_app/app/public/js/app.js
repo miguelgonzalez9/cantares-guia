@@ -135,6 +135,18 @@ function normMedia(r) {
     subject_type: r.subject_type || null, subject_id: r.subject_id || null,
     source: r.source || (isCloud ? 'cloud' : 'curated'),
     status: r.status || ((r.subject_type && r.subject_id) ? 'classified' : (isCloud ? 'unclassified' : 'classified')),
+    // Procedencia y ubicación (migración 23). Se normalizan aquí o se pierden en
+    // el merge: la bandeja del admin filtra por `origin`, la sincronización local
+    // deduplica por `content_hash` y `species_hint` es la conjetura del modelo,
+    // que NO debe confundirse con `subject_id` (lo que un humano confirmó).
+    origin: r.origin || (isCloud ? 'admin-upload' : 'curated'),
+    content_hash: r.content_hash || null,
+    lat: r.lat != null ? r.lat : null, lng: r.lng != null ? r.lng : null,
+    taken_at: r.taken_at || null, walk_id: r.walk_id || null,
+    species_hint: r.species_hint || null,
+    hint_confidence: r.hint_confidence != null ? r.hint_confidence : null,
+    reviewed: r.reviewed === true,
+    contributor: r.contributor || null,
   };
 }
 function indexMedia(doc, cloud) {

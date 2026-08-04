@@ -752,7 +752,17 @@ function mediaRow(m, patch) {
     is_primary: !!m.is_primary, sort: m.sort || 0, focal_x: m.focal_x != null ? m.focal_x : 0.5,
     focal_y: m.focal_y != null ? m.focal_y : 0.5, caption: m.caption || null, caption_en: m.caption_en || null,
     credit: m.credit || null, source: m.source === 'curated' ? 'admin' : (m.source || 'admin'),
-    status: (m.subject_type && m.subject_id) ? 'classified' : 'unclassified', ...patch };
+    status: (m.subject_type && m.subject_id) ? 'classified' : 'unclassified',
+    // La procedencia se CONSERVA, no se recalcula: un upsert construye la fila
+    // entera, así que omitir estos campos los pondría a null en cada edición del
+    // admin — clasificar una foto del juego le borraría el GPS, la caminata y su
+    // origen. `origin` es un hecho histórico; sólo `reviewed` cambia al editar.
+    origin: m.origin || 'admin-upload', content_hash: m.content_hash || null,
+    lat: m.lat != null ? m.lat : null, lng: m.lng != null ? m.lng : null,
+    taken_at: m.taken_at || null, walk_id: m.walk_id || null,
+    species_hint: m.species_hint || null,
+    hint_confidence: m.hint_confidence != null ? m.hint_confidence : null,
+    ...patch };
 }
 async function saveMedia(row, blob) {
   try {
