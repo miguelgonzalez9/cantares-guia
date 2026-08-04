@@ -296,6 +296,7 @@ const I18N = {
     grp_flora: 'Flora', grp_ave: 'Aves', grp_mamifero: 'Mamíferos',
     online: '🟢 En línea. Abre el mapa aquí (wifi) para guardar los tiles y luego funciona sin señal en el sendero.',
     offline: '⚪ Sin conexión. La app y el contenido guardado siguen disponibles.',
+    sw_new_version: '🔄 Hay una versión nueva. Cierra lo que tengas abierto y recarga.',
     ob_title: 'Bienvenido a Cantares',
     ob_p_map: 'Mapa con tu ubicación en vivo en el sendero',
     ob_p_species: 'Especies, avistamientos y un juego de exploración',
@@ -391,6 +392,7 @@ const I18N = {
     grp_flora: 'Plants', grp_ave: 'Birds', grp_mamifero: 'Mammals',
     online: '🟢 Online. Open the map here (wifi) to cache tiles, then it works with no signal on the trail.',
     offline: '⚪ Offline. The app and cached content are still available.',
+    sw_new_version: '🔄 A new version is available. Close what you have open and reload.',
     ob_title: 'Welcome to Cantares',
     ob_p_map: 'A map with your live position on the trail',
     ob_p_species: 'Species, sightings and an exploration game',
@@ -2443,7 +2445,29 @@ async function renderCarbon() {
 function renderOfflineStatus() { $('#offline-status').innerHTML = navigator.onLine ? t('online') : t('offline'); }
 async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
-  try { await navigator.serviceWorker.register('sw.js'); } catch (e) { console.warn('SW', e); }
+  // ¿Ya había un service worker mandando en esta pestaña ANTES de registrar? Si
+  // lo había y de repente lo reemplaza otro, es que se desplegó una versión
+  // nueva. En la primera visita no hay nada viejo que reemplazar.
+  const had = !!navigator.serviceWorker.controller;
+  try { await navigator.serviceWorker.register('sw.js'); } catch (e) { console.warn('SW', e); return; }
+  if (!had) return;
+  // El shell se sirve stale-while-revalidate ARCHIVO POR ARCHIVO: al desplegar,
+  // esta pestaña ya pintó con los archivos viejos y el SW nuevo trae los nuevos.
+  // Mezclar las dos versiones es lo que rompió v62 (index.html nuevo + app.js
+  // viejo). Por eso, cuando el SW nuevo toma el control, se recarga una vez.
+  let done = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (done) return;
+    done = true;
+    // …salvo si hay algo abierto: recargar mientras se escribe una descripción o
+    // se elige un punto tira ese trabajo por la ventana. Ahí se avisa y decide
+    // la persona. La cola offline ya guardó lo confirmado; lo a medias, no.
+    const busy = document.querySelector('#ce-ov, .gm-overlay, #fm-assign')
+      || document.body.classList.contains('admin-open')
+      || document.body.classList.contains('picking-points');
+    if (busy) { toast(t('sw_new_version')); return; }
+    location.reload();
+  });
 }
 
 // ---------- legend ----------
@@ -2513,6 +2537,15 @@ function toggleZones() {
 // (el.offsetLeft/Top) — mixing viewport coords with left/top caused the widget
 // to jump out from under the cursor. A small threshold keeps taps working.
 function makeDraggable(el, handle, key, onTap) {
+  // Si el elemento no está en el DOM, no hay nada que arrastrar — y sobre todo,
+  // no se puede tumbar el arranque entero por eso. Pasó de verdad al desplegar
+  // v62: el service worker sirve stale-while-revalidate POR ARCHIVO, así que
+  // hubo una ventana con el index.html nuevo (sin #base-toggle) y el app.js
+  // viejo (que aún lo buscaba). handle era null, `main()` lanzaba en esta línea
+  // y la app se quedaba en «Error: Cannot read properties of null» — sin mapa,
+  // sin admin y sin cola de sincronización. Un widget que falta debe ser un
+  // widget que falta, no una app muerta.
+  if (!el || !handle) { console.warn('[ui] makeDraggable: falta el elemento', key); return; }
   const clampAndSet = (left, top) => {
     const parent = el.offsetParent || document.body;
     const maxX = parent.clientWidth - el.offsetWidth - 4;
