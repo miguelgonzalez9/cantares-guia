@@ -227,6 +227,7 @@ const I18N = {
     up_pick_h: '¿Qué especie es?', up_search: 'Buscar especie…',
     up_saved: '📸 Foto guardada', up_queued: '💾 Guardada — se subirá cuando haya señal',
     up_need_account: 'Crea una cuenta para aportar fotos al inventario.',
+    up_wait_upload: 'Esa foto todavía se está subiendo. Espera a que termine.',
     gps: 'GPS', gps_searching: 'Buscando…', gps_denied: 'Permiso denegado', gps_unavailable: 'Sin señal',
     gps_timeout: 'Sin respuesta', gps_unsupported: 'GPS no disponible', gps_insecure: 'El GPS requiere HTTPS',
     gps_hint_denied: 'Activa el permiso de ubicación para este sitio en el navegador.',
@@ -319,6 +320,7 @@ const I18N = {
     up_pick_h: 'Which species is it?', up_search: 'Search species…',
     up_saved: '📸 Photo saved', up_queued: '💾 Saved — will upload when you have signal',
     up_need_account: 'Create an account to contribute photos to the inventory.',
+    up_wait_upload: 'That photo is still uploading. Wait for it to finish.',
     gps: 'GPS', gps_searching: 'Locating…', gps_denied: 'Permission denied', gps_unavailable: 'No signal',
     gps_timeout: 'Timed out', gps_unsupported: 'GPS unavailable', gps_insecure: 'GPS needs HTTPS',
     gps_hint_denied: 'Enable location permission for this site in your browser.',
@@ -1980,6 +1982,11 @@ function pickSpeciesFor(mediaId) {
 // mediaRow() en admin.js; se duplica aquí para no cargar el módulo de admin
 // desde el panel de un visitante.
 function mediaRowFrom(m) {
+  // Ver assertUploadable() en admin.js: un `blob:` es una referencia de sesión,
+  // no una URL. Persistirla deja la fila apuntando a nada.
+  if (typeof m.full === 'string' && m.full.startsWith('blob:')) {
+    throw new Error(t('up_wait_upload'));
+  }
   return { id: m.id, kind: m.kind || 'photo', url: m.full,
     thumb: (m.thumb && m.thumb !== m.full) ? m.thumb : null, poster: m.poster || null,
     subject_type: m.subject_type, subject_id: m.subject_id,

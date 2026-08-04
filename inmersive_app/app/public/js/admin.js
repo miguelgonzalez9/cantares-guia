@@ -755,7 +755,22 @@ function subjectLabel(m) {
   return '📍 ' + esc(w ? (CTX.L(w.properties, 'title') || w.properties.title || m.subject_id) : m.subject_id);
 }
 // Reconstruye la fila de la tabla `media` a partir del registro normalizado + un parche.
+// Una URL `blob:` es una referencia EN MEMORIA del navegador, viva sólo mientras
+// dure la pestaña que la creó. Mientras una foto espera en la cola, saveRow
+// devuelve una fila de vista previa con `URL.createObjectURL(...)`, y esa vista
+// previa queda en state.media. Si el admin edita la foto (portada, orden, pie)
+// antes de que la cola vacíe, ese blob se escribía como URL DEFINITIVA y la foto
+// se perdía: la fila apunta a nada. Ya pasó — 3 filas de 2026-07-13.
+// Se corta aquí, donde se construye la fila, y no en la cola: encolarlo sería
+// reintentar para siempre algo que nunca puede funcionar.
+function assertUploadable(url) {
+  if (typeof url === 'string' && url.startsWith('blob:')) {
+    throw new Error('Esa foto todavía se está subiendo. Espera a que termine y vuelve a intentarlo.');
+  }
+  return url;
+}
 function mediaRow(m, patch) {
+  assertUploadable(m.full);
   return { id: m.id, kind: m.kind || 'photo', url: m.full || null,
     thumb: (m.thumb && m.thumb !== m.full) ? m.thumb : null, poster: m.poster || null,
     subject_type: m.subject_type || null, subject_id: m.subject_id || null,
