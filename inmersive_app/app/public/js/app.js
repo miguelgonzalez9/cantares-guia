@@ -14,7 +14,6 @@ const CONFIG = {
   center: [-75.4503, 5.0818], zoom: 15.6,
   maxBounds: [[-75.462, 5.072], [-75.439, 5.092]],
   proximityMeters: 25, reTriggerMeters: 60,
-  inatProjectUrl: 'https://www.inaturalist.org/projects/reserva-natural-cantares',
   data: {
     boundary: 'data/boundary.geojson', zones: 'data/zones.geojson',
     trails: 'data/trails.geojson', waypoints: 'data/waypoints.geojson',
@@ -281,7 +280,6 @@ const I18N = {
     ortho_h: '🛰️ Antes / después (ortofoto)', ortho_p: 'Ortofoto fotogramétrica de la reserva (~4,4 cm/píxel).',
     carbon_h: '🌳 Carbono capturado',
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
-    id_plant: 'Identificar planta', id_bird: 'Identificar ave', id_inat: 'Sumar al inventario',
     f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos', f_anf: '🐸 Anfibios',
     f_seen: '👁 Vistas', f_potential: '✨ Potenciales', f_bothtier: 'Ambas',
     grp_anfibio: 'Anfibios',
@@ -379,7 +377,6 @@ const I18N = {
     ortho_h: '🛰️ Before / after (orthophoto)', ortho_p: 'Photogrammetric orthophoto of the reserve (~4.4 cm/pixel).',
     carbon_h: '🌳 Carbon captured',
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
-    id_plant: 'Identify plant', id_bird: 'Identify bird', id_inat: 'Add to inventory',
     f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals', f_anf: '🐸 Amphibians',
     f_seen: '👁 Seen', f_potential: '✨ Possible', f_bothtier: 'Both',
     grp_anfibio: 'Amphibians',
@@ -2474,7 +2471,6 @@ function setLang(lang) {
 async function main() {
   $$('.tab').forEach((tab) => tab.onclick = () => switchView(tab.dataset.view));
   $('#wp-close').onclick = closeWaypoint;
-  $('#inat-link').href = CONFIG.inatProjectUrl;
   $('#lang-toggle').onclick = () => setLang(LANG === 'es' ? 'en' : 'es');
   $('#account-btn').onclick = () => switchView('cuenta');   // Cuenta pasó del tabbar al header
   // Tap fuera del recuadro (sobre el fondo oscuro) lo cierra.

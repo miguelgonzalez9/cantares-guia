@@ -48,12 +48,16 @@ export const GAME_I18N = {
     g_start: '¡Empezar!', g_points: 'puntos', g_rank: 'Puesto', g_species_n: 'especies',
     g_capture: '📸 Registrar avistamiento', g_ranking: '🏆 Ranking', g_badges: '🎖 Logros', g_records: '📒 Mis registros',
     g_daily: 'Especie del día', g_daily_x: 'puntos ×2 hoy',
-    g_step_photo: 'Paso 1 · La foto', g_take_photo: '📷 Tomar o elegir foto',
-    g_photo_hint: 'La app guarda la hora y tu ubicación GPS junto con la foto.',
+    g_step_photo: 'Paso 1 · La foto', g_take_photo: '📷 Tomar foto', g_upload_photo: '🖼️ Subir foto',
+    g_photo_hint: 'Al TOMAR la foto se guarda la hora y tu ubicación GPS. Al SUBIR una del carrete no se registra ubicación.',
+    g_cam_need_account: 'Entra con tu cuenta para tomar fotos en la reserva. Sin cuenta puedes subir fotos del carrete.',
     g_locating: 'Obteniendo ubicación…', g_loc_ok: 'Ubicación registrada', g_loc_none: 'Sin ubicación (puedes guardar igual)',
+    g_loc_upload: 'Foto subida — sin ubicación',
     g_step_id: 'Paso 2 · ¿Qué es?', g_auto_id: '🔮 Identificar automáticamente (Pl@ntNet)',
     g_auto_wait: 'Consultando Pl@ntNet…', g_auto_fail: 'No se pudo identificar automáticamente. Usa el buscador.',
     g_auto_pick: 'Sugerencias — toca la correcta:', g_auto_outside: 'fuera del inventario',
+    g_auto_lowconf: 'Ninguna sugerencia llegó al 70% de confianza. Elígela a mano.',
+    g_auto_only_plants: 'La identificación automática sólo funciona con plantas.',
     g_search_ph: 'Busca por nombre común o científico…',
     g_group_q: 'Tipo de ser vivo:', g_g_flora: '🌳 Planta', g_g_ave: '🐦 Ave', g_g_mamifero: '🐾 Mamífero', g_g_anfibio: '🐸 Anfibio', g_g_otro: '🦋 Otro',
     g_not_listed: '➕ No está en la lista — registrar hallazgo nuevo',
@@ -93,12 +97,16 @@ export const GAME_I18N = {
     g_start: 'Start!', g_points: 'points', g_rank: 'Rank', g_species_n: 'species',
     g_capture: '📸 Log a sighting', g_ranking: '🏆 Leaderboard', g_badges: '🎖 Badges', g_records: '📒 My records',
     g_daily: 'Species of the day', g_daily_x: 'points ×2 today',
-    g_step_photo: 'Step 1 · The photo', g_take_photo: '📷 Take or choose photo',
-    g_photo_hint: 'The app stores the time and your GPS location with the photo.',
+    g_step_photo: 'Step 1 · The photo', g_take_photo: '📷 Take photo', g_upload_photo: '🖼️ Upload photo',
+    g_photo_hint: 'TAKING a photo stores the time and your GPS location. UPLOADING one from your gallery records no location.',
+    g_cam_need_account: 'Sign in to take photos at the reserve. Without an account you can still upload photos.',
     g_locating: 'Getting location…', g_loc_ok: 'Location recorded', g_loc_none: 'No location (you can still save)',
+    g_loc_upload: 'Uploaded photo — no location',
     g_step_id: 'Step 2 · What is it?', g_auto_id: '🔮 Identify automatically (Pl@ntNet)',
     g_auto_wait: 'Asking Pl@ntNet…', g_auto_fail: 'Automatic ID failed. Use the search box.',
     g_auto_pick: 'Suggestions — tap the right one:', g_auto_outside: 'not in inventory',
+    g_auto_lowconf: 'No suggestion reached 70% confidence. Pick it by hand.',
+    g_auto_only_plants: 'Automatic identification only works for plants.',
     g_search_ph: 'Search by common or scientific name…',
     g_group_q: 'Kind of living thing:', g_g_flora: '🌳 Plant', g_g_ave: '🐦 Bird', g_g_mamifero: '🐾 Mammal', g_g_anfibio: '🐸 Amphibian', g_g_otro: '🦋 Other',
     g_not_listed: '➕ Not on the list — log a new finding',
@@ -188,6 +196,9 @@ async function dbAll(store) {
 }
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+// Los nombres de especie los edita el admin desde la nube: van escapados.
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // ---------- jugador ----------
 function currentPlayer() {
@@ -372,48 +383,83 @@ function openCaptureWizard() {
   const player = currentPlayer();
   if (!player) { openProfileModal(() => openCaptureWizard()); return; }
   wiz = { photoBlob: null, photoUrl: null, loc: undefined, time: null, group: null,
-    species: null, isFinding: false, findingName: '', search: '' };
+    species: null, isFinding: false, findingName: '', search: '', fromCamera: false, sug: [] };
   renderWizardPhoto(openModal(''));
 }
 
+// ¿Tiene cuenta en la nube? Tomar la foto con la cámara implica estar EN la
+// reserva, y eso sólo se ofrece a quien entró con su cuenta. Sin cuenta se puede
+// subir una del carrete (que pudo tomarse en cualquier parte y en cualquier fecha).
+function hasAccount() { return !!(CTX && CTX.cloud && CTX.cloud.user); }
+
 function renderWizardPhoto(body) {
+  const cam = hasAccount();
   body.innerHTML = `
     <h2>${T('g_step_photo')}</h2>
-    <label class="gm-photo-drop${wiz.photoUrl ? ' has' : ''}" id="gm-drop">
-      ${wiz.photoUrl ? `<img src="${wiz.photoUrl}" alt="">` : `<span>${T('g_take_photo')}</span>`}
-      <input id="gm-file" type="file" accept="image/*" capture="environment" hidden />
-    </label>
+    <div class="gm-photo-drop${wiz.photoUrl ? ' has' : ''}" id="gm-drop">
+      ${wiz.photoUrl ? `<img src="${wiz.photoUrl}" alt="">` : `<span>📷</span>`}
+    </div>
+    <div class="gm-row">
+      ${cam ? `<button id="gm-cam" class="gm-secondary">${T('g_take_photo')}</button>` : ''}
+      <button id="gm-up" class="gm-secondary">${T('g_upload_photo')}</button>
+    </div>
+    <input id="gm-file-cam" type="file" accept="image/*" capture="environment" hidden />
+    <input id="gm-file-up" type="file" accept="image/*" hidden />
     <p class="tiny muted">${T('g_photo_hint')}</p>
-    <p class="tiny" id="gm-loc">${wiz.loc === undefined ? '' : wiz.loc ? '📍 ' + T('g_loc_ok') + (wiz.loc.acc ? ` (±${wiz.loc.acc} m)` : '') : '⚠️ ' + T('g_loc_none')}</p>
+    ${cam ? '' : `<p class="tiny muted">🔒 ${T('g_cam_need_account')}</p>`}
+    <p class="tiny" id="gm-loc">${locLine()}</p>
     <button id="gm-next" class="gm-primary" ${wiz.photoBlob ? '' : 'disabled'}>→</button>`;
-  const drop = body.querySelector('#gm-drop'), file = body.querySelector('#gm-file');
-  drop.onclick = () => file.click();
-  file.onchange = async () => {
-    const f = file.files && file.files[0];
+
+  // `fromCamera` decide si se registra ubicación: la foto subida del carrete pudo
+  // tomarse en otra parte y otro día, así que un GPS de AHORA sería un dato falso.
+  const take = async (input, fromCamera) => {
+    const f = input.files && input.files[0];
     if (!f) return;
+    wiz.fromCamera = fromCamera;
     wiz.time = new Date().toISOString();
-    body.querySelector('#gm-loc').textContent = '⏳ ' + T('g_locating');
+    if (fromCamera) body.querySelector('#gm-loc').textContent = '⏳ ' + T('g_locating');
     try { wiz.photoBlob = await compressPhoto(f); } catch (e) { wiz.photoBlob = f; }
     if (wiz.photoUrl) URL.revokeObjectURL(wiz.photoUrl);
     wiz.photoUrl = URL.createObjectURL(wiz.photoBlob);
-    wiz.loc = await snapLocation();
+    wiz.loc = fromCamera ? await snapLocation() : null;
+    wiz.sug = [];   // otra foto, otras sugerencias
     renderWizardPhoto(body);
   };
+  const camIn = body.querySelector('#gm-file-cam'), upIn = body.querySelector('#gm-file-up');
+  camIn.onchange = () => take(camIn, true);
+  upIn.onchange = () => take(upIn, false);
+  const camBtn = body.querySelector('#gm-cam');
+  if (camBtn) camBtn.onclick = () => camIn.click();
+  body.querySelector('#gm-up').onclick = () => upIn.click();
+  body.querySelector('#gm-drop').onclick = () => (cam ? camIn : upIn).click();
   body.querySelector('#gm-next').onclick = () => {
     if (!wiz.photoBlob) { CTX.toast(T('g_no_photo')); return; }
     renderWizardId(body);
   };
 }
+function locLine() {
+  if (wiz.loc === undefined) return '';
+  if (!wiz.fromCamera) return '🖼️ ' + T('g_loc_upload');
+  return wiz.loc ? '📍 ' + T('g_loc_ok') + (wiz.loc.acc ? ` (±${wiz.loc.acc} m)` : '') : '⚠️ ' + T('g_loc_none');
+}
+
+// Confianza mínima para mostrar una sugerencia de Pl@ntNet. Por debajo de esto
+// las propuestas son ruido y sólo sirven para que alguien toque la primera:
+// antes sin clasificar que mal clasificado.
+const SUG_MIN_SCORE = 0.70;
 
 function renderWizardId(body) {
   const groups = [['flora', T('g_g_flora')], ['ave', T('g_g_ave')], ['mamifero', T('g_g_mamifero')], ['anfibio', T('g_g_anfibio')], ['otro', T('g_g_otro')]];
-  const canAuto = idAvailable();
+  // La identificación automática es de PLANTAS (Pl@ntNet): sólo se ofrece cuando
+  // ya se dijo que es una planta, no antes de saber qué tipo de ser vivo es.
+  const canAuto = idAvailable() && wiz.group === 'flora';
   body.innerHTML = `
     <h2>${T('g_step_id')}</h2>
     <div class="gm-mini"><img src="${wiz.photoUrl}" alt=""></div>
-    ${canAuto ? `<button id="gm-auto" class="gm-secondary">${T('g_auto_id')}</button><div id="gm-auto-out"></div>` : ''}
     <p class="gm-label">${T('g_group_q')}</p>
     <div class="gm-groups">${groups.map(([k, l]) => `<button class="gm-chip${wiz.group === k ? ' sel' : ''}" data-g="${k}">${l}</button>`).join('')}</div>
+    ${canAuto ? `<button id="gm-auto" class="gm-secondary">${T('g_auto_id')}</button>` : ''}
+    <div id="gm-auto-out"></div>
     <input id="gm-search" class="gm-input" placeholder="${T('g_search_ph')}" value="${wiz.search}" autocomplete="off" />
     <div id="gm-candidates" class="gm-candidates"></div>
     <button id="gm-finding" class="gm-linkbtn">${T('g_not_listed')}</button>
@@ -423,31 +469,49 @@ function renderWizardId(body) {
     </div>
     <button id="gm-backb" class="gm-linkbtn">${T('g_back')}</button>`;
 
+  // Las sugerencias encabezan la MISMA lista de opciones (con su probabilidad) y
+  // debajo sigue el inventario completo: una sola lista que recorrer, no dos.
+  const sugHTML = () => wiz.sug.map((s, i) => `
+      <button class="gm-cand gm-sug" data-i="${i}"><b>${esc(s.common || s.sci)}</b> <i>${esc(s.sci)}</i>
+        <span class="gm-score">${Math.round((s.score || 0) * 100)}%</span>
+        ${s.speciesId ? '' : `<span class="gm-tripla">${T('g_auto_outside')}</span>`}</button>`).join('');
+
   const renderCandidates = () => {
     const q = wiz.search.trim().toLowerCase();
     let list = CTX.state.species;
     if (wiz.group && wiz.group !== 'otro') list = list.filter((s) => s.group === wiz.group);
+    // `scientific_name` puede faltar (especies creadas a mano desde el admin). Sin
+    // el `|| ''` esto lanzaba dentro del oninput y el buscador NO filtraba nada.
     if (q) list = list.filter((s) =>
       (CTX.L(s, 'common_name') || '').toLowerCase().includes(q) ||
       (s.common_name || '').toLowerCase().includes(q) ||
-      s.scientific_name.toLowerCase().includes(q));
+      (s.scientific_name || '').toLowerCase().includes(q));
     const el = body.querySelector('#gm-candidates');
-    el.innerHTML = list.slice(0, 30).map((s) => `
-      <button class="gm-cand" data-id="${s.id}">
-        <b>${CTX.L(s, 'common_name')}</b> <i>${s.scientific_name}</i>
+    el.innerHTML = sugHTML() + list.slice(0, 30).map((s) => `
+      <button class="gm-cand" data-id="${esc(s.id)}">
+        <b>${esc(CTX.L(s, 'common_name') || s.scientific_name || '')}</b> <i>${esc(s.scientific_name || '')}</i>
         ${s.status === 'possible' ? `<span class="gm-tripla">×${GAME_CFG.confirmMultiplier}</span>` : ''}
         ${s.flagship ? '<span class="gm-star">★</span>' : ''}
       </button>`).join('');
-    el.querySelectorAll('.gm-cand').forEach((b) => b.onclick = () => {
+    el.querySelectorAll('.gm-cand[data-id]').forEach((b) => b.onclick = () => {
       wiz.species = CTX.state.species.find((s) => s.id === b.dataset.id);
       wiz.isFinding = false;
+      renderWizardConfirm(body);
+    });
+    el.querySelectorAll('.gm-sug').forEach((b) => b.onclick = () => {
+      const s = wiz.sug[+b.dataset.i];
+      // Sólo se acepta como especie del inventario lo que la función resolvió
+      // contra species.json; lo demás entra como hallazgo, sin inventarse un id.
+      const hit = s.speciesId && CTX.state.species.find((x) => x.id === s.speciesId);
+      if (hit) { wiz.species = hit; wiz.isFinding = false; }
+      else { wiz.isFinding = true; wiz.species = null; wiz.findingName = `${s.common || ''} (${s.sci})`.trim(); }
       renderWizardConfirm(body);
     });
   };
   body.querySelectorAll('.gm-chip').forEach((b) => b.onclick = () => {
     wiz.group = wiz.group === b.dataset.g ? null : b.dataset.g;
-    body.querySelectorAll('.gm-chip').forEach((x) => x.classList.toggle('sel', x.dataset.g === wiz.group));
-    renderCandidates();
+    if (wiz.group !== 'flora') wiz.sug = [];   // sugerencias de plantas para plantas
+    renderWizardId(body);                      // el botón de ID auto aparece/desaparece
   });
   body.querySelector('#gm-search').oninput = (e) => { wiz.search = e.target.value; renderCandidates(); };
   body.querySelector('#gm-finding').onclick = () => body.querySelector('#gm-finding-box').classList.toggle('hidden');
@@ -465,27 +529,15 @@ function renderWizardId(body) {
       // El motor NO lanza: un fallo de identificación es normal, no excepcional.
       // Devuelve siempre un veredicto, y «no sé» es una respuesta válida.
       const r = await identifyPlant(wiz.photoBlob, CTX.state.species, lang());
-      if (r.verdict !== 'ok' && !(r.candidates || []).length) {
-        out.innerHTML = `<p class="tiny muted">⚠️ ${verdictText(r, lang()) || T('g_auto_fail')}</p>`;
+      wiz.sug = (r.candidates || []).filter((s) => (s.score || 0) >= SUG_MIN_SCORE).slice(0, 5);
+      if (!wiz.sug.length) {
+        const why = (r.candidates || []).length ? T('g_auto_lowconf') : (verdictText(r, lang()) || T('g_auto_fail'));
+        out.innerHTML = `<p class="tiny muted">⚠️ ${why}</p>`;
+        renderCandidates();
         return;
       }
-      // Se muestran los candidatos aunque el veredicto sea abstenerse: el
-      // visitante decide, y ver la duda es más honesto que ocultarla.
-      const sug = (r.candidates || []).slice(0, 5);
-      const note = r.verdict === 'ok' ? '' : `<p class="tiny muted">${verdictText(r, lang())}</p>`;
-      out.innerHTML = note + `<p class="tiny">${T('g_auto_pick')}</p>` + sug.map((s, i) => `
-        <button class="gm-cand gm-sug" data-i="${i}"><b>${s.common || s.sci}</b> <i>${s.sci}</i>
-          <span class="gm-score">${Math.round((s.score || 0) * 100)}%</span>
-          ${s.speciesId ? '' : `<span class="gm-tripla">${T('g_auto_outside')}</span>`}</button>`).join('');
-      out.querySelectorAll('.gm-sug').forEach((b) => b.onclick = () => {
-        const s = sug[+b.dataset.i];
-        // Sólo se acepta como especie del inventario lo que la función resolvió
-        // contra species.json; lo demás entra como hallazgo, sin inventarse un id.
-        const hit = s.speciesId && CTX.state.species.find((x) => x.id === s.speciesId);
-        if (hit) { wiz.species = hit; wiz.isFinding = false; }
-        else { wiz.isFinding = true; wiz.species = null; wiz.findingName = `${s.common || ''} (${s.sci})`.trim(); }
-        renderWizardConfirm(body);
-      });
+      out.innerHTML = `<p class="tiny">${T('g_auto_pick')}</p>`;
+      renderCandidates();
     };
   }
   renderCandidates();
