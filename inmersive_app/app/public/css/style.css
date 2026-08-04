@@ -1279,3 +1279,23 @@ body.guiding #search-btn { display: none; }
 .tour-box .tour-opt:active { border-color: var(--moss); background: var(--mist); }
 .tour-box .tour-opt b { display: block; font-size: 16px; color: var(--forest); }
 .tour-box .tour-opt span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Modo «tocar puntos en el mapa» (editor de recorridos) ---------- */
+/* Es un MODO, y se comporta como tal: mientras dure, el resto de la edición no
+   está a mano. Antes se podía entrar a dibujar senderos o mover un punto con la
+   selección a medias, que es como se pierde el trabajo a medio hacer. En pantalla
+   quedan sólo los puntos (atenuados), los elegidos en amarillo y la traza del
+   recorrido que se está editando. */
+body.picking-points #admin-fab,
+body.picking-points #edit-bar,
+body.picking-points #legend,
+body.picking-points #base-slider-box,
+body.picking-points #search-btn,
+body.picking-points #route-bar,
+body.picking-points #route-info { display: none !important; }
+
+/* El HUD pasa a ser la etiqueta del punto además del contador, así que necesita
+   sitio para un nombre largo sin empujar los botones fuera de la pantalla. */
+#admin-ptsel-hud .adh-n {
+  max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
