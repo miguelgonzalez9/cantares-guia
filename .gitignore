@@ -82,3 +82,10 @@ Reserva natural cantares/
 # --- data_prep clasificador: cache de embeddings + logs (regenerables) ---
 inmersive_app/data_prep/_archive_work/*.npz
 inmersive_app/data_prep/_archive_work/*.log
+
+# --- Auditoría del clasificador y caché de embeddings (data_prep/_archive_work/).
+#     Contiene MINIATURAS del archivo familiar (personas, capturas de WhatsApp,
+#     material de terceros) y el catálogo con rutas locales. Este repo es PÚBLICO:
+#     nada de eso se versiona. El informe legible sí, en docs/EVAL_CLASIFICADOR.md.
+inmersive_app/data_prep/_archive_work/**
+inmersive_app/data_prep/_enrich/**

@@ -16,6 +16,11 @@ const SDK = 'https://esm.sh/@supabase/supabase-js@2';
 let client = null, _session = null, _profile = null;
 
 export function cloudConfigured() { return !!(CLOUD.url && CLOUD.anonKey); }
+// Para llamar a las Edge Functions (js/idengine.js) sin duplicar la configuración.
+// La anon key es pública por diseño — lo protegido son las políticas RLS y los
+// secretos del servidor (PLANTNET_API_KEY vive en la función, no aquí).
+export function cloudUrl() { return CLOUD.url; }
+export function anonKey() { return CLOUD.anonKey; }
 
 async function getClient() {
   if (client) return client;
