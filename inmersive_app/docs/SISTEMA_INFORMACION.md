@@ -11,8 +11,8 @@ corren solos de forma **periódica** (Programador de Tareas de Windows).
  (admin deja) →  │  inputs/photos/incoming/{especies,puntos,             │  10_process_photos.py
                  │       senderos,recorridos}/<id>/  ──────────────────► │  → app/public/img/... + media.json
                  │                                                       │
- (juego) ──────► │  inputs/photos/field/_incoming/*.json  ─────────────► │  13_ingest_game_photos.py
-                 │       (respaldo de la app)                            │  → field/<especie>/ + avistamientos_juego.csv
+ (juego) ──────► │  Supabase `media` (origin: game-capture)  ──────────► │  26_sync_media.py pull [--download]
+                 │       (la app escribe la fila al guardar)             │  → catalog_cloud.json + fotos/_desde_app/
                  │                                                       │
  (admin deja) →  │  info/_inbox/  ─────────────────────────────────────► │  12_build_doc_catalog.py
                  │       (documentos sueltos)                            │  → info/<categoria>/ + INDEX.md + catalog.json
@@ -52,11 +52,19 @@ de especies sensibles, respalda el original y actualiza **`media.json`**. La app
 muestra las fotos (especies y puntos ya; senderos/recorridos quedan almacenados,
 ver «Pendiente»). Detalle: [`MEDIA_SYSTEM.md`](MEDIA_SYSTEM.md).
 
-### 1.2 Vuelta: juego → sistema  (`13_ingest_game_photos.py`)
-Las fotos que el visitante toma en el juego viven en su navegador. El admin las
-respalda con **«Exportar fotos de campo»** en la app (módulo `js/field-export.js`),
-que descarga un `cantares_campo_AAAA-MM-DD.json` con los avistamientos + fotos
-(base64). Lo dejas en `inputs/photos/field/_incoming/` y el script:
+### 1.2 Vuelta: juego → sistema  (`26_sync_media.py`)
+Hoy la vuelta va por la nube: cada captura del juego escribe una fila en la tabla
+`media` de Supabase (`origin: 'game-capture'`, con GPS, hora y `walk_id`), y
+`26_sync_media.py pull [--download]` la trae al archivo local deduplicando por
+`content_hash`. Esa es la ruta viva; no hay que exportar nada a mano.
+
+**Ruta antigua (retirada 2026-08-04):** el botón «Exportar fotos de campo» y su
+módulo `js/field-export.js` descargaban un `cantares_campo_AAAA-MM-DD.json` con
+los avistamientos + fotos en base64 desde IndexedDB. Se quitaron: dependían de
+que el admin abriera el mismo navegador donde el visitante jugó, cosa que la
+sincronización por la nube ya no necesita. `13_ingest_game_photos.py` sigue en
+pie y consume cualquier JSON de esos que ya exista: lo dejas en
+`inputs/photos/field/_incoming/` y el script:
 - guarda cada foto en `inputs/photos/field/<species_id | _sin_identificar>/`,
 - acumula los avistamientos en `info/censos_inventarios/avistamientos_juego.csv`
   (Darwin Core simplificado, deduplicado),
@@ -132,12 +140,10 @@ Quitar:                powershell -File data_prep/setup_scheduler.ps1 -Remove
   en `media.json` (`subject_type` = `trail`/`route`), pero falta engancharlas en la
   UI (panel de ruta). Es un cambio de front-end → **coordinar con la sesión de
   admin** para no chocar.
-- **Botón «Exportar fotos de campo»**: el módulo `js/field-export.js` está listo y
-  se autoexpone como `window.exportFieldBackup`; falta una línea que lo enganche a
-  un botón (en el panel admin o en «Mis registros»). También coordinable con admin.
-- **Cuando exista el backend (Supabase)**: el flujo de vuelta puede volverse
-  automático (la app sube las fotos y un script las baja a Dropbox), sin el paso
-  manual de exportar/soltar el JSON.
+- ~~**Botón «Exportar fotos de campo»**~~ — hecho de otra manera y retirado
+  (2026-08-04). El flujo de vuelta es automático: la app escribe la fila de
+  `media` al guardar el avistamiento y `26_sync_media.py pull` la baja. Ya no hay
+  paso manual de exportar/soltar un JSON.
 
 ---
 

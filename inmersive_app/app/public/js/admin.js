@@ -5,7 +5,6 @@ import { isAdmin } from './cloud.js';
 import { saveRow, deleteRow, compressImage, patchRow } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 import { doLogout } from './auth-ui.js';
-import { exportFieldBackup } from './field-export.js';   // respaldo de fotos del juego → SIC (Dropbox)
 
 let CTX = null;
 let _pointDraft = null, moveMarker = null;
@@ -736,6 +735,12 @@ function allMedia() { return (CTX.state.media && CTX.state.media.all) || []; }
 // revisar con criterios distintos (una foto de visitante puede tener problemas
 // de licencia que una del archivo no tiene).
 let mediaOrigin = 'all';
+// Vista «Todas»: filtros propios (estado + texto), separados del filtro de
+// procedencia que ya compartía con la bandeja de sin clasificar.
+let mediaStatus = 'all';   // 'all' | 'unclassified' | 'classified'
+let mediaQuery = '';
+const BROWSE_PAGE = 60;    // ponytail: página fija; paginar de verdad si el archivo crece mucho
+let browseShown = BROWSE_PAGE;
 const ORIGIN_LABEL = { 'all': 'Todas', 'game-capture': '🎮 Juego',
   'visitor-upload': '👤 Visitantes', 'admin-upload': '🛠️ Admin',
   'local-archive': '🗄️ Archivo', 'curated': '⭐ Curadas' };
@@ -744,6 +749,27 @@ function unclassifiedMedia() {
   // Sólo las que puede tocar el admin (de la nube/subidas), no las curadas build-time.
   const all = ((CTX.state.media && CTX.state.media.unclassified) || []).filter((m) => m.source !== 'curated');
   return mediaOrigin === 'all' ? all : all.filter((m) => (m.origin || 'admin-upload') === mediaOrigin);
+}
+// Texto por el que se busca una foto en la vista «Todas»: sujeto, pie, sugerencia
+// del clasificador y procedencia. El id entra porque a veces es lo único que se
+// tiene a mano (viene de un error de consola o del script de sincronización).
+function mediaHaystack(m) {
+  return [subjectLabel(m), m.caption, m.caption_en, m.species_hint,
+    ORIGIN_LABEL[m.origin] || m.origin, m.id, m.credit].filter(Boolean).join(' ').toLowerCase();
+}
+// TODAS las fotos del inventario, curadas incluidas. La bandeja mostraba sólo lo
+// «sin clasificar» y lo de un punto/especie concreto, así que una foto ya
+// clasificada de la que no recordabas el sujeto era invisible desde el admin:
+// no había forma de encontrarla ni de reasignarla. Aquí sí están todas.
+function browseMedia() {
+  let list = allMedia();
+  if (mediaOrigin !== 'all') list = list.filter((m) => (m.origin || 'admin-upload') === mediaOrigin);
+  if (mediaStatus === 'unclassified') list = list.filter((m) => !m.subject_id);
+  else if (mediaStatus === 'classified') list = list.filter((m) => !!m.subject_id);
+  const q = mediaQuery.trim().toLowerCase();
+  if (q) list = list.filter((m) => mediaHaystack(m).includes(q));
+  // Lo más reciente primero: `taken_at` cuando existe, si no el orden de carga.
+  return list.slice().sort((a, b) => String(b.taken_at || '').localeCompare(String(a.taken_at || '')));
 }
 function unclassifiedCount() { try { return unclassifiedMedia().length; } catch (e) { return 0; } }
 function subjectMedia(type, id) { return (CTX.state.media && CTX.state.media.bySubject[`${type}:${id}`]) || []; }
@@ -1194,11 +1220,16 @@ function renderFotos() {
   body.innerHTML = `
     <div class="fm-modes">
       <button data-m="inbox" class="${mediaMode === 'inbox' ? 'sel' : ''}">Sin clasificar${n ? ` (${n})` : ''}</button>
+      <button data-m="all" class="${mediaMode === 'all' ? 'sel' : ''}">Todas (${allMedia().length})</button>
       <button data-m="subject" class="${mediaMode === 'subject' ? 'sel' : ''}">Por punto / especie</button>
     </div>
     <div id="fm-body"></div>`;
-  body.querySelectorAll('.fm-modes button').forEach((b) => b.onclick = () => { mediaMode = b.dataset.m; renderFotos(); });
+  body.querySelectorAll('.fm-modes button').forEach((b) => b.onclick = () => {
+    if (mediaMode !== b.dataset.m) browseShown = BROWSE_PAGE;   // cambiar de vista reinicia la paginación
+    mediaMode = b.dataset.m; renderFotos();
+  });
   const fm = document.getElementById('fm-body');
+  if (mediaMode === 'all') { renderFotosAll(fm); return; }
   if (mediaMode === 'inbox') {
     const list = unclassifiedMedia();
     // Conteo por procedencia sobre TODO lo sin clasificar (no sobre lo filtrado),
@@ -1213,19 +1244,44 @@ function renderFotos() {
       <button class="admin-add" id="fm-add">＋ Añadir foto / video</button>
       <div class="admin-note">Sube o clasifica fotos/videos. Las que llegan sin sujeto se listan aquí para asignarlas a un punto o especie.</div>
       ${list.length ? `<div class="fm-grid">${list.map((m) => mediaCardHTML(m)).join('')}</div>`
-        : '<div class="admin-note" style="text-align:center;padding:20px">✓ Nada sin clasificar.</div>'}
-      <button class="admin-pick fm-open" id="fm-field-export" style="margin-top:14px">⬇️ Exportar fotos de campo (juego) al sistema</button>
-      <div class="admin-note">Descarga el respaldo de las fotos/avistamientos del juego para reingresarlas al sistema local (Dropbox).</div>`;
+        : '<div class="admin-note" style="text-align:center;padding:20px">✓ Nada sin clasificar.</div>'}`;
     document.getElementById('fm-add').onclick = () => addMedia(null);
-    document.getElementById('fm-field-export').onclick = async () => {
-      try { const n = await exportFieldBackup(); CTX.toast(n ? `⬇️ ${n} registro(s) de campo exportado(s)` : 'No hay fotos de campo del juego aún'); }
-      catch (e) { CTX.toast(friendlyErr(e)); }
-    };
     fm.querySelectorAll('.fm-origins button').forEach((b) => b.onclick = () => { mediaOrigin = b.dataset.o; renderFotos(); });
     wireMediaCards(fm);
   } else {
     renderFotosSubject(fm);
   }
+}
+// Vista «Todas»: el inventario completo de fotos y videos, buscable y filtrable,
+// con el mismo botón de clasificar que la bandeja. Es la respuesta a «no
+// encuentro esa foto en el admin».
+function renderFotosAll(fm) {
+  const list = browseMedia();
+  const shown = list.slice(0, browseShown);
+  const byOrigin = {};
+  allMedia().forEach((m) => { const o = m.origin || 'admin-upload'; byOrigin[o] = (byOrigin[o] || 0) + 1; });
+  const chips = ['all'].concat(Object.keys(byOrigin).sort()).map((o) =>
+    `<button data-o="${esc(o)}" class="${mediaOrigin === o ? 'sel' : ''}">${ORIGIN_LABEL[o] || o}${o === 'all' ? ` (${allMedia().length})` : ` (${byOrigin[o]})`}</button>`).join('');
+  const st = [['all', 'Todas'], ['unclassified', 'Sin clasificar'], ['classified', 'Clasificadas']].map(([k, l]) =>
+    `<button data-s="${k}" class="${mediaStatus === k ? 'sel' : ''}">${l}</button>`).join('');
+  fm.innerHTML = `
+    <div class="fm-modes fm-origins">${chips}</div>
+    <div class="fm-modes fm-origins">${st}</div>
+    <input class="admin-search" id="fm-all-q" placeholder="🔎 Buscar por punto, especie, pie, sugerencia…" value="${esc(mediaQuery)}">
+    <div class="admin-note">Todo lo que hay en el inventario de fotos y videos. Toca «Clasificar» o «Reasignar» en cualquiera — también en las curadas del catálogo, que quedan sobrescritas por la edición.</div>
+    ${shown.length ? `<div class="fm-grid">${shown.map((m) => mediaCardHTML(m)).join('')}</div>`
+      : '<div class="admin-note" style="text-align:center;padding:20px">Nada coincide con el filtro.</div>'}
+    ${list.length > shown.length ? `<button class="admin-pick" id="fm-all-more">Ver ${Math.min(BROWSE_PAGE, list.length - shown.length)} más (${list.length - shown.length} restantes)</button>` : ''}`;
+  fm.querySelectorAll('.fm-origins [data-o]').forEach((b) => b.onclick = () => { mediaOrigin = b.dataset.o; browseShown = BROWSE_PAGE; renderFotos(); });
+  fm.querySelectorAll('.fm-origins [data-s]').forEach((b) => b.onclick = () => { mediaStatus = b.dataset.s; browseShown = BROWSE_PAGE; renderFotos(); });
+  const q = document.getElementById('fm-all-q');
+  // El re-render recrea el input, así que hay que devolverle el foco y el cursor
+  // o escribir la segunda letra ya no funciona.
+  q.oninput = (e) => { mediaQuery = e.target.value; browseShown = BROWSE_PAGE; renderFotos();
+    const nq = document.getElementById('fm-all-q'); if (nq) { nq.focus(); nq.setSelectionRange(nq.value.length, nq.value.length); } };
+  const more = document.getElementById('fm-all-more');
+  if (more) more.onclick = () => { browseShown += BROWSE_PAGE; renderFotos(); };
+  wireMediaCards(fm);
 }
 function renderFotosSubject(fm) {
   const sub = mediaSubject;
