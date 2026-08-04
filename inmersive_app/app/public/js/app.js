@@ -2695,7 +2695,7 @@ async function main() {
       onStyleReady(state.map, () => { try { gameAddMapLayer(); } catch (e) { console.warn('gameAddMapLayer', e); } });
       initAdmin({ state, map: state.map, t, L, LANG, toast, makeDraggable,
         typeColor: (tp) => typeMeta(tp).color,
-        refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails,
+        refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails, refreshMedia,
         applyLocalRow, removeLocalRow, pushBack, popBack, applyWaypointFilter,
         showPointPopup: (id) => { const w = wpById(id); if (w) miniPopup(w); },   // mismo popup que fuera del modo edición (con "más info" + "Editar")
         pointTypes: () => Object.keys(TYPE_META).map((tp) => ({ tipo: tp, emoji: TYPE_META[tp].emoji, color: TYPE_META[tp].color, label: typeLabel(tp), es: TYPE_META[tp].es, en: TYPE_META[tp].en })),

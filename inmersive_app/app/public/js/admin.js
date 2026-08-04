@@ -3,6 +3,7 @@
 // directo a Supabase. Sólo se activa para cuentas con rol 'admin'.
 import { isAdmin } from './cloud.js';
 import { saveRow, deleteRow, compressImage, patchRow } from './sync.js';
+import { coverageGaps, readCatalog, buildEntries, planSample, uploadSample, DEFAULT_BATCH as INTAKE_BATCH } from './archive-intake.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 import { doLogout } from './auth-ui.js';
 
@@ -1254,19 +1255,71 @@ function renderFotos() {
     every.forEach((m) => { const o = m.origin || 'admin-upload'; byOrigin[o] = (byOrigin[o] || 0) + 1; });
     const chips = ['all'].concat(Object.keys(byOrigin).sort()).map((o) =>
       `<button data-o="${esc(o)}" class="${mediaOrigin === o ? 'sel' : ''}">${ORIGIN_LABEL[o] || o}${o === 'all' ? ` (${every.length})` : ` (${byOrigin[o]})`}</button>`).join('');
+    const g = coverageGaps(CTX.state);
     fm.innerHTML = `
       <div class="fm-modes fm-origins">${chips}</div>
       <button class="admin-add" id="fm-add">＋ Añadir foto / video</button>
+      <button class="admin-pick" id="fm-intake">📥 Traer una muestra del archivo (Dropbox)</button>
+      <div class="admin-note">Hoy faltan <b>${g.speciesMissing.size}</b> especie(s) y <b>${g.pointsMissing.size}</b> punto(s) sin ninguna foto.
+        Elige la carpeta <code>Cantares/fotos</code> y la app escoge una muestra repartida entre categorías y especies, dando prioridad a esos huecos. Lo ya subido se salta.</div>
+      <div id="fm-intake-out"></div>
       <div class="admin-note">Sube o clasifica fotos/videos. Las que llegan sin sujeto se listan aquí para asignarlas a un punto o especie.</div>
       ${list.length ? `<div class="fm-grid">${list.map((m) => mediaCardHTML(m)).join('')}</div>`
         : '<div class="admin-note" style="text-align:center;padding:20px">✓ Nada sin clasificar.</div>'}`;
     document.getElementById('fm-add').onclick = () => addMedia(null);
+    document.getElementById('fm-intake').onclick = pickArchiveFolder;
     fm.querySelectorAll('.fm-origins button').forEach((b) => b.onclick = () => { mediaOrigin = b.dataset.o; renderFotos(); });
     wireMediaCards(fm);
   } else {
     renderFotosSubject(fm);
   }
 }
+// «Traer una muestra del archivo»: el admin señala la carpeta de Dropbox UNA vez
+// y la app hace el resto. El navegador no puede leer Dropbox por su cuenta —eso
+// es la caja de arena, y está bien— así que el selector de carpeta es el único
+// paso manual. Sube por `saveRow`, o sea por la cola offline y con la sesión de
+// admin: sin claves nuevas y sin caminos de escritura nuevos.
+function pickArchiveFolder() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.multiple = true;
+  // Carpeta entera cuando el navegador lo permite; si no, selección múltiple a
+  // mano. Sin `webkitdirectory` no hay rutas, así que la categoría se pierde y
+  // sólo queda el reparto por lo que diga el catálogo — se avisa abajo.
+  try { inp.webkitdirectory = true; } catch (e) { /* móvil: selección múltiple */ }
+  inp.onchange = () => runArchiveIntake([...(inp.files || [])]);
+  inp.click();
+}
+async function runArchiveIntake(files) {
+  const out = document.getElementById('fm-intake-out');
+  const say = (html) => { if (out) out.innerHTML = `<div class="admin-note">${html}</div>`; };
+  if (!files.length) return;
+  say('⏳ Leyendo la carpeta…');
+  const gaps = coverageGaps(CTX.state);
+  const catalog = await readCatalog(files);
+  const entries = buildEntries(files, catalog, gaps);
+  if (!entries.length) { say('No hay imágenes en lo que elegiste.'); return; }
+  const picks = planSample(entries, gaps, INTAKE_BATCH);
+  const strata = new Set(picks.map((p) => p.speciesId ? `species:${p.speciesId}` : `cat:${p.category}`));
+  const conCat = entries.some((e) => e.category);
+  say(`${entries.length} imagen(es) encontradas · muestra de <b>${picks.length}</b> repartida entre ${strata.size} grupo(s)`
+    + `${Object.keys(catalog).length ? ` · catálogo del clasificador leído (${Object.keys(catalog).length} fichas)` : ''}`
+    + `${conCat ? '' : ' · <b>sin rutas de carpeta</b>: no se pudo repartir por categoría'}`);
+  // Lo que ya está en la nube, por hash de CONTENIDO: repetir la tanda no vuelve
+  // a subir nada. Es la misma identidad que usa data_prep/26_sync_media.py.
+  const known = new Set(allMedia().map((m) => m.content_hash).filter(Boolean));
+  const r = await uploadSample(picks, known, (i, n, name) =>
+    say(`⏳ Subiendo ${i}/${n} — ${esc(name)}`));
+  await CTX.refreshMedia();
+  renderFotos();
+  const o = document.getElementById('fm-intake-out');
+  if (o) o.innerHTML = `<div class="admin-note">✓ ${r.subidas} subida(s)`
+    + `${r.encoladas ? ` (${r.encoladas} en cola, se suben con señal)` : ''}`
+    + `${r.repetidas ? ` · ${r.repetidas} ya estaban` : ''}`
+    + `${r.fallidas ? ` · ⚠️ ${r.fallidas} fallaron` : ''}`
+    + ` — clasifícalas abajo.</div>`;
+  CTX.toast(r.subidas ? `📥 ${r.subidas} foto(s) del archivo, sin clasificar` : 'Nada nuevo que traer');
+}
+
 // Vista «Todas»: el inventario completo de fotos y videos, buscable y filtrable,
 // con el mismo botón de clasificar que la bandeja. Es la respuesta a «no
 // encuentro esa foto en el admin».
