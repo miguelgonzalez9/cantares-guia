@@ -69,7 +69,7 @@ diaria. La clave vive en el servidor o no vive.
 navegador / script local
         │  imagen
         ▼
-supabase/functions/identify        ← PLANTNET_API_KEY (secreto del proyecto)
+inmersive_app/supabase/functions/identify   ← PLANTNET_API_KEY (secreto)
         │  Pl@ntNet
         ▼
   re-ranking contra species.json   ← una especie fuera del inventario NO se acepta
