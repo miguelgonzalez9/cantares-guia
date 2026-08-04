@@ -731,9 +731,19 @@ let mediaMode = 'inbox', mediaSubject = null;   // mediaSubject = { type, id }
 const VIDEO_WARN = 20 * 1024 * 1024;            // aviso de peso (afecta el espacio gratis)
 
 function allMedia() { return (CTX.state.media && CTX.state.media.all) || []; }
+// Filtro de procedencia de la bandeja. Sin él, las fotos del archivo familiar,
+// las del juego y las de visitantes se mezclan en una sola lista y no se pueden
+// revisar con criterios distintos (una foto de visitante puede tener problemas
+// de licencia que una del archivo no tiene).
+let mediaOrigin = 'all';
+const ORIGIN_LABEL = { 'all': 'Todas', 'game-capture': '🎮 Juego',
+  'visitor-upload': '👤 Visitantes', 'admin-upload': '🛠️ Admin',
+  'local-archive': '🗄️ Archivo', 'curated': '⭐ Curadas' };
+
 function unclassifiedMedia() {
   // Sólo las que puede tocar el admin (de la nube/subidas), no las curadas build-time.
-  return ((CTX.state.media && CTX.state.media.unclassified) || []).filter((m) => m.source !== 'curated');
+  const all = ((CTX.state.media && CTX.state.media.unclassified) || []).filter((m) => m.source !== 'curated');
+  return mediaOrigin === 'all' ? all : all.filter((m) => (m.origin || 'admin-upload') === mediaOrigin);
 }
 function unclassifiedCount() { try { return unclassifiedMedia().length; } catch (e) { return 0; } }
 function subjectMedia(type, id) { return (CTX.state.media && CTX.state.media.bySubject[`${type}:${id}`]) || []; }
@@ -835,6 +845,8 @@ function mediaCardHTML(m, opts = {}) {
     ${thumb}
     <div class="fm-meta">
       <span class="fm-subj">${subjectLabel(m)}${m.caption ? ` · <i>${esc(m.caption)}</i>` : ''}</span>
+      ${m.species_hint && !m.subject_id ? `<span class="fm-hint" title="Sugerencia del clasificador, sin confirmar">🤖 ${esc(m.species_hint)}${m.hint_confidence != null ? ` ${(m.hint_confidence * 100).toFixed(0)}%` : ''}</span>` : ''}
+      ${m.origin && m.origin !== 'admin-upload' ? `<span class="fm-origin">${esc(ORIGIN_LABEL[m.origin] || m.origin)}</span>` : ''}
       <div class="fm-btns">
         <button data-a="assign">${m.subject_id ? '↻ Reasignar' : '🏷️ Clasificar'}</button>
         ${m.subject_id ? `<button data-a="primary" class="${m.is_primary ? 'on' : ''}" title="Portada">★</button>` : ''}
@@ -1174,7 +1186,15 @@ function renderFotos() {
   const fm = document.getElementById('fm-body');
   if (mediaMode === 'inbox') {
     const list = unclassifiedMedia();
+    // Conteo por procedencia sobre TODO lo sin clasificar (no sobre lo filtrado),
+    // para que los chips muestren cuánto hay en cada cola aunque estés en una.
+    const every = ((CTX.state.media && CTX.state.media.unclassified) || []).filter((m) => m.source !== 'curated');
+    const byOrigin = {};
+    every.forEach((m) => { const o = m.origin || 'admin-upload'; byOrigin[o] = (byOrigin[o] || 0) + 1; });
+    const chips = ['all'].concat(Object.keys(byOrigin).sort()).map((o) =>
+      `<button data-o="${esc(o)}" class="${mediaOrigin === o ? 'sel' : ''}">${ORIGIN_LABEL[o] || o}${o === 'all' ? ` (${every.length})` : ` (${byOrigin[o]})`}</button>`).join('');
     fm.innerHTML = `
+      <div class="fm-modes fm-origins">${chips}</div>
       <button class="admin-add" id="fm-add">＋ Añadir foto / video</button>
       <div class="admin-note">Sube o clasifica fotos/videos. Las que llegan sin sujeto se listan aquí para asignarlas a un punto o especie.</div>
       ${list.length ? `<div class="fm-grid">${list.map((m) => mediaCardHTML(m)).join('')}</div>`
@@ -1186,6 +1206,7 @@ function renderFotos() {
       try { const n = await exportFieldBackup(); CTX.toast(n ? `⬇️ ${n} registro(s) de campo exportado(s)` : 'No hay fotos de campo del juego aún'); }
       catch (e) { CTX.toast(friendlyErr(e)); }
     };
+    fm.querySelectorAll('.fm-origins button').forEach((b) => b.onclick = () => { mediaOrigin = b.dataset.o; renderFotos(); });
     wireMediaCards(fm);
   } else {
     renderFotosSubject(fm);
