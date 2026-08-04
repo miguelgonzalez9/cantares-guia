@@ -540,15 +540,6 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .v-rules { margin: 0; padding-left: 20px; }
 .v-rules li { font-size: 13.5px; line-height: 1.55; padding: 2px 0; color: var(--ink); }
-.v-safety { border: 1px solid rgba(250,184,20,0.45); background: #fffdf6; }
-.v-lost { font-size: 13.5px; line-height: 1.55; margin: 0 0 12px; }
-.v-emergency { display: flex; flex-wrap: wrap; gap: 8px; }
-.v-emg-btn {
-  flex: 1; min-width: 140px; text-align: center; text-decoration: none;
-  background: var(--red); color: #fff; font-weight: 800; font-size: 14px;
-  padding: 12px; border-radius: 12px; box-shadow: var(--shadow);
-}
-.v-emg-reserve { background: var(--moss); }
 
 /* ---------- Juego: Expedición Cantares ---------- */
 .gm-panel {
@@ -1163,16 +1154,30 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .cm-svc .tiny { margin: 8px 0 0; padding-top: 7px; border-top: 1px dashed var(--line); }
 .cm-sub { font-family: var(--brand-font); font-weight: normal; font-size: 16px;
   color: var(--deep); margin: 16px 0 4px; }
-/* Enlaces: un solo botón fuerte (Airbnb, la acción principal); el resto, calmados. */
-.cm-links { display: flex; flex-wrap: wrap; gap: 8px; }
-.cm-btn {
-  display: inline-flex; align-items: center; gap: 6px; padding: 11px 14px;
-  border-radius: 11px; text-decoration: none; font-size: 14px; font-weight: 600;
-  background: var(--mist); border: 1px solid var(--line); color: var(--deep);
+/* Enlaces: tarjetas grandes, dos por fila en el teléfono. Cada una lleva el ícono
+   de su app en su color, para reconocerla sin leer. Antes eran botones pequeños
+   con un emoji: difíciles de acertar con el pulgar y todos iguales de lejos. */
+.cm-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cm-card {
+  display: flex; align-items: center; gap: 11px; padding: 14px 13px; min-height: 64px;
+  border-radius: 14px; text-decoration: none; color: var(--deep);
+  background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
 }
-.cm-btn:active { transform: translateY(1px); }
-.cm-airbnb { background: var(--sun); color: #fff; border-color: transparent; }
-.cm-ig, .cm-wa { background: var(--mist); color: var(--deep); }
+.cm-card:active { transform: translateY(1px); }
+.cm-ico { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; color: #fff; }
+.cm-ico svg { width: 23px; height: 23px; fill: currentColor; }
+.cm-card-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cm-card-t b { font-size: 14.5px; font-weight: 700; }
+/* El destino (el @ de Instagram, el correo) puede ser largo: que corte, no que
+   desborde la tarjeta. */
+.cm-card-t small { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-airbnb .cm-ico { background: #ff5a5f; }
+.cm-wa .cm-ico { background: #25d366; }
+.cm-ig .cm-ico { background: linear-gradient(45deg, #f9ce34, #ee2a7b 55%, #6228d7); }
+.cm-mail .cm-ico { background: var(--moss); }
+/* Airbnb es la acción principal: ocupa la fila entera y se ve que lo es. */
+.cm-airbnb { grid-column: 1 / -1; border-color: #ff5a5f; }
+@media (max-width: 340px) { .cm-links { grid-template-columns: 1fr; } }
 /* Puntaje: el 5,0 en la tipografía de marca — el dato manda, no el adorno. */
 .cm-score { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin: 2px 0 12px; }
 .cm-score-n { font-family: var(--brand-font); font-weight: normal; font-size: 40px;
@@ -1194,7 +1199,7 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
   background: var(--mist); border: 1px solid var(--line); border-radius: 11px;
 }
 
-@media (prefers-reduced-motion: reduce) { .cm-btn:active { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cm-card:active { transform: none; } }
 
 /* ============ EDITOR DE CONTENIDO (admin) ================================= */
 .ce-edit-btn {

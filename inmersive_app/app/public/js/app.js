@@ -185,6 +185,7 @@ function applyCloudContent(rows) {
     if (!r || !r.doc) return;
     if (r.id === 'historia') state.historia = r.doc;
     else if (r.id === 'comercial') state.comercial = r.doc;
+    else if (r.id === 'reserve_info') state.reserveInfo = r.doc;
   });
 }
 function photosFor(type, id) { return state.media.bySubject[`${type}:${id}`] || []; }
@@ -250,12 +251,13 @@ const I18N = {
     hist_title: 'Nuestra Historia',
     cm_services_h: '🎟️ Servicios y tarifas', cm_extra_h: 'Servicios adicionales',
     cm_rates_note: 'Tarifas tomadas del documento de servicios y tarifas de la reserva',
-    cm_book_h: '📅 Reservar y seguirnos', cm_airbnb: 'Ver en Airbnb',
+    cm_book_h: '📅 Reservar y seguirnos', cm_airbnb: 'Reservar en Airbnb',
+    cm_wa_sub: 'Escríbenos', cm_email: 'Correo',
     cm_reviews_h: '⭐ Comentarios de huéspedes', cm_reviews_n: 'comentarios',
     cm_reviews_empty: 'Aún no hemos copiado los comentarios de Airbnb aquí. Puedes leerlos en el anuncio.',
-    cm_reviews_link: 'Ver el anuncio en Airbnb',
     cm_more: 'Ver más comentarios', cm_translated: 'traducido',
     ce_edit: 'Editar esta página', ce_edit_info: 'Editar servicios y comentarios',
+    ce_edit_visit: 'Editar datos de la visita',
     tree_photo: 'Árbol', leaf_photo: 'Hoja',
     lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
@@ -291,7 +293,6 @@ const I18N = {
     fact_rest: 'Restauración', fact_rest_v: '16,4 ha · Conservación 10,5 ha',
     fact_water: 'Agua', fact_water_v: 'Quebradas La Peña y La Arenosa → Río Blanco → Río Chinchiná',
     fact_reg: 'Registro', fact_reg_v: 'Parques Nacionales Naturales, Res. 201 de 2021',
-    map_illus: 'Mapa ilustrado de senderos',
     grp_flora: 'Flora', grp_ave: 'Aves', grp_mamifero: 'Mamíferos',
     online: '🟢 En línea. Abre el mapa aquí (wifi) para guardar los tiles y luego funciona sin señal en el sendero.',
     offline: '⚪ Sin conexión. La app y el contenido guardado siguen disponibles.',
@@ -303,8 +304,7 @@ const I18N = {
     ob_go: 'Explorar la reserva →',
     visit_h: 'Planea tu visita', v_hours: '🕑 Horarios', v_contact: '📞 Contacto',
     v_arrive: '🚗 Cómo llegar', v_parking: '🅿️ Parqueo', v_entry: '🎟️ Entrada',
-    v_rules_h: '📋 Normas de la reserva', v_safety_h: '🛟 Seguridad',
-    v_lost: 'Si te pierdes', v_emergency: 'Emergencias', v_call: 'Llamar',
+    v_rules_h: '📋 Normas de la reserva', v_call: 'Llamar',
     v_pending: 'Por completar', v_whatsapp: 'WhatsApp',
     demo_note: 'Cifras preliminares de demostración — pronto con el inventario real de árboles de la reserva.',
     key_trees: 'árboles clave', agb: 'biomasa aérea',
@@ -346,12 +346,13 @@ const I18N = {
     hist_title: 'Our Story',
     cm_services_h: '🎟️ Services & rates', cm_extra_h: 'Add-on services',
     cm_rates_note: 'Rates taken from the reserve services & rates document',
-    cm_book_h: '📅 Book & follow us', cm_airbnb: 'View on Airbnb',
+    cm_book_h: '📅 Book & follow us', cm_airbnb: 'Book on Airbnb',
+    cm_wa_sub: 'Message us', cm_email: 'Email',
     cm_reviews_h: '⭐ Guest reviews', cm_reviews_n: 'reviews',
     cm_reviews_empty: 'We have not copied the Airbnb reviews here yet. You can read them on the listing.',
-    cm_reviews_link: 'View the Airbnb listing',
     cm_more: 'Show more reviews', cm_translated: 'translated',
     ce_edit: 'Edit this page', ce_edit_info: 'Edit services and reviews',
+    ce_edit_visit: 'Edit visit details',
     tree_photo: 'Tree', leaf_photo: 'Leaf',
     lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
@@ -387,7 +388,6 @@ const I18N = {
     fact_rest: 'Restoration', fact_rest_v: '16.4 ha · Conservation 10.5 ha',
     fact_water: 'Water', fact_water_v: 'La Peña & La Arenosa creeks → Río Blanco → Río Chinchiná',
     fact_reg: 'Registry', fact_reg_v: 'National Natural Parks, Resolution 201 of 2021',
-    map_illus: 'Illustrated trail map',
     grp_flora: 'Plants', grp_ave: 'Birds', grp_mamifero: 'Mammals',
     online: '🟢 Online. Open the map here (wifi) to cache tiles, then it works with no signal on the trail.',
     offline: '⚪ Offline. The app and cached content are still available.',
@@ -399,8 +399,7 @@ const I18N = {
     ob_go: 'Explore the reserve →',
     visit_h: 'Plan your visit', v_hours: '🕑 Hours', v_contact: '📞 Contact',
     v_arrive: '🚗 Getting there', v_parking: '🅿️ Parking', v_entry: '🎟️ Entry',
-    v_rules_h: '📋 Reserve rules', v_safety_h: '🛟 Safety',
-    v_lost: 'If you get lost', v_emergency: 'Emergencies', v_call: 'Call',
+    v_rules_h: '📋 Reserve rules', v_call: 'Call',
     v_pending: 'To be filled in', v_whatsapp: 'WhatsApp',
     demo_note: 'Preliminary demo figures — the real tree inventory of the reserve is coming soon.',
     key_trees: 'key trees', agb: 'above-ground biomass',
@@ -1932,10 +1931,9 @@ function renderVisitInfo() {
   if (wa) contactBits.push(`<a class="v-link" href="https://wa.me/${wa}" target="_blank" rel="noopener">${t('v_whatsapp')}</a>`);
   const contactHtml = contactBits.length ? contactBits.join(' · ') : pending;
   const rules = L(info, 'rules') || [];
-  const emgLabel = L(info, 'emergency_national_label') || t('v_emergency');
-  const emg = info.emergency_national || '123';
 
   el.innerHTML = `
+    ${isAdminUser() ? `<button class="ce-edit-btn" id="vi-edit">✏️ ${t('ce_edit_visit')}</button>` : ''}
     <div class="panel visit-panel">
       <h2>${t('visit_h')}</h2>
       <div class="v-grid">
@@ -1949,15 +1947,12 @@ function renderVisitInfo() {
     ${rules.length ? `<div class="panel visit-panel">
       <h2>${t('v_rules_h')}</h2>
       <ul class="v-rules">${rules.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ul>
-    </div>` : ''}
-    <div class="panel visit-panel v-safety">
-      <h2>${t('v_safety_h')}</h2>
-      <p class="v-lost"><strong>${t('v_lost')}:</strong> ${escapeHtml(L(info, 'if_lost') || '')}</p>
-      <div class="v-emergency">
-        <a class="v-emg-btn" href="tel:${escapeAttr(emg)}">🆘 ${escapeHtml(emgLabel)}: ${escapeHtml(emg)}</a>
-        ${phone ? `<a class="v-emg-btn v-emg-reserve" href="tel:${escapeAttr(phone)}">📞 ${escapeHtml(phone)}</a>` : ''}
-      </div>
-    </div>`;
+    </div>` : ''}`;
+  // El bloque de seguridad («si te pierdes» + 123) se quitó: la reserva es
+  // pequeña y con guía, y ese panel ocupaba la mitad de la pantalla con algo que
+  // nadie va a leer en el momento en que haría falta. Los campos siguen en
+  // reserve_info.json por si vuelve.
+  const veb = $('#vi-edit'); if (veb) veb.onclick = () => openContentEditor('reserve_info');
 }
 // ---------- Nuestra Historia (data/historia.json) ----------
 // TODO el texto viene transcrito de documentos de la reserva; la app sólo lo pinta.
@@ -1988,6 +1983,26 @@ function renderHistoria() {
     ${(h.secciones || []).map(blk).join('')}${hitos}`;
   const eb = $('#hist-edit'); if (eb) eb.onclick = () => openContentEditor('historia');
 }
+// Íconos de las apps a las que llevan los enlaces. Van EN LÍNEA (SVG, sin red):
+// la app tiene que verse igual sin señal, así que nada de cargarlos de un CDN.
+// Son glifos simplificados en el color de cada marca, no el logotipo oficial:
+// reconocibles de un vistazo y sin apropiarse de la marca de nadie.
+const APP_ICONS = {
+  airbnb: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 3.6 19.6a2.6 2.6 0 0 0 3.7 3.3L12 20l4.7 2.9a2.6 2.6 0 0 0 3.7-3.3L12 2.5Zm0 5.6 4 8.1a1 1 0 0 1-1.4 1.3L12 15.9l-2.6 1.6A1 1 0 0 1 8 16.2l4-8.1Z"/></svg>',
+  wa: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-2.7-1-4.5-3.7-4.6-3.9-.1-.2-1.1-1.4-1.1-2.7s.7-1.9 1-2.2c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2 0 .4-.1.5l-.4.5c-.1.2-.3.3-.1.6.1.3.6 1.1 1.4 1.8 1 .9 1.7 1.1 2 1.2.2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.8.9c.2.1.4.2.4.4v.9Z"/></svg>',
+  ig: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.4"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm1.8 2L12 12.2 19.2 7H4.8Z"/></svg>',
+};
+// Tarjeta grande de enlace: ícono + a dónde va + qué es. Antes eran botones
+// pequeños con un emoji, difíciles de acertar con el pulgar.
+function linkCard(url, key, title, sub) {
+  if (!url) return '';
+  const ext = /^https?:/.test(url) ? ' target="_blank" rel="noopener"' : '';
+  return `<a class="cm-card cm-${key}" href="${escapeAttr(url)}"${ext}>
+    <span class="cm-ico">${APP_ICONS[key] || ''}</span>
+    <span class="cm-card-t"><b>${escapeHtml(title)}</b>${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</span>
+  </a>`;
+}
 // ---------- Info comercial: servicios, tarifas, Airbnb, redes, reseñas ----------
 function renderComercial() {
   const el = $('#comercial'); if (!el) return;
@@ -2016,10 +2031,10 @@ function renderComercial() {
     <div class="panel">
       <h2 class="hist-h">${t('cm_book_h')}</h2>
       <div class="cm-links">
-        ${c.airbnb_url ? `<a class="cm-btn cm-airbnb" href="${escapeAttr(c.airbnb_url)}" target="_blank" rel="noopener">🏡 ${t('cm_airbnb')}</a>` : ''}
-        ${wa ? `<a class="cm-btn cm-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
-        ${c.email ? `<a class="cm-btn" href="mailto:${escapeAttr(c.email)}">✉️ ${escapeHtml(c.email)}</a>` : ''}
-        ${c.instagram_url ? `<a class="cm-btn cm-ig" href="${escapeAttr(c.instagram_url)}" target="_blank" rel="noopener">📸 ${escapeHtml(c.instagram_handle || 'Instagram')}</a>` : ''}
+        ${linkCard(c.airbnb_url, 'airbnb', t('cm_airbnb'), 'Airbnb')}
+        ${wa ? linkCard(`https://wa.me/${wa}`, 'wa', 'WhatsApp', t('cm_wa_sub')) : ''}
+        ${linkCard(c.instagram_url, 'ig', 'Instagram', c.instagram_handle || '')}
+        ${c.email ? linkCard(`mailto:${c.email}`, 'mail', t('cm_email'), c.email) : ''}
       </div>
     </div>
     <div class="panel">
@@ -2036,8 +2051,10 @@ function renderComercial() {
           </blockquote>`).join('')}</div>
           ${revs.length > 3 ? `<button class="cm-more" id="cm-more">${t('cm_more')} (${revs.length - 3})</button>` : ''}`
         : `<p class="muted">${t('cm_reviews_empty')}</p>`}
-      ${c.airbnb_url ? `<a class="cm-btn cm-airbnb" href="${escapeAttr(c.airbnb_url)}" target="_blank" rel="noopener">${t('cm_reviews_link')}</a>` : ''}
     </div>`;
+  // El segundo enlace a Airbnb (bajo las reseñas) se quitó: era el mismo destino
+  // que la tarjeta de arriba, y dos botones idénticos hacen dudar de si llevan
+  // a sitios distintos.
   const ceb = $('#cm-edit'); if (ceb) ceb.onclick = () => openContentEditor('comercial');
   const more = $('#cm-more');
   if (more) more.onclick = () => {
@@ -2843,7 +2860,7 @@ function applyLocalRow(table, row) {
       renderSpeciesGrid(); refreshOpenCard();
     } else if (table === 'content') {
       applyCloudContent([row]);
-      renderHistoria(); renderComercial();
+      renderHistoria(); renderComercial(); renderVisitInfo();
     } else if (table === 'point_types') {
       mergePointType(row);
     }
