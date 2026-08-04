@@ -965,6 +965,20 @@ const CONTENT_SCHEMA = {
           F('texto', 'area', 'Comentario')] },
     ],
   },
+  // «Planea tu visita». Estos datos estaban SOLO en reserve_info.json: cambiar el
+  // horario o el teléfono obligaba a editar un archivo y volver a desplegar.
+  reserve_info: {
+    label: '🕑 Info: datos de la visita',
+    fields: [F('hours', 'text', 'Horarios (ES)'), F('hours_en', 'text', 'Hours (EN)'),
+      F('phone', 'text', 'Teléfono'), F('whatsapp', 'text', 'WhatsApp (solo dígitos)'),
+      F('how_to_arrive', 'area', 'Cómo llegar (ES)'), F('how_to_arrive_en', 'area', 'Getting there (EN)'),
+      F('parking', 'text', 'Parqueo (ES)'), F('parking_en', 'text', 'Parking (EN)'),
+      F('entry', 'text', 'Entrada (ES)'), F('entry_en', 'text', 'Entry (EN)')],
+    lists: [
+      { path: 'rules', label: 'Normas (ES)', simple: true, title: (it) => String(it || '') },
+      { path: 'rules_en', label: 'Rules (EN)', simple: true, title: (it) => String(it || '') },
+    ],
+  },
 };
 const getPath = (o, p) => p.split('.').reduce((a, k) => (a && a[k] != null ? a[k] : undefined), o);
 function setPath(o, p, v) {
@@ -975,7 +989,8 @@ function setPath(o, p, v) {
 export function openContentEditor(key) {
   const sch = CONTENT_SCHEMA[key]; if (!sch) return;
   // Copia profunda: se edita en borrador y sólo se escribe al guardar.
-  const src = key === 'historia' ? CTX.state.historia : CTX.state.comercial;
+  const src = { historia: CTX.state.historia, comercial: CTX.state.comercial,
+    reserve_info: CTX.state.reserveInfo }[key];
   const doc = JSON.parse(JSON.stringify(src || {}));
   let open = null;   // `${listIdx}:${itemIdx}` del ítem desplegado
   let ov = document.getElementById('ce-ov');
