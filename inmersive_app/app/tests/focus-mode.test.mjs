@@ -63,7 +63,7 @@ assert.ok(/if \(localStorage\.getItem\('cantares_tour_mode'\)\) startGuiding\(id
 //    pestañas — se puede consultar Especies a mitad de camino y volver.
 const hide = /body\.guiding #legend,[\s\S]*?\{ display: none; \}/.exec(css);
 assert.ok(hide, 'falta la regla que oculta el cromo en modo guiado');
-assert.ok(/#legend/.test(hide[0]) && /#base-slider-box/.test(hide[0]) && /#search-btn/.test(hide[0]));
+assert.ok(/#legend/.test(hide[0]) && /#base-compare/.test(hide[0]) && /#search-btn/.test(hide[0]));
 assert.ok(!/body\.guiding[^{]*\.tabbar/.test(css), 'la barra de pestañas NO debe ocultarse');
 
 // 7. Entrar y salir del recorrido deben ser simétricos: lo que se añade se quita.

@@ -69,7 +69,7 @@ assert.ok(/wpTitle\(pid\)/.test(fn(admin, 'startPointPick')),
 // 7. El CSS del modo oculta el cromo de edición pero no rompe el HUD.
 const hide = /body\.picking-points #admin-fab,[\s\S]*?display: none !important; \}/.exec(css);
 assert.ok(hide, 'falta la regla de aislamiento');
-for (const id of ['#admin-fab', '#edit-bar', '#legend', '#base-slider-box', '#search-btn']) {
+for (const id of ['#admin-fab', '#edit-bar', '#legend', '#base-compare', '#search-btn']) {
   assert.ok(hide[0].includes(id), `${id} debe ocultarse en modo selección`);
 }
 assert.ok(!hide[0].includes('#admin-ptsel-hud'), 'el HUD del modo NO puede ocultarse');
