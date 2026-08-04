@@ -25,12 +25,17 @@ técnica.
 clasificar del archivo se procesa en unos pocos días de lotes, y el uso en vivo
 desde la app es de una foto por visitante.
 
-**La salvedad:** los términos son «uso limitado y sin ánimo de lucro». Cantares
-tiene una parte comercial (Airbnb, pasadías, tarifas). Identificar plantas para
-el inventario propio y para una app gratuita de visitantes es defendible; si la
-identificación pasara a ser parte de un servicio que se cobra, hay que pasar al
-plan Pro (factura inicial de €1.000). **Decisión pendiente de Miguel**, no mía.
-Mientras tanto el uso es claramente del lado sin ánimo de lucro.
+**La salvedad, ya resuelta (2026-08-04):** los términos son «uso limitado y sin
+ánimo de lucro». Cantares tiene una parte comercial (Airbnb, pasadías, tarifas),
+así que la pregunta era si el uso cae dentro. **Miguel decidió que sí y se usa
+el plan gratis.** Es defendible: la identificación alimenta el inventario propio
+y una app gratuita para visitantes; no se cobra por identificar ni se revende el
+resultado.
+
+Lo que cambiaría esa respuesta: que la identificación pasara a ser parte de algo
+que se cobra (un tour premium «identifica lo que veas», una API para terceros).
+Ahí toca el plan Pro (factura inicial de €1.000). Si alguna vez se llega a ese
+punto, esta línea es el recordatorio.
 
 ### iNaturalist — la API de visión NO está disponible
 
