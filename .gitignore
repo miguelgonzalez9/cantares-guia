@@ -68,6 +68,15 @@ fotos/**
 !fotos/catalog_fotos.json
 !fotos/LÉEME.txt
 
+# --- Documentos fuente que leen los scripts (PDF/Office). Son insumo, no código,
+#     y este repo es PÚBLICO: entra el catálogo generado, no el original. ---
+inmersive_app/inputs/documentos/**
+!inmersive_app/inputs/documentos/README.md
+!inmersive_app/inputs/documentos/.gitkeep
+
+# --- Grabaciones de campo (audio de aves; Dropbox respalda) ---
+audios_pajaros/**
+
 # --- Secrets ---
 .env
 .env.*
