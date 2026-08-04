@@ -68,15 +68,16 @@
         <div id="legend-body" class="legend-body"></div>
       </div>
 
-      <div id="base-slider-box" class="base-slider-box collapsed">
-        <button id="base-toggle" class="base-toggle" title="El bosque en el tiempo">🌳 <b id="base-year">2024</b> <span class="chev">▾</span></button>
-        <div class="base-panel">
-          <div class="base-caption" id="base-caption">El bosque en el tiempo</div>
-          <div class="base-hint" id="base-hint">Desliza para ver crecer el bosque</div>
-          <div class="base-vtrack">
-            <input id="base-slider" class="base-slider" type="range" min="0" max="2" step="1" value="2" />
-            <div id="base-ticks" class="base-ticks"></div>
-          </div>
+      <!-- El bosque en el tiempo: cortina vertical. A la izquierda del tirador se
+           ve 2015; a la derecha, la imagen actual. Aparcada al borde derecho, así
+           que por defecto no se ve nada del pasado ni pesa nada (el segundo mapa
+           sólo existe mientras la cortina está abierta). -->
+      <div id="cmp-map" class="cmp-map" aria-hidden="true"></div>
+      <div id="base-compare" class="base-compare">
+        <div id="bc-handle" class="bc-handle" role="slider" tabindex="0"
+          aria-label="Comparar el bosque de 2015 con el actual" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+          <span class="bc-line"></span>
+          <span class="bc-grip"><b id="bc-old">2015</b>⇔<b id="bc-new">2024</b></span>
         </div>
       </div>
 

@@ -259,9 +259,8 @@ const I18N = {
     tree_photo: 'Árbol', leaf_photo: 'Hoja',
     lg_points_head: 'Tipos de punto',
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
-    base_label: 'Imagen satelital', base_hd: 'Actual (HD)', base_ortho: 'Ortofoto',
-    base_forest_title: 'El bosque en el tiempo', base_forest_hint: 'Desliza para ver crecer el bosque',
-    base_toggle: 'Bosque',
+    base_hd: 'Actual (HD)', base_ortho: 'Ortofoto',
+    base_compare_a11y: 'Arrastra para comparar el bosque de antes con el de ahora',
     ri_points: 'Puntos del recorrido', ri_start_walk: '▶ Comenzar recorrido', ri_stop_walk: '■ Terminar recorrido',
     guiding_on: 'Siguiendo tu ubicación en el sendero…', guiding_off: 'Recorrido terminado',
     no_points: 'No hay puntos visibles con los filtros activos.',
@@ -356,9 +355,8 @@ const I18N = {
     tree_photo: 'Tree', leaf_photo: 'Leaf',
     lg_points_head: 'Point types',
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
-    base_label: 'Satellite image', base_hd: 'Current (HD)', base_ortho: 'Orthophoto',
-    base_forest_title: 'The forest over time', base_forest_hint: 'Slide to watch the forest grow',
-    base_toggle: 'Forest',
+    base_hd: 'Current (HD)', base_ortho: 'Orthophoto',
+    base_compare_a11y: 'Drag to compare the forest then and now',
     ri_points: 'Route points', ri_start_walk: '▶ Start route', ri_stop_walk: '■ End route',
     guiding_on: 'Following your location on the trail…', guiding_off: 'Route ended',
     no_points: 'No points visible with the active filters.',
@@ -479,12 +477,6 @@ function baseSourceDef(stop) {
     attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' };
 }
 function baseLabel(stop) { return stop.hd ? t('base_hd') : stop.pmtiles ? t('base_ortho') : stop.key; }
-function renderBaseTicks() {
-  const el = document.querySelector('#base-ticks');
-  if (!el) return;
-  el.innerHTML = CONFIG.baseStops.map((s) =>
-    `<span>${s.hd ? 'HD' : s.pmtiles ? 'Orto' : s.key}</span>`).join('');
-}
 function buildStyle() {
   return { version: 8, sources: { base: baseSourceDef(CONFIG.baseStops[state.baseIndex]) },
     layers: [
@@ -492,17 +484,96 @@ function buildStyle() {
       { id: 'base', type: 'raster', source: 'base' },
     ] };
 }
-function setBaseLayer(i) {
-  state.baseIndex = i;
-  const stop = CONFIG.baseStops[i];
-  $('#base-year').textContent = baseLabel(stop);   // always reflect the year, even if map not ready
-  const map = state.map;
-  if (!map || !map.getSource('base')) return;
-  if (map.getLayer('base')) map.removeLayer('base');
-  map.removeSource('base');
-  map.addSource('base', baseSourceDef(stop));
-  const before = map.getLayer('zones-fill') ? 'zones-fill' : undefined;
-  map.addLayer({ id: 'base', type: 'raster', source: 'base' }, before);
+
+// ---------- el bosque en el tiempo: cortina vertical ----------
+// A la izquierda del tirador, 2015; a la derecha, la imagen del mapa. MapLibre no
+// sabe recortar una capa raster a media pantalla, así que el 2015 es un SEGUNDO
+// mapa (sólo el raster, sin eventos) puesto encima y recortado con clip-path, con
+// la cámara pegada a la del principal — es como funciona mapbox-gl-compare.
+//
+// ponytail: sobre el 2015 no se dibujan los puntos ni los senderos (viven en el
+// canvas de abajo). Es asumible porque la cortina se abre para MIRAR la imagen y
+// se cierra enseguida; duplicar las ~15 capas en el segundo mapa costaría más de
+// lo que resuelve. Si estorba, la salida es duplicarlas.
+let cmpMap = null;
+const CMP_OPEN_MAX = 99;                 // >99% se considera cerrada
+function cmpOldStop() { return CONFIG.baseStops[0]; }
+// El segundo mapa se crea al abrir y se DESTRUYE al cerrar: un contexto WebGL de
+// más en un teléfono no se deja encendido por si acaso.
+function ensureCmpMap() {
+  if (cmpMap || !state.map) return cmpMap;
+  const el = $('#cmp-map'); if (!el) return null;
+  cmpMap = new maplibregl.Map({
+    container: el, interactive: false, attributionControl: false,
+    center: state.map.getCenter(), zoom: state.map.getZoom(),
+    bearing: state.map.getBearing(), pitch: state.map.getPitch(),
+    style: { version: 8, sources: { base: baseSourceDef(cmpOldStop()) },
+      layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#c9d3c6' } },
+        { id: 'base', type: 'raster', source: 'base' }] },
+  });
+  return cmpMap;
+}
+function destroyCmpMap() {
+  if (!cmpMap) return;
+  try { cmpMap.remove(); } catch (e) { /* ya se fue */ }
+  cmpMap = null;
+}
+function syncCmpMap() {
+  if (!cmpMap || !state.map) return;
+  cmpMap.jumpTo({ center: state.map.getCenter(), zoom: state.map.getZoom(),
+    bearing: state.map.getBearing(), pitch: state.map.getPitch() });
+}
+// pct = posición del tirador, 0 (todo 2015) a 100 (todo actual, cerrada).
+function setCompare(pct) {
+  const x = Math.max(0, Math.min(100, pct));
+  state.comparePct = x;
+  const h = $('#bc-handle'), el = $('#cmp-map');
+  if (h) { h.style.left = x + '%'; h.setAttribute('aria-valuenow', String(Math.round(x))); }
+  if (!el) return;
+  if (x > CMP_OPEN_MAX) { el.classList.remove('on'); destroyCmpMap(); return; }
+  el.classList.add('on');
+  // Recortar por la DERECHA: se ve la franja izquierda, que es la del pasado.
+  el.style.clipPath = `inset(0 ${(100 - x).toFixed(2)}% 0 0)`;
+  if (ensureCmpMap()) syncCmpMap();
+}
+function initCompare() {
+  const h = $('#bc-handle'); if (!h) return;
+  $('#bc-old').textContent = baseLabel(cmpOldStop());
+  $('#bc-new').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
+  setCompare(100);
+  // El mapa se mueve → el 2015 lo sigue. 'move' cubre arrastrar, zoom y vuelos.
+  state.map.on('move', syncCmpMap);
+  state.map.on('resize', syncCmpMap);
+  const pctFrom = (clientX) => {
+    const r = $('#map').getBoundingClientRect();
+    return ((clientX - r.left) / (r.width || 1)) * 100;
+  };
+  let dragging = false;
+  h.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    try { h.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
+    e.stopPropagation();
+  });
+  h.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    if (e.cancelable) e.preventDefault();
+    setCompare(pctFrom(e.clientX));
+  });
+  const end = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    try { h.releasePointerCapture(e.pointerId); } catch (er) { /* ignore */ }
+  };
+  h.addEventListener('pointerup', end);
+  h.addEventListener('pointercancel', end);
+  // Teclado: es un role="slider", así que las flechas tienen que moverlo.
+  h.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: -5, ArrowRight: 5, Home: -100, End: 100 }[e.key];
+    if (step == null) return;
+    e.preventDefault();
+    setCompare(Math.abs(step) === 100 ? (step < 0 ? 0 : 100) : state.comparePct + step);
+  });
+  h.style.touchAction = 'none';
 }
 function makeArrowIcon(map) {
   if (map.hasImage('arrow')) return;
@@ -2382,6 +2453,26 @@ function renderLegend() {
   if (zt) zt.onclick = toggleZones;
   $$('#legend-body .lg-type').forEach((b) => b.onclick = () => toggleType(b.dataset.type));
 }
+// Abrir la leyenda hacia ARRIBA cuando desplegarla hacia abajo se saldría de la
+// pantalla. Sólo puede pasar tras arrastrarla: en su sitio de origen está anclada
+// por `bottom` y crece hacia arriba sola; makeDraggable la pasa a `top`.
+// El botón no se mueve al abrir ni al cerrar — se recoloca la caja para
+// compensar, o el dedo iría a buscarlo donde ya no está.
+function toggleLegend() {
+  const el = $('#legend'), tg = $('#legend-toggle');
+  const parent = el.offsetParent || document.body;
+  const dragged = !!el.style.top;
+  const yBefore = el.offsetTop + tg.offsetTop;
+  el.classList.toggle('collapsed');
+  el.classList.remove('up');
+  if (dragged && !el.classList.contains('collapsed')
+      && el.offsetTop + el.offsetHeight > parent.clientHeight - 8) {
+    el.classList.add('up');
+  }
+  if (!dragged) return;
+  const yAfter = el.offsetTop + tg.offsetTop;
+  if (yAfter !== yBefore) el.style.top = (el.offsetTop + yBefore - yAfter) + 'px';
+}
 function toggleType(tp) {
   if (state.hiddenTypes.has(tp)) state.hiddenTypes.delete(tp); else state.hiddenTypes.add(tp);
   applyWaypointFilter();
@@ -2455,14 +2546,12 @@ function applyStaticI18n() {
   $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   $$('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
   $('#lang-toggle').textContent = LANG === 'es' ? 'EN' : 'ES';
-  $('#base-caption').textContent = t('base_forest_title');
-  const bh = $('#base-hint'); if (bh) bh.textContent = t('base_forest_hint');
+  const h = $('#bc-handle'); if (h) h.setAttribute('aria-label', t('base_compare_a11y'));
 }
 function setLang(lang) {
   LANG = lang; localStorage.setItem('cantares_lang', lang);
   applyStaticI18n(); renderRouteBar(); selectRoute(state.activeRoute);
   renderSpeciesFilters(); renderSpeciesGrid(); renderCarbon(); renderOfflineStatus(); renderLegend(); refreshGameUI(); renderVisitInfo(); renderHistoria(); renderComercial();
-  $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
   if (state.openWaypointId) { const wp = state.waypoints.find((w) => w.properties.id === state.openWaypointId); if (wp) showWaypoint(wp); }
   if (state.watchId == null) setGps('off', t('gps'));
 }
@@ -2478,11 +2567,10 @@ async function main() {
   $('#search-btn').onclick = openSearch;
   $('#search-close').onclick = closeSearch;
   $('#search-input').oninput = (e) => renderSearch(e.target.value);
-  // Legend, imagery toggle and GPS button: draggable (tap still collapses / locates).
-  makeDraggable($('#legend'), $('#legend-toggle'), 'cantares_pos_legend', () => $('#legend').classList.toggle('collapsed'));
+  // Legend and GPS button: draggable (tap still collapses / locates).
+  makeDraggable($('#legend'), $('#legend-toggle'), 'cantares_pos_legend', toggleLegend);
   // Menos desorden en móvil: la leyenda arranca colapsada (un tap la abre).
   if (window.matchMedia && window.matchMedia('(max-width: 560px)').matches) $('#legend').classList.add('collapsed');
-  makeDraggable($('#base-slider-box'), $('#base-toggle'), 'cantares_pos_base', () => $('#base-slider-box').classList.toggle('collapsed'));
   makeDraggable($('#locate-btn'), $('#locate-btn'), 'cantares_pos_locate', locate);
   // iOS ignora user-scalable=no en el viewport: hay que bloquear sus gestos de
   // pellizco a mano. Son eventos propios de WebKit; MapLibre usa touch* y no se
@@ -2497,23 +2585,12 @@ async function main() {
   if (window.pmtiles && maplibregl.addProtocol) {
     try { maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile); } catch (e) { /* already registered */ }
   }
-  // Auto-add the orthophoto to the imagery slider IF the file exists (drop it at tiles/ortho.pmtiles).
+  // La ortofoto local, si existe, pasa a ser la imagen ACTUAL del mapa (drop it at
+  // tiles/ortho.pmtiles). La cortina compara siempre el primer paso con esta.
   try {
     const r = await fetch('tiles/ortho.pmtiles', { method: 'HEAD' });
-    if (r.ok) CONFIG.baseStops.push({ key: 'ortho', pmtiles: true });
+    if (r.ok) { CONFIG.baseStops.push({ key: 'ortho', pmtiles: true }); state.baseIndex = CONFIG.baseStops.length - 1; }
   } catch (e) { /* no ortho yet */ }
-
-  const slider = $('#base-slider');
-  slider.max = String(CONFIG.baseStops.length - 1);
-  slider.value = String(state.baseIndex);
-  renderBaseTicks();
-  let baseSwapTimer = null;
-  slider.oninput = (e) => {
-    const i = +e.target.value;
-    $('#base-year').textContent = baseLabel(CONFIG.baseStops[i]);   // live year while dragging
-    clearTimeout(baseSwapTimer);
-    baseSwapTimer = setTimeout(() => setBaseLayer(i), 130);          // debounce the heavy layer swap
-  };
 
   const [routesDoc, speciesDoc, reserveInfo, mediaDoc, groupsDoc, historiaDoc, comercialDoc] = await Promise.all([
     loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species),
@@ -2549,7 +2626,6 @@ async function main() {
 
   applyStaticI18n();
   renderRouteBar(); renderSpeciesFilters(); renderSpeciesGrid(); renderOfflineStatus(); renderCarbon(); renderLegend(); renderVisitInfo(); renderHistoria(); renderComercial();
-  $('#base-year').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
 
   // El resto del arranque ocurre DESPUÉS de la puerta de entrada (login/invitado).
   const enterApp = async () => {
@@ -2565,6 +2641,7 @@ async function main() {
     if (!new URLSearchParams(location.search).has('nomap')) {
       await initMap();
       renderLegend(); applyWaypointFilter(); selectRoute(null);
+      initCompare();
       onStyleReady(state.map, () => { try { gameAddMapLayer(); } catch (e) { console.warn('gameAddMapLayer', e); } });
       initAdmin({ state, map: state.map, t, L, LANG, toast, makeDraggable,
         typeColor: (tp) => typeMeta(tp).color,

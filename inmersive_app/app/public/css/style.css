@@ -64,6 +64,13 @@ body {
   color: #fff;
   position: sticky; top: 0; z-index: 20;
   box-shadow: 0 2px 12px rgba(10,14,29,0.28);
+  /* Chrome en Android IGNORA `user-scalable=no` del viewport (lo desactivaron por
+     accesibilidad), así que el meta no basta: un pellizco sobre el logo seguía
+     ampliando la página y dejaba el header torcido. `touch-action: none` corta el
+     gesto del navegador para los toques que empiezan aquí. El header no hace
+     scroll ni desliza nada, así que no se pierde nada; el mapa tiene su propia
+     zona y sigue con su zoom. */
+  touch-action: none;
 }
 .brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .brand-mark { width: 34px; height: 34px; object-fit: contain; }
@@ -202,7 +209,13 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .legend-toggle { width: 100%; border: none; background: var(--navy); color: #fff;
   font-size: 12px; font-weight: 700; padding: 7px 12px; cursor: pointer; display: flex;
   justify-content: space-between; align-items: center; gap: 10px; }
+/* Arrastrada abajo del todo, desplegar hacia abajo se saldría de la pantalla:
+   `up` pone el cuerpo ENCIMA del botón (app.js recoloca la caja para que el botón
+   no se mueva). Sin esto, media leyenda quedaba fuera y no se podía leer. */
+.legend { display: flex; flex-direction: column; }
+.legend.up { flex-direction: column-reverse; }
 .legend .chev { transition: transform .15s; }
+.legend.up:not(.collapsed) .chev { transform: rotate(180deg); }
 .legend.collapsed .chev { transform: rotate(-90deg); }
 .legend.collapsed .legend-body { display: none; }
 .legend-body { padding: 7px 11px 9px; font-size: 11px; color: var(--ink);
@@ -223,24 +236,37 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .legend-toggle { cursor: grab; }
 .legend-toggle:active { cursor: grabbing; }
 
-/* Base-imagery time slider — vertical, collapsible, right side */
-.base-slider-box { position: absolute; right: 10px; top: 92px; z-index: 6;
-  display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.base-toggle { background: var(--card); border: none; border-radius: 999px; box-shadow: var(--shadow);
-  padding: 7px 12px; font-size: 12px; font-weight: 700; color: var(--forest); cursor: pointer;
-  display: flex; align-items: center; gap: 6px; }
-.base-toggle b { color: var(--moss); }
-.base-panel { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 12px; }
-.base-slider-box.collapsed .base-panel { display: none; }
-.base-caption { font-size: 11px; font-weight: 700; color: var(--forest); margin-bottom: 2px; text-align: center; }
-.base-hint { font-size: 9.5px; color: var(--muted); text-align: center; margin-bottom: 8px; line-height: 1.3; }
-.base-toggle .chev { font-size: 10px; transition: transform .15s; }
-.base-slider-box.collapsed .chev { transform: rotate(-90deg); }
-.base-vtrack { display: flex; gap: 8px; align-items: stretch; height: 168px; }
-.base-slider { writing-mode: vertical-lr; direction: rtl; -webkit-appearance: slider-vertical;
-  width: 22px; height: 100%; accent-color: var(--moss); margin: 0; }
-.base-ticks { display: flex; flex-direction: column-reverse; justify-content: space-between; }
-.base-ticks span { font-size: 11px; color: var(--muted); line-height: 1; }
+/* El bosque en el tiempo — cortina vertical.
+   El mapa del pasado va ENCIMA y recortado; sin eventos, para no robarle al mapa
+   real ni un toque. Aparcada a la derecha no se dibuja nada (y el segundo mapa ni
+   se crea), así que en reposo la interfaz queda igual de limpia que sin esto. */
+.cmp-map { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: none; }
+.cmp-map.on { display: block; }
+/* Capa de sólo-el-tirador: transparente y sin eventos salvo en el propio tirador. */
+.base-compare { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.bc-handle {
+  position: absolute; top: 0; bottom: 0; left: 100%; width: 44px; margin-left: -22px;
+  pointer-events: auto; cursor: ew-resize; touch-action: none;
+  display: flex; align-items: center; justify-content: center;
+}
+/* La línea sólo se ve cuando la cortina está abierta: si no, sería una raya
+   vertical permanente en mitad del mapa. */
+.bc-line { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.9);
+  box-shadow: 0 0 4px rgba(0,0,0,0.45); opacity: 0; transition: opacity .15s; }
+.cmp-map.on ~ .base-compare .bc-line { opacity: 1; }
+.bc-grip {
+  display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 999px;
+  background: var(--card); box-shadow: var(--shadow); color: var(--muted);
+  font-size: 10.5px; font-weight: 700; white-space: nowrap; user-select: none;
+}
+.bc-grip b { color: var(--forest); }
+/* Aparcada al borde sólo asoma la flecha, como una pestañita: los años ocuparían
+   media pantalla para algo que nadie está mirando. El tirador está centrado en el
+   borde derecho, así que la mitad queda fuera — de ahí el desplazamiento, que se
+   calcula sobre la píldora corta (~26 px) y no sobre la larga, que sí se saldría. */
+.bc-handle[aria-valuenow="100"] .bc-grip b { display: none; }
+.bc-handle[aria-valuenow="100"] .bc-grip { transform: translateX(-16px); font-size: 13px; }
+.bc-handle:focus-visible .bc-grip { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* Route info — tall rectangular panel docked on the right; chips stay visible */
 /* Chip flotante mientras se sigue un recorrido (la caja grande queda cerrada) */
@@ -1227,7 +1253,8 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
    puntos del recorrido y qué hacer ahora. La barra de pestañas SE QUEDA — se
    puede consultar Especies a mitad de camino y volver. */
 body.guiding #legend,
-body.guiding #base-slider-box,
+body.guiding #base-compare,
+body.guiding #cmp-map,
 body.guiding #search-btn { display: none; }
 
 /* Tarjetas de guía (ir al inicio · llegada a un punto). Una sola a la vez, ancladas
@@ -1281,7 +1308,8 @@ body.guiding #search-btn { display: none; }
 body.picking-points #admin-fab,
 body.picking-points #edit-bar,
 body.picking-points #legend,
-body.picking-points #base-slider-box,
+body.picking-points #base-compare,
+body.picking-points #cmp-map,
 body.picking-points #search-btn,
 body.picking-points #route-bar,
 body.picking-points #route-info { display: none !important; }
