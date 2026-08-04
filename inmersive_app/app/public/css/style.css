@@ -1229,25 +1229,53 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .ce-foot .ce-save { background: var(--green); color: #fff; border-color: transparent; }
 .ce-foot button:disabled { opacity: 0.6; }
 
-/* ---------- Fotos aportadas por el visitante (panel de cuenta) ---------- */
-.up-add { margin: 4px 0 12px; }
-.up-grid figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  padding: 7px 8px; font-size: 12px; line-height: 1.3; white-space: normal; }
-/* El estado es lo primero que se lee: «sin clasificar» explica por qué la foto
-   aún no aparece en el inventario, y evita que parezca que se perdió. */
-.up-state { font-size: 10.5px; letter-spacing: .3px; text-transform: uppercase;
-  padding: 2px 7px; border-radius: 999px; background: var(--mist); color: var(--deep); font-weight: 700; }
-.up-state.is-unclass { background: var(--gold); color: var(--navy); }
-.up-acts { display: flex; gap: 5px; width: 100%; margin-top: 4px; }
-.up-acts button { flex: 1; border: 0; border-radius: 7px; padding: 5px 6px; font-size: 11.5px;
-  cursor: pointer; background: var(--mist); color: var(--deep); font-weight: 600; }
-.up-acts .up-del { background: #fbe6e6; color: var(--red); }
+/* ---------- Modo enfocado durante un recorrido ---------- */
+/* La queja era «demasiado en el mismo lugar». Caminando sobran la leyenda, el
+   deslizador de satélite y el buscador: lo único que importa es el camino, los
+   puntos del recorrido y qué hacer ahora. La barra de pestañas SE QUEDA — se
+   puede consultar Especies a mitad de camino y volver. */
+body.guiding #legend,
+body.guiding #base-slider-box,
+body.guiding #search-btn { display: none; }
 
-/* Chips de procedencia + sugerencia del clasificador en la bandeja del admin. */
-.fm-origins { flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
-.fm-origins button { font-size: 11.5px; padding: 4px 9px; }
-/* La sugerencia se distingue del dato confirmado a propósito: es una conjetura
-   del modelo, no una clasificación. Confundirlas publica suposiciones. */
-.fm-hint { display: inline-block; font-size: 11px; color: var(--deep);
-  background: var(--mist); border-radius: 999px; padding: 1px 8px; margin-top: 3px; }
-.fm-origin { display: inline-block; font-size: 10.5px; color: var(--muted); margin-left: 6px; }
+/* Tarjetas de guía (ir al inicio · llegada a un punto). Una sola a la vez, ancladas
+   abajo, sobre el mapa y por encima de la barra de pestañas. */
+.guide-sheet {
+  position: fixed; left: 10px; right: 10px;
+  bottom: calc(var(--tabbar-h) + var(--safe-b) + 10px);
+  z-index: 30; background: var(--card); border-radius: 16px;
+  border-top: 5px solid var(--moss); box-shadow: var(--shadow);
+  padding: 12px 14px 14px; max-width: 520px; margin: 0 auto;
+  max-height: 62vh; overflow-y: auto; overscroll-behavior-y: contain;
+  animation: gs-in .22s ease-out;
+}
+@keyframes gs-in { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .guide-sheet { animation: none; } }
+.gs-arrive { border-top-color: var(--gold); }
+.gs-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.gs-head b { font-size: 16px; color: var(--forest); line-height: 1.25; }
+.gs-x { background: none; border: 0; font-size: 22px; line-height: 1; color: var(--muted);
+  cursor: pointer; padding: 0 4px; }
+.gs-photo { height: 116px; border-radius: 11px; margin: 9px 0 4px;
+  background-size: cover; background-position: center; }
+.gs-body { margin: 7px 0 10px; font-size: 14px; line-height: 1.45; color: var(--ink); }
+/* En modo escuchar la voz lleva el relato: la tarjeta sólo insinúa el texto para
+   no invitar a leer el teléfono mientras se camina. */
+.gs-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.gs-acts { display: flex; gap: 7px; flex-wrap: wrap; }
+.gs-cta, .gs-ghost {
+  flex: 1 1 auto; min-height: 42px; border: 0; border-radius: 11px;
+  font-size: 14px; font-weight: 700; cursor: pointer; padding: 0 12px;
+}
+.gs-cta { background: var(--moss); color: #fff; }
+.gs-ghost { background: var(--mist); color: var(--deep); }
+
+/* Elegir escuchar o leer, una sola vez al empezar el primer recorrido. */
+.tour-box .tour-opt {
+  display: block; width: 100%; text-align: left; margin-top: 9px;
+  border: 1.5px solid var(--line); border-radius: 13px; background: var(--card);
+  padding: 12px 14px; cursor: pointer;
+}
+.tour-box .tour-opt:active { border-color: var(--moss); background: var(--mist); }
+.tour-box .tour-opt b { display: block; font-size: 16px; color: var(--forest); }
+.tour-box .tour-opt span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }

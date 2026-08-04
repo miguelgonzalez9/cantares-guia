@@ -45,6 +45,10 @@ const state = {
   reserveInfo: null, media: { bySubject: {} }, boundary: null,
   hiddenTypes: new Set(),   // tipos de punto ocultados por el usuario
   guiding: null,            // id del recorrido en modo "seguir" (GPS)
+  // Modo de la audioguía: 'listen' (el teléfono lee) o 'read' (texto en pantalla).
+  // Por defecto escuchar: vas caminando y mirando por dónde pisas, no la pantalla.
+  tourMode: localStorage.getItem('cantares_tour_mode') || 'listen',
+  atTrailhead: false,       // ¿ya llegó al inicio del recorrido?
   flowTimer: null,          // animación de flechas/flujo sobre el recorrido
   eleCache: {},             // desnivel por recorrido (cache de la API de elevación)
 };
@@ -269,6 +273,11 @@ const I18N = {
     guiding_confirm_end: '¿Terminar el recorrido guiado?',
     guiding_screen: '🔆 La pantalla quedará encendida durante el recorrido',
     guiding_screen_warn: '⚠️ Mantén la pantalla encendida: si se apaga, se pierden los avisos de los puntos',
+    tour_ask: '¿Cómo quieres la guía?', tour_listen: '🔊 Escuchar', tour_read: '📖 Leer',
+    tour_listen_sub: 'El teléfono lee cada punto en voz alta', tour_read_sub: 'El texto aparece en pantalla',
+    th_title: 'Ve al inicio del recorrido', th_go: '🧭 Cómo llegar',
+    th_close: 'Ya estoy aquí', th_arrived: '✓ Llegaste al inicio. ¡Buen camino!',
+    gc_close: 'Seguir', gc_listen: '🔊 Escuchar de nuevo',
     ortho_h: '🛰️ Antes / después (ortofoto)', ortho_p: 'Ortofoto fotogramétrica de la reserva (~4,4 cm/píxel).',
     carbon_h: '🌳 Carbono capturado',
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
@@ -362,6 +371,11 @@ const I18N = {
     guiding_confirm_end: 'End the guided route?',
     guiding_screen: '🔆 The screen will stay on during the route',
     guiding_screen_warn: '⚠️ Keep the screen on: if it turns off, point alerts stop',
+    tour_ask: 'How would you like the guide?', tour_listen: '🔊 Listen', tour_read: '📖 Read',
+    tour_listen_sub: 'Your phone reads each point aloud', tour_read_sub: 'The text appears on screen',
+    th_title: 'Head to the start of the route', th_go: '🧭 Directions',
+    th_close: "I'm here", th_arrived: '✓ You reached the start. Enjoy the walk!',
+    gc_close: 'Continue', gc_listen: '🔊 Play again',
     ortho_h: '🛰️ Before / after (orthophoto)', ortho_p: 'Photogrammetric orthophoto of the reserve (~4.4 cm/pixel).',
     carbon_h: '🌳 Carbon captured',
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
@@ -855,10 +869,18 @@ function applyWaypointFilter() {
   if (!map || !map.getLayer('waypoints-pt')) return;
   const hidden = [...state.hiddenTypes];
   const hiddenClause = hidden.length ? [['!', ['in', ['get', 'tipo'], ['literal', hidden]]]] : [];
-  // TODOS los puntos siguen visibles (los tipos ocultos por el usuario, no). El
-  // recorrido activo NO los oculta: sólo atenúa los NO asociados.
-  map.setFilter('waypoints-pt', ['all', ['!=', ['get', 'tipo'], 'arbol'], ...hiddenClause]);
-  if (map.getLayer('trees-pt')) map.setFilter('trees-pt', ['all', ['==', ['get', 'tipo'], 'arbol'], ...hiddenClause]);
+  // Fuera del recorrido guiado, TODOS los puntos siguen visibles (salvo los tipos
+  // que el usuario ocultó): un recorrido activo sólo atenúa los no asociados.
+  // DENTRO del recorrido guiado se ocultan de verdad — caminando, 263 puntos en
+  // pantalla son ruido; los únicos que importan son los del recorrido.
+  const focusClause = state.guiding ? [['in', state.guiding, ['get', 'routes']]] : [];
+  map.setFilter('waypoints-pt', ['all', ['!=', ['get', 'tipo'], 'arbol'], ...hiddenClause, ...focusClause]);
+  if (map.getLayer('trees-pt')) {
+    // Los árboles no pertenecen a un recorrido: en modo guiado se dejan sólo los
+    // que están junto al camino (computeNearbyTrees), que sí vas a ver al pasar.
+    const treeFocus = state.guiding ? [['in', ['get', 'id'], ['literal', state.nearbyTrees || []]]] : [];
+    map.setFilter('trees-pt', ['all', ['==', ['get', 'tipo'], 'arbol'], ...hiddenClause, ...treeFocus]);
+  }
   // Opacidad: con un recorrido activo, los puntos asociados quedan sólidos y el
   // resto tenue; de los árboles, los cercanos al camino resaltan sobre los lejanos.
   const wpOpacity = state.activeRoute
@@ -975,7 +997,13 @@ function renderRouteInfo(route, built) {
   // La × solo cierra la caja. Durante la guía queda el chip flotante para
   // reabrirla o terminar — cerrar la caja ya no termina el recorrido.
   $('#ri-close').onclick = () => info.classList.add('hidden');
-  $('#ri-start').onclick = () => (state.guiding === id ? stopGuiding() : startGuiding(id));
+  // La primera vez se pregunta escuchar/leer; después se recuerda la elección y
+  // el botón arranca directo (una pregunta repetida es fricción, no una opción).
+  $('#ri-start').onclick = () => {
+    if (state.guiding === id) return stopGuiding();
+    if (localStorage.getItem('cantares_tour_mode')) startGuiding(id);
+    else askTourMode(id);
+  };
   $$('#route-info .ri-points li').forEach((li) => li.onclick = () => {
     const w = wpById(li.dataset.wp);
     if (!w) return;
@@ -1151,6 +1179,112 @@ function closeWaypoint() {
   state._riWasOpen = false;
 }
 
+// ---------- modo enfocado: llegar al inicio y avanzar punto a punto ----------
+// Tres superficies y nada más: el mapa con el camino, una tarjeta que dice qué
+// hacer ahora, y la voz (o el texto, según elija el visitante).
+
+// Rumbo aproximado en palabras. Una flecha exige mirar la pantalla orientada;
+// «hacia el norte» se entiende de reojo.
+function bearingWord(from, to) {
+  const dLng = (to[0] - from[0]) * Math.cos((from[1] + to[1]) * Math.PI / 360);
+  const dLat = to[1] - from[1];
+  const deg = (Math.atan2(dLng, dLat) * 180 / Math.PI + 360) % 360;
+  const es = ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'];
+  const en = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+  const i = Math.round(deg / 45) % 8;
+  return LANG === 'en' ? en[i] : es[i];
+}
+
+const TRAILHEAD_M = 30;   // dentro de esto se considera que ya llegó al inicio
+
+// Tarjeta «ve al inicio»: se muestra mientras el visitante está lejos del primer
+// punto del recorrido. Antes no había NADA que dijera por dónde empezar — el
+// recorrido arrancaba y el mapa se quedaba mirando.
+function renderTrailhead() {
+  if (!state.guiding) return hideTrailhead();
+  const built = buildRoutePath(state.guiding);
+  const start = built && built.path && built.path[0];
+  if (!start) return hideTrailhead();
+  if (!state.userPos) return;              // sin GPS todavía: no se puede decir nada útil
+  const d = haversine(state.userPos, start);
+  if (d <= TRAILHEAD_M) {
+    if (!state.atTrailhead) { state.atTrailhead = true; toast(t('th_arrived')); }
+    return hideTrailhead();
+  }
+  let el = document.getElementById('trailhead-card');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'trailhead-card'; el.className = 'guide-sheet';
+    (document.getElementById('view-recorridos') || document.body).appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="gs-head"><b>${t('th_title')}</b>
+      <button class="gs-x" id="th-x" aria-label="${escapeHtml(t('th_close'))}">×</button></div>
+    <p class="gs-body">${fmtDist(d)} · ${escapeHtml(bearingWord(state.userPos, start))}</p>
+    <button class="gs-cta" id="th-go">${t('th_go')}</button>`;
+  document.getElementById('th-go').onclick = () =>
+    navigateTo({ geometry: { coordinates: start },
+                 properties: { id: '__inicio__', title: t('th_title') } });
+  document.getElementById('th-x').onclick = () => { state.atTrailhead = true; hideTrailhead(); };
+}
+function hideTrailhead() { const el = document.getElementById('trailhead-card'); if (el) el.remove(); }
+
+// Tarjeta de llegada a un punto. Sustituye al toast + mini-popup + voz sueltos:
+// una idea por tarjeta, y el visitante decide si quiere más.
+function showGuideCard(wp) {
+  const p = wp.properties;
+  const sc = routeScript(state.guiding, p.id) || routeScript(state.activeRoute, p.id);
+  const photo = realPhoto(wp);
+  let el = document.getElementById('guide-card');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'guide-card'; el.className = 'guide-sheet gs-arrive';
+    (document.getElementById('view-recorridos') || document.body).appendChild(el);
+  }
+  // En modo LEER se muestra el guión completo; en ESCUCHAR, la voz lo lleva y la
+  // tarjeta se queda corta (mirar el teléfono mientras caminas es justo lo que
+  // se quiere evitar). En ambos casos el texto está disponible a un toque.
+  const reading = state.tourMode === 'read';
+  el.innerHTML = `
+    <div class="gs-head"><b>📍 ${escapeHtml(L(p, 'title') || p.title || '')}</b>
+      <button class="gs-x" id="gc-x" aria-label="${escapeHtml(t('gc_close'))}">×</button></div>
+    ${photo ? `<div class="gs-photo" style="background-image:url('${escapeHtml(photo)}')"></div>` : ''}
+    ${sc ? `<p class="gs-body ${reading ? '' : 'gs-clamp'}">${escapeHtml(sc)}</p>` : ''}
+    <div class="gs-acts">
+      ${sc && !reading ? `<button class="gs-ghost" id="gc-say">${t('gc_listen')}</button>` : ''}
+      <button class="gs-cta" id="gc-more">${t('more_info')}</button>
+      <button class="gs-ghost" id="gc-ok">${t('gc_close')}</button>
+    </div>`;
+  const close = () => hideGuideCard();
+  document.getElementById('gc-x').onclick = close;
+  document.getElementById('gc-ok').onclick = close;
+  document.getElementById('gc-more').onclick = () => { close(); showWaypoint(wp); };
+  const say = document.getElementById('gc-say');
+  if (say) say.onclick = () => speakScript(sc);
+  if (sc && !reading) speakScript(sc);
+}
+function hideGuideCard() { const el = document.getElementById('guide-card'); if (el) el.remove(); }
+
+// Elegir entre escuchar y leer, una vez, al arrancar el recorrido. Se recuerda,
+// así que a partir del segundo recorrido el botón arranca directo.
+function askTourMode(routeId) {
+  const ov = document.createElement('div');
+  ov.className = 'fm-assign'; ov.id = 'tour-mode';
+  document.body.appendChild(ov);
+  const close = () => { popBack('tourmode'); ov.remove(); };
+  ov.innerHTML = `<div class="fm-assign-box tour-box">
+      <h3>${t('tour_ask')}</h3>
+      <button class="tour-opt" data-m="listen"><b>${t('tour_listen')}</b><span>${t('tour_listen_sub')}</span></button>
+      <button class="tour-opt" data-m="read"><b>${t('tour_read')}</b><span>${t('tour_read_sub')}</span></button>
+    </div>`;
+  pushBack('tourmode', () => ov.remove());
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelectorAll('.tour-opt').forEach((b) => b.onclick = () => {
+    close();
+    startGuiding(routeId, b.dataset.m);
+  });
+}
+
 // ---------- geolocation ----------
 function setGps(status, label) {
   const chip = $('#gps-chip'); if (!chip) return;   // header chip removed; button color is the cue
@@ -1249,6 +1383,7 @@ function onPosition(pos) {
     else if (state.following) state.map.easeTo({ center: state.userPos, duration: 600 });
   }
   checkProximity();
+  if (state.guiding && !state.atTrailhead) renderTrailhead();
 }
 // Radio del halo de precisión = accuracy (m) en píxeles al zoom actual.
 // Se proyecta un punto `accuracy` metros al norte del usuario y se mide la
@@ -1273,8 +1408,15 @@ function onGeoError(err) {
   if (err.code === 1) { stopTracking(); toast(t('gps_hint_denied')); } else toast(msg);
 }
 // ----- guided mode: follow the visitor and surface points as they approach -----
-function startGuiding(id) {
+function startGuiding(id, mode) {
+  if (mode) { state.tourMode = mode; localStorage.setItem('cantares_tour_mode', mode); }
   state.guiding = id;
+  state.atTrailhead = false;
+  // Modo enfocado: fuera leyenda, capas de satélite y buscador. Es la queja de
+  // fondo — demasiadas cosas a la vez. Caminando sólo hacen falta el camino, los
+  // puntos del recorrido y qué hacer ahora.
+  document.body.classList.add('guiding');
+  applyWaypointFilter();
   primeSpeech();   // gesto del usuario: habilita el TTS para leer los guiones al llegar
   const built = buildRoutePath(id);
   if (built && state.map) state.map.easeTo({ center: built.path[0], zoom: 17.5, duration: 800 });
@@ -1291,10 +1433,19 @@ function startGuiding(id) {
   closeWaypoint(); removePopup();
   $('#route-info').classList.add('hidden');
   guideChip(true);
+  // Atrás sale del recorrido antes que de la app: en medio del monte, salirse
+  // sin querer y perder los avisos de los puntos es el peor final posible.
+  pushBack('guiding', () => stopGuiding());
+  renderTrailhead();
 }
 function stopGuiding() {
   const wasId = state.guiding;
+  popBack('guiding');
   state.guiding = null;
+  state.atTrailhead = false;
+  document.body.classList.remove('guiding');   // vuelve la leyenda, el satélite y el buscador
+  hideTrailhead(); hideGuideCard();
+  applyWaypointFilter();
   stopSpeech();   // corta cualquier guión en curso al terminar el recorrido
   releaseAwake();
   guideChip(false);
@@ -1365,11 +1516,9 @@ function checkProximity() {
     const d = haversine(state.userPos, wp.geometry.coordinates);
     if (d <= CONFIG.proximityMeters && !state.lastTriggered[id]) {
       state.lastTriggered[id] = true;
-      const arriveName = L(wp.properties, 'title') || wp.properties.title || '';
-      if (arriveName) toast('📍 ' + arriveName);
-      miniPopup(wp);   // arriving shows the small popup; visitor taps "Más info" to expand
-      const sc = routeScript(state.guiding, id);   // guión de ESTE recorrido en este punto
-      if (sc) speakScript(sc);
+      // Una sola tarjeta, no un toast + un popup + una voz a la vez: cada
+      // llegada dice una cosa. El detalle completo sigue a un toque.
+      showGuideCard(wp);
     } else if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) state.lastTriggered[id] = false;
   });
 }
