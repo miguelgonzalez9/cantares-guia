@@ -1,6 +1,7 @@
 // Prueba de la lógica de decisión de la Edge Function `identify`, sin red, sin
 // clave y sin Deno: se copian las dos funciones puras y se ejercitan los casos
-// que importan. Correr con:  node supabase/functions/identify/identify.test.mjs
+// que importan. Correr con:
+//   node inmersive_app/supabase/functions/identify/identify.test.mjs
 //
 // (No se importa index.ts a propósito: ese archivo llama a Deno.serve al cargarse.
 //  Si cambias `decide` allí, cambia también la copia de aquí — el selftest avisa

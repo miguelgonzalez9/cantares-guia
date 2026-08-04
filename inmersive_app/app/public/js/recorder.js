@@ -127,6 +127,9 @@ function renderRecording() {
 
 // ---------- grabación (API pública) ----------
 export function isRecording() { return !!rec; }
+// Id de la caminata en curso, para colgar de ella las fotos que se tomen dentro
+// de la app (media.walk_id). null si no se está grabando.
+export function currentWalkId() { return rec ? rec.id : null; }
 export function startWalk(routeId = null, routeName = null) {
   if (rec) return;
   if (!navigator.geolocation) { CTX.toast(RT('none')); return; }
