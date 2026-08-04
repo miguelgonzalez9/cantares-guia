@@ -1228,3 +1228,26 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
   font-size: 14px; font-weight: 700; font-family: inherit; border: 1px solid var(--line); background: var(--mist); color: var(--deep); }
 .ce-foot .ce-save { background: var(--green); color: #fff; border-color: transparent; }
 .ce-foot button:disabled { opacity: 0.6; }
+
+/* ---------- Fotos aportadas por el visitante (panel de cuenta) ---------- */
+.up-add { margin: 4px 0 12px; }
+.up-grid figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 7px 8px; font-size: 12px; line-height: 1.3; white-space: normal; }
+/* El estado es lo primero que se lee: «sin clasificar» explica por qué la foto
+   aún no aparece en el inventario, y evita que parezca que se perdió. */
+.up-state { font-size: 10.5px; letter-spacing: .3px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; background: var(--mist); color: var(--deep); font-weight: 700; }
+.up-state.is-unclass { background: var(--gold); color: var(--navy); }
+.up-acts { display: flex; gap: 5px; width: 100%; margin-top: 4px; }
+.up-acts button { flex: 1; border: 0; border-radius: 7px; padding: 5px 6px; font-size: 11.5px;
+  cursor: pointer; background: var(--mist); color: var(--deep); font-weight: 600; }
+.up-acts .up-del { background: #fbe6e6; color: var(--red); }
+
+/* Chips de procedencia + sugerencia del clasificador en la bandeja del admin. */
+.fm-origins { flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.fm-origins button { font-size: 11.5px; padding: 4px 9px; }
+/* La sugerencia se distingue del dato confirmado a propósito: es una conjetura
+   del modelo, no una clasificación. Confundirlas publica suposiciones. */
+.fm-hint { display: inline-block; font-size: 11px; color: var(--deep);
+  background: var(--mist); border-radius: 999px; padding: 1px 8px; margin-top: 3px; }
+.fm-origin { display: inline-block; font-size: 10.5px; color: var(--muted); margin-left: 6px; }

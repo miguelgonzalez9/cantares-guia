@@ -9,6 +9,7 @@
 // foto (comprimida), jugador y desglose de puntos.
 
 import { saveRow } from './sync.js';
+import { currentWalkId } from './recorder.js';
 import { identifyPlant, idAvailable, verdictText } from './idengine.js';
 
 // ---------- configuración del juego ----------
@@ -549,6 +550,29 @@ function renderWizardConfirm(body) {
         await saveRow('sightings', { client_id: obs.id, species_id: obs.speciesId, common: obs.common, sci: obs.sci, group: obs.group,
           lat: obs.lat, lng: obs.lon, taken_at: new Date(obs.time).toISOString(), photo: null, points: obs.points }, obs.photo || null);
       } catch (e) { console.warn('[cloud] sighting', e && e.message); }
+      // …y ADEMÁS una fila de `media`. Sin esto la foto vive sólo en
+      // `sightings.photo`, una columna sin relación con el inventario: el
+      // trabajo del visitante nunca llegaba a la galería de la especie. Va por
+      // la misma cola offline, así que en el bosque espera y sube sola.
+      try {
+        if (!obs.photo) return;   // `media.url` es NOT NULL y la rellena el blob
+        await saveRow('media', {
+          id: 'gm-' + obs.id, kind: 'photo',
+          // Sólo se da por clasificada si el visitante eligió una especie DEL
+          // inventario. Un «hallazgo» (nombre escrito a mano) entra sin
+          // clasificar: el admin decide si existe. Antes sin clasificar que mal.
+          subject_type: obs.speciesId ? 'species' : null,
+          subject_id: obs.speciesId || null,
+          status: obs.speciesId ? 'classified' : 'unclassified',
+          origin: 'game-capture', walk_id: currentWalkId(),
+          lat: obs.lat, lng: obs.lon, taken_at: new Date(obs.time).toISOString(),
+          // Lo que se sugirió, separado de lo que se confirmó: `subject_id` es el
+          // dato, `species_hint` la conjetura. Mezclarlos publica suposiciones.
+          species_hint: obs.sci || obs.common || null,
+          caption: obs.common || obs.sci || null,
+          is_primary: false, sort: 100, reviewed: false,
+        }, { url: obs.photo });   // la clave del mapa = la COLUMNA que recibe la URL
+      } catch (e) { console.warn('[cloud] media', e && e.message); }
     })();
     rebuildCapMap(); renderGamePanel(); CTX.rerenderSpecies(); refreshObsMapLayer();
     const after = earnedBadges(player.id).filter((a) => !before.has(a.id));

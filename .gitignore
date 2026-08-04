@@ -89,3 +89,7 @@ inmersive_app/data_prep/_archive_work/*.log
 #     nada de eso se versiona. El informe legible sí, en docs/EVAL_CLASIFICADOR.md.
 inmersive_app/data_prep/_archive_work/**
 inmersive_app/data_prep/_enrich/**
+
+# Estado local de la CLI de Supabase (se regenera al hacer `link`; cambia por
+# máquina). No lleva secretos, pero versionarlo sólo genera conflictos.
+inmersive_app/supabase/.temp/

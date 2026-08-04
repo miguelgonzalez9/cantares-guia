@@ -7,7 +7,8 @@ El clasificador local se abstiene en el 43% del archivo. Buena parte de esa cola
 son plantas que CLIP reconoció como flora pero por debajo del umbral, o que
 BioCLIP no pudo resolver a especie. Pl@ntNet está entrenado justo para eso.
 
-Mismo criterio que la Edge Function `identify` (supabase/functions/identify) y
+Mismo criterio que la Edge Function `identify` (inmersive_app/supabase/functions/
+identify) y
 que id_local: **antes sin clasificar que mal clasificado**.
 
   1. Candidatos: entradas `_sin_clasificar` cuyo CLIP top-1 sea flora
@@ -55,7 +56,7 @@ STATE = WORK / "community_id_state.json"     # reanudable: claves ya preguntadas
 
 PLANTNET = "https://my-api.plantnet.org/v2/identify/all"
 FLORA = {"planta", "flor", "arbol"}
-SCORE_MIN = 0.40        # mismos valores que supabase/functions/identify/index.ts
+SCORE_MIN = 0.40        # mismos valores que ../supabase/functions/identify/index.ts
 MARGIN_MIN = 0.10
 SOURCE_TAG = "plantnet"  # marca de procedencia → rollback exacto
 IMG_EXT = {".jpg", ".jpeg", ".png", ".webp"}

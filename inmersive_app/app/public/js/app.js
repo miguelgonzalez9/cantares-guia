@@ -6,7 +6,7 @@ import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout } from './auth-ui.js';
 import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor } from './admin.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
-import { initSync, pendingOps, saveRow } from './sync.js';
+import { initSync, pendingOps, saveRow, deleteRow, compressImage } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
@@ -135,6 +135,18 @@ function normMedia(r) {
     subject_type: r.subject_type || null, subject_id: r.subject_id || null,
     source: r.source || (isCloud ? 'cloud' : 'curated'),
     status: r.status || ((r.subject_type && r.subject_id) ? 'classified' : (isCloud ? 'unclassified' : 'classified')),
+    // Procedencia y ubicación (migración 23). Se normalizan aquí o se pierden en
+    // el merge: la bandeja del admin filtra por `origin`, la sincronización local
+    // deduplica por `content_hash` y `species_hint` es la conjetura del modelo,
+    // que NO debe confundirse con `subject_id` (lo que un humano confirmó).
+    origin: r.origin || (isCloud ? 'admin-upload' : 'curated'),
+    content_hash: r.content_hash || null,
+    lat: r.lat != null ? r.lat : null, lng: r.lng != null ? r.lng : null,
+    taken_at: r.taken_at || null, walk_id: r.walk_id || null,
+    species_hint: r.species_hint || null,
+    hint_confidence: r.hint_confidence != null ? r.hint_confidence : null,
+    reviewed: r.reviewed === true,
+    contributor: r.contributor || null,
   };
 }
 function indexMedia(doc, cloud) {
@@ -207,6 +219,15 @@ const I18N = {
     dash_species: 'especies', dash_points: 'puntos', dash_walks_h: 'Mis recorridos',
     dash_photos_h: 'Mis fotos', dash_no_walks: 'Aún no has grabado recorridos.',
     dash_no_photos: 'Aún no has tomado fotos de especies.',
+    up_h: 'Fotos que has aportado', up_add: '＋ Subir una foto',
+    up_none: 'Todavía no has aportado ninguna foto al inventario.',
+    up_hint: 'Tus fotos quedan en tu cuenta. Al clasificarlas entran al inventario de la reserva cuando un administrador las revisa.',
+    up_unclass: 'sin clasificar', up_class: 'en el inventario',
+    up_pick: 'Clasificar', up_del: 'Borrar', up_del_sure: '¿Borrar esta foto?',
+    up_pick_h: '¿Qué especie es?', up_search: 'Buscar especie…',
+    up_saved: '📸 Foto guardada', up_queued: '💾 Guardada — se subirá cuando haya señal',
+    up_need_account: 'Crea una cuenta para aportar fotos al inventario.',
+    up_wait_upload: 'Esa foto todavía se está subiendo. Espera a que termine.',
     gps: 'GPS', gps_searching: 'Buscando…', gps_denied: 'Permiso denegado', gps_unavailable: 'Sin señal',
     gps_timeout: 'Sin respuesta', gps_unsupported: 'GPS no disponible', gps_insecure: 'El GPS requiere HTTPS',
     gps_hint_denied: 'Activa el permiso de ubicación para este sitio en el navegador.',
@@ -291,6 +312,15 @@ const I18N = {
     dash_species: 'species', dash_points: 'points', dash_walks_h: 'My walks',
     dash_photos_h: 'My photos', dash_no_walks: "You haven't recorded any walks yet.",
     dash_no_photos: "You haven't taken any species photos yet.",
+    up_h: 'Photos you contributed', up_add: '＋ Upload a photo',
+    up_none: "You haven't contributed any photos to the inventory yet.",
+    up_hint: 'Your photos stay in your account. Once classified they join the reserve inventory when an admin reviews them.',
+    up_unclass: 'unclassified', up_class: 'in the inventory',
+    up_pick: 'Classify', up_del: 'Delete', up_del_sure: 'Delete this photo?',
+    up_pick_h: 'Which species is it?', up_search: 'Search species…',
+    up_saved: '📸 Photo saved', up_queued: '💾 Saved — will upload when you have signal',
+    up_need_account: 'Create an account to contribute photos to the inventory.',
+    up_wait_upload: 'That photo is still uploading. Wait for it to finish.',
     gps: 'GPS', gps_searching: 'Locating…', gps_denied: 'Permission denied', gps_unavailable: 'No signal',
     gps_timeout: 'Timed out', gps_unsupported: 'GPS unavailable', gps_insecure: 'GPS needs HTTPS',
     gps_hint_denied: 'Enable location permission for this site in your browser.',
@@ -1828,10 +1858,144 @@ async function renderDashboard() {
     <h2 class="dash-h2">${t('dash_walks_h')}</h2>
     ${walks.length ? `<div class="dash-walks">${walks.map((w) => walkCardHTML(w)).join('')}</div>` : `<p class="muted">${t('dash_no_walks')}</p>`}
     <h2 class="dash-h2">${t('dash_photos_h')}</h2>
-    ${photos.length ? `<div class="dash-photos">${photos.map((ph) => `<figure><img src="${ph.url}" alt="" loading="lazy"><figcaption>${escapeHtml(ph.common)}</figcaption></figure>`).join('')}</div>` : `<p class="muted">${t('dash_no_photos')}</p>`}`;
+    ${photos.length ? `<div class="dash-photos">${photos.map((ph) => `<figure><img src="${ph.url}" alt="" loading="lazy"><figcaption>${escapeHtml(ph.common)}</figcaption></figure>`).join('')}</div>` : `<p class="muted">${t('dash_no_photos')}</p>`}
+    <h2 class="dash-h2">${t('up_h')}</h2>
+    ${myMediaHTML()}`;
   const lo = $('#dash-logout'); if (lo) lo.onclick = doLogout;
   const cta = $('#dash-cta'); if (cta) cta.onclick = () => { localStorage.removeItem('cantares_guest'); location.reload(); };
   $$('#dashboard .rec-dl').forEach((b) => b.onclick = () => { const w = walks.find((x) => x.id === b.dataset.id); if (w) downloadWalk(w); });
+  wireMyMedia();
+}
+
+// ---------- fotos aportadas por el visitante ----------
+// Un visitante con cuenta puede subir fotos y clasificarlas. Entran como
+// `unclassified` con `origin: 'visitor-upload'` y sólo llegan al inventario
+// público cuando un admin las revisa. La política RLS (migración 23) le deja
+// editar y borrar LO SUYO mientras siga sin clasificar, y no después: una vez
+// publicada, la foto ya no es suya para reapuntarla.
+// Id local para una fila nueva (mismo formato que admin.js): la cola offline es
+// idempotente por id, así que tiene que generarse en el teléfono, no en el servidor.
+const newId = (pfx) => `${pfx}_${Date.now().toString(36)}${Math.floor(Math.random() * 1e3)}`;
+function myMedia() {
+  const u = Cloud.currentUser();
+  if (!u) return [];
+  const rank = (m) => (m.status === 'unclassified' ? 0 : 1);   // lo pendiente, primero
+  return (state.media.all || []).filter((m) => m.contributor === u.id)
+    .sort((a, b) => rank(a) - rank(b));
+}
+function myMediaHTML() {
+  if (!Cloud.isLoggedIn()) return '<p class="muted">' + t('up_need_account') + '</p>';
+  const mine = myMedia();
+  const cards = mine.map((m) => {
+    const sp = m.subject_id && state.species.find((x) => x.id === m.subject_id);
+    const unclass = m.status === 'unclassified';
+    return `<figure data-id="${escapeHtml(m.id)}">
+        <img src="${escapeHtml(m.thumb || m.full)}" alt="" loading="lazy">
+        <figcaption>
+          <span class="up-state ${unclass ? 'is-unclass' : ''}">${unclass ? t('up_unclass') : t('up_class')}</span>
+          ${sp ? escapeHtml(L(sp, 'common_name') || sp.scientific_name || '') : ''}
+          ${unclass ? `<span class="up-acts"><button class="up-pick">${t('up_pick')}</button><button class="up-del">${t('up_del')}</button></span>` : ''}
+        </figcaption></figure>`;
+  }).join('');
+  return `<p class="tiny muted">${t('up_hint')}</p>
+    <button class="dash-cta up-add" id="up-add">${t('up_add')}</button>
+    <input id="up-file" type="file" accept="image/*" capture="environment" hidden />
+    ${mine.length ? `<div class="dash-photos up-grid">${cards}</div>` : `<p class="muted">${t('up_none')}</p>`}`;
+}
+function wireMyMedia() {
+  const add = $('#up-add'), file = $('#up-file');
+  if (add && file) {
+    add.onclick = () => file.click();
+    file.onchange = async (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      const blob = await compressImage(f);
+      // Entra SIN clasificar a propósito: el visitante elige la especie después
+      // y, si no lo hace, decide un admin. Nunca se adivina por él.
+      const row = { id: newId('media'), kind: 'photo', origin: 'visitor-upload',
+        status: 'unclassified', subject_type: null, subject_id: null,
+        is_primary: false, sort: 100, reviewed: false,
+        taken_at: new Date().toISOString(),
+        lat: state.userPos ? state.userPos[1] : null,
+        lng: state.userPos ? state.userPos[0] : null };
+      try {
+        const r = await saveRow('media', row, { url: blob });   // la clave = la COLUMNA destino
+        applyLocalRow('media', r.row);
+        toast(r.queued ? t('up_queued') : t('up_saved'));
+      } catch (err) { toast('⚠️ ' + ((err && err.message) || 'error')); }
+      renderDashboard();
+    };
+  }
+  $$('#dashboard .up-pick').forEach((b) => b.onclick = () => pickSpeciesFor(b.closest('figure').dataset.id));
+  $$('#dashboard .up-del').forEach((b) => b.onclick = async () => {
+    if (!confirm(t('up_del_sure'))) return;
+    const id = b.closest('figure').dataset.id;
+    try { await deleteRow('media', id); removeLocalRow('media', id); }
+    catch (e) { toast('⚠️ ' + e.message); }
+    renderDashboard();
+  });
+}
+// Selector de especie para una foto propia. Con buscador porque el inventario
+// tiene ~740 entradas: una lista sin filtro no se puede usar en un teléfono.
+function pickSpeciesFor(mediaId) {
+  const m = state.media.byId[mediaId];
+  if (!m) return;
+  const ov = document.createElement('div');
+  ov.id = 'up-picker'; ov.className = 'fm-assign';
+  document.body.appendChild(ov);
+  const close = () => { popBack('picker'); ov.remove(); };
+  const render = (q) => {
+    const query = (q || '').trim().toLowerCase();
+    const list = state.species.filter((sp) => !query
+      || (L(sp, 'common_name') || '').toLowerCase().includes(query)
+      || (sp.scientific_name || '').toLowerCase().includes(query)).slice(0, 60);
+    const box = ov.querySelector('#up-list');
+    box.innerHTML = list.map((sp) =>
+      `<button class="fm-assign-item" data-sp="${escapeHtml(sp.id)}"><b>${escapeHtml(L(sp, 'common_name') || sp.scientific_name || sp.id)}</b> <span>${escapeHtml(sp.scientific_name || '')}</span></button>`).join('');
+    box.querySelectorAll('.fm-assign-item').forEach((b) => b.onclick = async () => {
+      close();
+      try {
+        // La procedencia se CONSERVA: es un hecho histórico de la foto, no algo
+        // que se recalcule al clasificar. Sólo cambian el sujeto y el estado.
+        // Sigue `unclassified`: quien publica al inventario es el admin.
+        const r = await saveRow('media', Object.assign(mediaRowFrom(m), {
+          subject_type: 'species', subject_id: b.dataset.sp, status: 'unclassified' }));
+        applyLocalRow('media', r.row);
+      } catch (e) { toast('⚠️ ' + e.message); }
+      renderDashboard();
+    });
+  };
+  ov.innerHTML = `<div class="fm-assign-box">
+      <h3>${t('up_pick_h')}</h3>
+      <input id="up-q" class="gm-input" placeholder="${t('up_search')}" autocomplete="off" />
+      <div class="fm-assign-list" id="up-list"></div>
+      <button class="admin-cancel" id="up-x">✕</button>
+    </div>`;
+  pushBack('picker', () => ov.remove());
+  ov.querySelector('#up-x').onclick = close;
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelector('#up-q').oninput = (e) => render(e.target.value);
+  render('');
+}
+// Registro normalizado -> fila de `media`, conservando la procedencia. Espejo de
+// mediaRow() en admin.js; se duplica aquí para no cargar el módulo de admin
+// desde el panel de un visitante.
+function mediaRowFrom(m) {
+  // Ver assertUploadable() en admin.js: un `blob:` es una referencia de sesión,
+  // no una URL. Persistirla deja la fila apuntando a nada.
+  if (typeof m.full === 'string' && m.full.startsWith('blob:')) {
+    throw new Error(t('up_wait_upload'));
+  }
+  return { id: m.id, kind: m.kind || 'photo', url: m.full,
+    thumb: (m.thumb && m.thumb !== m.full) ? m.thumb : null, poster: m.poster || null,
+    subject_type: m.subject_type, subject_id: m.subject_id,
+    is_primary: !!m.is_primary, sort: m.sort || 0, focal_x: m.focal_x, focal_y: m.focal_y,
+    caption: m.caption || null, caption_en: m.caption_en || null, credit: m.credit || null,
+    origin: m.origin || 'visitor-upload', content_hash: m.content_hash || null,
+    lat: m.lat, lng: m.lng, taken_at: m.taken_at, walk_id: m.walk_id,
+    species_hint: m.species_hint || null, hint_confidence: m.hint_confidence,
+    reviewed: !!m.reviewed, status: m.status };
 }
 
 // ---------- botón «atrás» del teléfono ----------
