@@ -1902,14 +1902,32 @@ function ensurePtHl() {
           'circle-stroke-color': '#fab814', 'circle-stroke-width': 3, 'circle-stroke-opacity': 0.95 } });
     } catch (e) { return false; }
   }
+  // Otras capas admin se añaden después (traza del recorrido, manijas): sin esto
+  // el halo puede quedar DEBAJO y no verse. moveLayer es barato e idempotente.
+  try { map.moveLayer('admin-pt-hl-c'); } catch (e) { /* aún no está */ }
   return true;
 }
+// Últimos ids pedidos, para poder redibujar cuando el estilo por fin esté listo.
+let _ptHlWant = [];
 function setPtHl(ids) {
-  if (!ensurePtHl()) return;
-  const feats = (ids || []).map((pid) => { const w = CTX.state.waypoints.find((x) => x.properties.id === pid); return w ? { type: 'Feature', properties: {}, geometry: w.geometry } : null; }).filter(Boolean);
+  _ptHlWant = (ids || []).slice();
+  // `isStyleLoaded()` devuelve false mientras haya cualquier cambio de estilo
+  // pendiente, y applyWaypointFilter toca setPaintProperty a cada rato. Antes,
+  // caer en esa ventana significaba NO PINTAR NADA y no enterarse: el usuario
+  // tocaba un punto y no pasaba nada. Ahora se reintenta cuando el mapa está
+  // quieto, así que el amarillo aparece igual, sólo un instante después.
+  if (!ensurePtHl()) {
+    if (CTX.map && CTX.map.once) CTX.map.once('idle', () => setPtHl(_ptHlWant));
+    return;
+  }
+  const feats = _ptHlWant.map((pid) => { const w = CTX.state.waypoints.find((x) => x.properties.id === pid); return w ? { type: 'Feature', properties: {}, geometry: w.geometry } : null; }).filter(Boolean);
   CTX.map.getSource('admin-pt-hl').setData({ type: 'FeatureCollection', features: feats });
 }
-function clearPtHl() { const s = styleReady() && CTX.map.getSource('admin-pt-hl'); if (s) s.setData({ type: 'FeatureCollection', features: [] }); }
+function clearPtHl() {
+  _ptHlWant = [];
+  const s = styleReady() && CTX.map.getSource('admin-pt-hl');
+  if (s) s.setData({ type: 'FeatureCollection', features: [] });
+}
 
 // ---------------- elegir senderos en el mapa (crear recorrido interactivo) ----------------
 let pick = null, _routeDraft = null;
@@ -2040,22 +2058,77 @@ function endMarquee(id, ids) {
 // -------- elegir puntos del recorrido TOCÁNDOLOS (se marcan en amarillo) --------
 // Toca un punto para añadirlo/quitarlo; queda resaltado en amarillo. ✓ Listo guarda.
 let ptSel = null;
+// Opacidad de los puntos NO seleccionados mientras se elige. No se ocultan: hay
+// que poder tocarlos para añadirlos. Sólo se apagan para que el amarillo cante.
+const PICK_DIM = 0.35;
+
+// Atenúa todos los puntos y deja el mapa con lo justo: los puntos, el halo
+// amarillo y la traza del recorrido que se está editando.
+function pickDim(on) {
+  const map = CTX.map;
+  if (!styleReady()) return;
+  for (const l of ['waypoints-pt', 'trees-pt']) {
+    if (!map.getLayer(l)) continue;
+    try {
+      if (on) {
+        map.setPaintProperty(l, 'circle-opacity', PICK_DIM);
+        map.setPaintProperty(l, 'circle-stroke-opacity', PICK_DIM);
+      } else {
+        // Al salir NO se restauran valores a mano: applyWaypointFilter es quien
+        // manda sobre la opacidad (depende del recorrido activo). Reponer un
+        // número fijo aquí dejaría el mapa mintiendo hasta el siguiente render.
+        CTX.applyWaypointFilter && CTX.applyWaypointFilter();
+      }
+    } catch (e) { /* estilo recargando */ }
+  }
+}
+
 function startPointPick(id) {
   const map = CTX.map;
   closePanel();
+  // Es un MODO: mientras dure, el resto de la edición no está accesible. Antes
+  // se podía entrar a dibujar senderos o mover puntos con una selección a medias.
+  document.body.classList.add('picking-points');
+  hideEditBar();
   map.getCanvas().style.cursor = 'crosshair';
   const sel = new Set((_routeDraft && _routeDraft.memberPoints) || []);
   const layerList = () => ['waypoints-pt', 'trees-pt'].filter((l) => map.getLayer(l));
-  const redraw = () => { setPtHl([...sel]); const h = document.getElementById('admin-ptsel-hud'); const n = h && h.querySelector('.adh-n'); if (n) n.textContent = `${sel.size} punto(s)`; };
+  // La traza del recorrido que se está editando, para saber por dónde va.
+  if (_routeDraft && (_routeDraft.segments || []).length) {
+    highlightSegments(_routeDraft.segments, _routeDraft.color || '#fab814');
+  } else clearHighlight();
+  pickDim(true);
+
+  const say = (msg) => { const h = document.getElementById('admin-ptsel-hud'); const n = h && h.querySelector('.adh-n'); if (n) n.textContent = msg; };
+  const count = () => `${sel.size} punto(s)`;
+  const redraw = () => { setPtHl([...sel]); say(count()); };
   const click = (e) => {
     const f = map.queryRenderedFeatures(e.point, { layers: layerList() });
     if (!f.length) return;   // hay que tocar un punto (no vértices ni líneas)
     const pid = f[0].properties.id; if (pid == null) return;
-    if (sel.has(pid)) sel.delete(pid); else sel.add(pid);
-    redraw();
+    const added = !sel.has(pid);
+    if (added) sel.add(pid); else sel.delete(pid);
+    setPtHl([...sel]);
+    // En táctil no hay hover, así que el HUD hace de etiqueta: dice QUÉ punto se
+    // acaba de tocar, no sólo cuántos van. Vuelve al conteo solo.
+    say(`${added ? '✓' : '✕'} ${wpTitle(pid)} · ${count()}`);
+    clearTimeout(ptSel && ptSel.t);
+    if (ptSel) ptSel.t = setTimeout(() => say(count()), 2200);
   };
-  const hover = (e) => { const f = map.queryRenderedFeatures(e.point, { layers: layerList() }); map.getCanvas().style.cursor = f.length ? 'pointer' : 'crosshair'; };
-  ptSel = { click, hover, sel, id };
+  // Con ratón: posarse encima dice qué punto es, sin seleccionarlo. Es la razón
+  // por la que uno toca un punto a veces — para saber cuál es, no para elegirlo.
+  const canHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+  const hover = (e) => {
+    const f = map.queryRenderedFeatures(e.point, { layers: layerList() });
+    map.getCanvas().style.cursor = f.length ? 'pointer' : 'crosshair';
+    if (!canHover) return;
+    const pid = f.length ? f[0].properties.id : null;
+    if (pid === (ptSel && ptSel.hoverId)) return;         // sin repintar en cada píxel
+    if (ptSel) ptSel.hoverId = pid;
+    if (pid == null) { clearTimeout(ptSel && ptSel.t); say(count()); return; }
+    say(`${sel.has(pid) ? '✓ ' : ''}${wpTitle(pid)} · ${count()}`);
+  };
+  ptSel = { click, hover, sel, id, t: null, hoverId: null };
   map.on('click', click); map.on('mousemove', hover);
   showPtSelHud();
   redraw();
@@ -2070,10 +2143,13 @@ function showPtSelHud() {
 }
 function endPointPick(keep) {
   const map = CTX.map, st = ptSel; ptSel = null;
-  if (st) { map.off('click', st.click); map.off('mousemove', st.hover); }
+  if (st) { map.off('click', st.click); map.off('mousemove', st.hover); clearTimeout(st.t); }
   map.getCanvas().style.cursor = '';
+  document.body.classList.remove('picking-points');
+  pickDim(false);                 // devuelve la opacidad a quien manda sobre ella
   const h = document.getElementById('admin-ptsel-hud'); if (h) h.remove();
   clearPtHl();
+  clearHighlight();
   if (keep && st && _routeDraft) _routeDraft.memberPoints = [...st.sel];   // ✕ = descarta esta sesión
   openPanel(); editRecorrido(st ? st.id : null);
 }
@@ -2249,7 +2325,7 @@ function editRecorrido(id) {
           <button type="button" class="admin-pick" id="rt-mem-pick">🖐️ Tocar puntos en el mapa</button>
           <button type="button" class="admin-pick" id="rt-mem-clear">Limpiar</button>
         </div></div>
-      <div class="admin-note">Solo puntos del mapa (no vértices de senderos). Toca cada punto del recorrido: se marca en amarillo; tócalo de nuevo para quitarlo. Al terminar, ✓ Listo.</div>
+      <div class="admin-note">Solo puntos del mapa (no vértices de senderos). Al tocar «🖐️ Tocar puntos» el mapa se queda con lo justo: los puntos atenuados, los elegidos en amarillo y la traza de este recorrido. Toca un punto para añadirlo o quitarlo — arriba se ve cuál es. Al terminar, ✓ Listo (✕ descarta).</div>
 
       <div class="admin-group-h">🎙️ Guiones por punto (audioguía)</div>
       <div class="admin-note">Escribe el guión de cada punto <em>para este recorrido</em>. Al llegar al punto durante el recorrido, el teléfono lo lee en voz alta (como una audioguía de museo). El mismo punto puede tener otro guión en otro recorrido. Un punto sin guión no activa audio.</div>
