@@ -49,13 +49,17 @@ const RS = {
     dist: 'Distancia', time: 'Tiempo', photos: 'fotos', download: '⬇️ Descargar imagen',
     empty: 'Aún no has grabado recorridos. Dale a «Grabar recorrido» y camina.',
     del: 'Eliminar', del_q: '¿Eliminar este recorrido?', close: 'Cerrar', title: 'Recorrido en Cantares',
-    denied: 'Activa el permiso de ubicación para grabar.', none: 'No se pudo obtener la ubicación.' },
+    denied: 'Activa el permiso de ubicación para grabar.', none: 'No se pudo obtener la ubicación.',
+    keep_q: '¿Guardar este recorrido?', keep_yes: '💾 Guardar', keep_no: '🗑 Descartar',
+    keep_sub: 'Si lo descartas no queda nada guardado.', discarded: 'Recorrido descartado' },
   en: { start: '⏺ Record walk', stop: '⏹ Finish', history: '📖', hist_h: 'My walks',
     waiting: 'Waiting for GPS…', started: 'Recording your walk…', saved: 'Walk saved',
     dist: 'Distance', time: 'Time', photos: 'photos', download: '⬇️ Download image',
     empty: 'No walks recorded yet. Tap “Record walk” and go.',
     del: 'Delete', del_q: 'Delete this walk?', close: 'Close', title: 'Walk in Cantares',
-    denied: 'Enable the location permission to record.', none: "Couldn't get your location." },
+    denied: 'Enable the location permission to record.', none: "Couldn't get your location.",
+    keep_q: 'Save this walk?', keep_yes: '💾 Save', keep_no: '🗑 Discard',
+    keep_sub: 'Discard it and nothing is kept.', discarded: 'Walk discarded' },
 };
 const RT = (k) => { const l = document.documentElement.lang || 'es'; return (RS[l] && RS[l][k]) || RS.es[k] || k; };
 
@@ -158,6 +162,13 @@ function tick() {
   if (td) td.textContent = fmtDur(Date.now() - rec.startedAt);
   if (dd) dd.textContent = fmtDist(rec.dist);
 }
+// ¿La grabación tiene movimiento de verdad? Con el GPS quieto en un bolsillo se
+// cuelan puntos por deriva: dos lecturas y 4 m no son un recorrido. Por debajo de
+// esto no se pregunta nada — no había nada que guardar.
+const MIN_WALK_M = 25;
+function walkIsReal(walk) {
+  return (walk.points || []).length >= 2 && (walk.distanceM || 0) >= MIN_WALK_M;
+}
 export async function stopWalk() {
   if (!rec) return;
   releaseAwake();
@@ -168,15 +179,37 @@ export async function stopWalk() {
   rec = null;
   renderIdle();
   window.dispatchEvent(new Event('cantares:recstate'));
-  if (walk.points.length >= 2) {
-    await walkPut(walk); CTX.toast(RT('saved')); showSummary(walk);
-    // Con cuenta: subirla (o encolarla sin señal) para que siga al usuario.
-    if (isLoggedIn()) {
-      try { await saveRow('walks', walkToCloudRow(walk)); }
-      catch (e) { console.warn('[cloud] walk', e && e.message); }   // queda local igual
-    }
-  }
+  // Nada se guarda todavía: se pregunta. Antes toda parada quedaba en el historial
+  // (y en la nube), así que abrir la app y tocar «grabar» sin querer dejaba basura
+  // que después había que borrar a mano, una por una.
+  if (walkIsReal(walk)) askKeepWalk(walk);
   else CTX.toast(RT('none'));
+}
+// Guarda de verdad: local primero (es lo del usuario) y luego la nube, que puede
+// esperar en la cola sin señal.
+async function keepWalk(walk) {
+  await walkPut(walk);
+  CTX.toast(RT('saved'));
+  showSummary(walk);
+  if (isLoggedIn()) {
+    try { await saveRow('walks', walkToCloudRow(walk)); }
+    catch (e) { console.warn('[cloud] walk', e && e.message); }   // queda local igual
+  }
+}
+function askKeepWalk(walk) {
+  const el = overlay();
+  el.innerHTML = `<div class="rec-sheet">
+    <h2>${RT('keep_q')}</h2>
+    ${summaryCardHTML(walk, false)}
+    <p class="rec-empty">${RT('keep_sub')}</p>
+    <div class="rec-hactions">
+      <button class="rec-dl" id="rec-keep">${RT('keep_yes')}</button>
+      <button class="rec-del" id="rec-drop">${RT('keep_no')}</button>
+    </div>
+  </div>`;
+  el.classList.remove('hidden');
+  el.querySelector('#rec-keep').onclick = () => keepWalk(walk);
+  el.querySelector('#rec-drop').onclick = () => { closeOverlay(); CTX.toast(RT('discarded')); };
 }
 
 // ---------- imagen descargable (PNG) ----------
