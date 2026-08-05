@@ -59,26 +59,29 @@
   <main id="views">
     <!-- RECORRIDOS -->
     <section id="view-recorridos" class="view is-active">
+      <!-- El bosque en el tiempo: cortina vertical, línea fija en pantalla.
+           Los dos mapas de IMAGEN van DEBAJO de #map, que es transparente y lleva
+           zonas, senderos, puntos y GPS. Así lo dibujado es uno solo y cubre todo
+           el ancho: al mover la cortina cambia la foto de debajo y nada más.
+           #img-now se recorta a la derecha de la línea; #img-old asoma por la
+           izquierda. El apilado lo fija el z-index del CSS, no este orden. -->
+      <div id="img-old" class="img-map" aria-hidden="true"></div>
+      <div id="img-now" class="img-map" aria-hidden="true"></div>
       <div id="map"></div>
+      <div id="base-compare" class="base-compare">
+        <div id="bc-handle" class="bc-handle" role="slider" tabindex="0"
+          aria-label="Comparar el bosque de 2015 con el actual" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+          <span class="bc-line"></span>
+          <span class="bc-grip"><b id="bc-old">2015</b>⇔<b id="bc-new">2024</b></span>
+        </div>
+      </div>
+
       <div id="route-bar" class="route-bar"></div>
       <button id="locate-btn" class="locate-btn" title="GPS" aria-label="GPS">◎</button>
 
       <div id="legend" class="legend">
         <button id="legend-toggle" class="legend-toggle" aria-label="Leyenda"><span data-i18n="legend">Leyenda</span> <span class="chev">▾</span></button>
         <div id="legend-body" class="legend-body"></div>
-      </div>
-
-      <!-- El bosque en el tiempo: cortina vertical. A la izquierda del tirador se
-           ve 2015; a la derecha, la imagen actual. Aparcada al borde derecho, así
-           que por defecto no se ve nada del pasado ni pesa nada (el segundo mapa
-           sólo existe mientras la cortina está abierta). -->
-      <div id="cmp-map" class="cmp-map" aria-hidden="true"></div>
-      <div id="base-compare" class="base-compare">
-        <div id="bc-handle" class="bc-handle" role="slider" tabindex="0"
-          aria-label="Comparar el bosque de 2015 con el actual" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
-          <span class="bc-line"></span>
-          <span class="bc-grip"><b id="bc-old">2015</b>⇔<b id="bc-new">2024</b></span>
-        </div>
       </div>
 
       <div id="route-info" class="route-info hidden"></div>

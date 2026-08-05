@@ -474,12 +474,23 @@ function baseSourceDef(stop) {
   if (stop.pmtiles) return { type: 'raster', url: 'pmtiles://tiles/ortho.pmtiles',
     tileSize: 512, attribution: 'Ortofoto Cantares' };
   // All stops are Esri (Wayback historical or current) — sub-meter, high zoom.
-  return { type: 'raster', tiles: [stop.tiles], tileSize: 256, maxzoom: 19,
-    attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' };
+  // La atribución la pone el mapa principal (customAttribution): estos mapas no
+  // llevan control, y repetirla aquí no la mostraría en ninguna parte.
+  return { type: 'raster', tiles: [stop.tiles], tileSize: 256, maxzoom: 19 };
 }
 function baseLabel(stop) { return stop.hd ? t('base_hd') : stop.pmtiles ? t('base_ortho') : stop.key; }
+// El mapa PRINCIPAL ya no lleva imagen ni fondo: sólo zonas, senderos, puntos y
+// la posición. Va TRANSPARENTE encima de los mapas de imagen, que son los que se
+// parten con la cortina. Así lo dibujado es UNO SOLO y cubre todo el ancho: al
+// mover la cortina cambia la foto de debajo y nada más — ni un punto ni un
+// sendero desaparecen. (MapLibre pide su contexto WebGL con alpha, así que un
+// estilo sin capa `background` deja ver lo que hay detrás.)
 function buildStyle() {
-  return { version: 8, sources: { base: baseSourceDef(CONFIG.baseStops[state.baseIndex]) },
+  return { version: 8, sources: {}, layers: [] };
+}
+// Estilo de un mapa de IMAGEN: una sola capa raster, nada más.
+function imageryStyle(stop) {
+  return { version: 8, sources: { base: baseSourceDef(stop) },
     layers: [
       { id: 'bg', type: 'background', paint: { 'background-color': '#c9d3c6' } },
       { id: 'base', type: 'raster', source: 'base' },
@@ -487,64 +498,71 @@ function buildStyle() {
 }
 
 // ---------- el bosque en el tiempo: cortina vertical ----------
-// A la izquierda del tirador, 2015; a la derecha, la imagen del mapa. MapLibre no
-// sabe recortar una capa raster a media pantalla, así que el 2015 es un SEGUNDO
-// mapa (sólo el raster, sin eventos) puesto encima y recortado con clip-path, con
-// la cámara pegada a la del principal — es como funciona mapbox-gl-compare.
+// Como los comparadores de imágenes de siempre (el swipe de Esri Wayback,
+// mapbox-gl-compare): una línea vertical fija en pantalla, el pasado a la
+// izquierda y el presente a la derecha.
 //
-// ponytail: sobre el 2015 no se dibujan los puntos ni los senderos (viven en el
-// canvas de abajo). Es asumible porque la cortina se abre para MIRAR la imagen y
-// se cierra enseguida; duplicar las ~15 capas en el segundo mapa costaría más de
-// lo que resuelve. Si estorba, la salida es duplicarlas.
-let cmpMap = null;
-const CMP_OPEN_MAX = 99;                 // >99% se considera cerrada
+// La pieza que lo hace funcionar es CÓMO se reparten las capas. Hay tres lienzos:
+//
+//   [ abajo ]  #img-old  imagen antigua, ancho completo, nunca se recorta
+//   [ medio ]  #img-now  imagen actual, recortada a la derecha de la línea
+//   [ arriba ] #map      zonas, senderos, puntos, GPS — TRANSPARENTE y sin recortar
+//
+// Lo dibujado vive sólo en el mapa de arriba y cubre todo el ancho, así que al
+// mover la cortina cambia la foto de debajo y NADA más: ningún punto ni sendero
+// desaparece de un lado. (Antes el pasado iba encima y tapaba media leyenda de
+// puntos — que es justo lo que no se quería.)
+//
+// Los dos mapas de imagen son sólo raster, sin eventos ni símbolos, y siguen a la
+// cámara del principal. Al hacer zoom los dos van igual de acompasados, así que
+// la costura entre ellos no se rompe; lo único que puede quedar un fotograma por
+// delante es lo dibujado, y eso no se nota.
+const imgMaps = { old: null, now: null };
 function cmpOldStop() { return CONFIG.baseStops[0]; }
-// El segundo mapa se crea al abrir y se DESTRUYE al cerrar: un contexto WebGL de
-// más en un teléfono no se deja encendido por si acaso.
-function ensureCmpMap() {
-  if (cmpMap || !state.map) return cmpMap;
-  const el = $('#cmp-map'); if (!el) return null;
-  cmpMap = new maplibregl.Map({
+function cmpNowStop() { return CONFIG.baseStops[state.baseIndex]; }
+
+function makeImageryMap(el, stop) {
+  const m = state.map;
+  return new maplibregl.Map({
     container: el, interactive: false, attributionControl: false,
-    center: state.map.getCenter(), zoom: state.map.getZoom(),
-    bearing: state.map.getBearing(), pitch: state.map.getPitch(),
-    style: { version: 8, sources: { base: baseSourceDef(cmpOldStop()) },
-      layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#c9d3c6' } },
-        { id: 'base', type: 'raster', source: 'base' }] },
+    // Sin `maxBounds` a propósito: el principal ya lo impone y repetirlo aquí
+    // haría que los dos encuadres se pelearan en los bordes.
+    center: m.getCenter(), zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch(),
+    style: imageryStyle(stop),
   });
-  return cmpMap;
 }
-function destroyCmpMap() {
-  if (!cmpMap) return;
-  try { cmpMap.remove(); } catch (e) { /* ya se fue */ }
-  cmpMap = null;
+function syncImagery() {
+  const m = state.map; if (!m) return;
+  const c = { center: m.getCenter(), zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() };
+  if (imgMaps.old) imgMaps.old.jumpTo(c);
+  if (imgMaps.now) imgMaps.now.jumpTo(c);
 }
-function syncCmpMap() {
-  if (!cmpMap || !state.map) return;
-  cmpMap.jumpTo({ center: state.map.getCenter(), zoom: state.map.getZoom(),
-    bearing: state.map.getBearing(), pitch: state.map.getPitch() });
-}
-// pct = posición del tirador, 0 (todo 2015) a 100 (todo actual, cerrada).
+// pct = posición de la línea, 0 (todo pasado) a 100 (todo presente).
 function setCompare(pct) {
   const x = Math.max(0, Math.min(100, pct));
   state.comparePct = x;
-  const h = $('#bc-handle'), el = $('#cmp-map');
+  const h = $('#bc-handle'), now = $('#img-now');
   if (h) { h.style.left = x + '%'; h.setAttribute('aria-valuenow', String(Math.round(x))); }
-  if (!el) return;
-  if (x > CMP_OPEN_MAX) { el.classList.remove('on'); destroyCmpMap(); return; }
-  el.classList.add('on');
-  // Recortar por la DERECHA: se ve la franja izquierda, que es la del pasado.
-  el.style.clipPath = `inset(0 ${(100 - x).toFixed(2)}% 0 0)`;
-  if (ensureCmpMap()) syncCmpMap();
+  // La imagen ACTUAL se recorta por la izquierda: se ve de la línea hacia la
+  // derecha. Lo que asoma a su izquierda es la antigua, que está debajo entera.
+  if (now) now.style.clipPath = `inset(0 0 0 ${x.toFixed(2)}%)`;
 }
 function initCompare() {
-  const h = $('#bc-handle'); if (!h) return;
+  const h = $('#bc-handle'); if (!h || !state.map) return;
+  const elOld = $('#img-old'), elNow = $('#img-now');
+  if (!elOld || !elNow) return;
   $('#bc-old').textContent = baseLabel(cmpOldStop());
-  $('#bc-new').textContent = baseLabel(CONFIG.baseStops[state.baseIndex]);
-  setCompare(100);
-  // El mapa se mueve → el 2015 lo sigue. 'move' cubre arrastrar, zoom y vuelos.
-  state.map.on('move', syncCmpMap);
-  state.map.on('resize', syncCmpMap);
+  $('#bc-new').textContent = baseLabel(cmpNowStop());
+  imgMaps.old = makeImageryMap(elOld, cmpOldStop());
+  imgMaps.now = makeImageryMap(elNow, cmpNowStop());
+  // Arranca en el MEDIO: la comparación es el punto, así que se ve nada más
+  // abrir en vez de esconderse en un borde a esperar que alguien la descubra.
+  setCompare(50);
+  // 'move' cubre arrastrar, zoom, rotar y los vuelos de selectRoute.
+  state.map.on('move', syncImagery);
+  state.map.on('resize', syncImagery);
+  syncImagery();
+
   const pctFrom = (clientX) => {
     const r = $('#map').getBoundingClientRect();
     return ((clientX - r.left) / (r.width || 1)) * 100;
@@ -553,7 +571,7 @@ function initCompare() {
   h.addEventListener('pointerdown', (e) => {
     dragging = true;
     try { h.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
-    e.stopPropagation();
+    e.stopPropagation();   // arrastrar la línea no debe panear el mapa
   });
   h.addEventListener('pointermove', (e) => {
     if (!dragging) return;
@@ -628,7 +646,12 @@ async function initMap() {
 
   const map = new maplibregl.Map({
     container: 'map', style: buildStyle(), center: CONFIG.center, zoom: CONFIG.zoom,
-    maxBounds: CONFIG.maxBounds, attributionControl: { compact: true },
+    maxBounds: CONFIG.maxBounds,
+    // La atribución de Esri venía de la fuente raster, que ahora vive en los
+    // mapas de imagen (sin control propio, para no repetirla dos veces sobre el
+    // mismo mapa). Se declara aquí a mano: es obligatoria por licencia y sin
+    // esto habría desaparecido de la pantalla sin que nada fallara.
+    attributionControl: { compact: true, customAttribution: 'Imagery © Esri, Maxar, Earthstar Geographics' },
   });
   // Panear con el dedo suspende el seguimiento GPS (el mapa deja de "pelear"
   // por recentrarse); un tap en ◎ lo reactiva.

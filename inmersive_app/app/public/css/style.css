@@ -168,7 +168,15 @@ h2 { font-size: 16px; margin: 0 0 6px; color: var(--deep); }
 code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
 /* ---------- Map view ---------- */
-#map { position: absolute; inset: 0; background: #dfe6df; }
+/* El mapa principal va TRANSPARENTE encima de los dos mapas de imagen: su estilo
+   no lleva capa de fondo y MapLibre pide el contexto WebGL con alpha. Un color de
+   fondo aquí taparía la foto de debajo, que es justo lo que se compara. */
+#map { position: absolute; inset: 0; background: transparent; z-index: 3; }
+/* Mapas de IMAGEN, sólo raster y sin eventos. El de abajo (#img-old) va entero;
+   el de arriba (#img-now) se recorta a la derecha de la línea. */
+.img-map { position: absolute; inset: 0; pointer-events: none; background: #dfe6df; }
+#img-old { z-index: 1; }
+#img-now { z-index: 2; }
 .maplibregl-ctrl-attrib { font-size: 10px; }
 
 .route-bar {
@@ -236,37 +244,31 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .legend-toggle { cursor: grab; }
 .legend-toggle:active { cursor: grabbing; }
 
-/* El bosque en el tiempo — cortina vertical.
-   El mapa del pasado va ENCIMA y recortado; sin eventos, para no robarle al mapa
-   real ni un toque. Aparcada a la derecha no se dibuja nada (y el segundo mapa ni
-   se crea), así que en reposo la interfaz queda igual de limpia que sin esto. */
-.cmp-map { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: none; }
-.cmp-map.on { display: block; }
-/* Capa de sólo-el-tirador: transparente y sin eventos salvo en el propio tirador. */
+/* El bosque en el tiempo — cortina vertical, como el swipe de Esri Wayback o
+   mapbox-gl-compare: la línea se queda quieta en pantalla y la imagen se parte
+   ahí. Sólo el tirador recibe toques; el resto de la capa los deja pasar al mapa. */
 .base-compare { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
 .bc-handle {
-  position: absolute; top: 0; bottom: 0; left: 100%; width: 44px; margin-left: -22px;
+  position: absolute; top: 0; bottom: 0; left: 50%; width: 44px; margin-left: -22px;
   pointer-events: auto; cursor: ew-resize; touch-action: none;
   display: flex; align-items: center; justify-content: center;
 }
-/* La línea sólo se ve cuando la cortina está abierta: si no, sería una raya
-   vertical permanente en mitad del mapa. */
-.bc-line { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.9);
-  box-shadow: 0 0 4px rgba(0,0,0,0.45); opacity: 0; transition: opacity .15s; }
-.cmp-map.on ~ .base-compare .bc-line { opacity: 1; }
+/* La línea marca dónde se parte la foto. Blanca con sombra para que se vea sobre
+   bosque oscuro y sobre potrero claro por igual. */
+.bc-line { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.92);
+  box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+/* El tirador dice qué año hay a cada lado, en el lado que le toca: leerlo no
+   debería costar pensar cuál es cuál. */
 .bc-grip {
-  display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 999px;
+  display: flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 999px;
   background: var(--card); box-shadow: var(--shadow); color: var(--muted);
   font-size: 10.5px; font-weight: 700; white-space: nowrap; user-select: none;
 }
 .bc-grip b { color: var(--forest); }
-/* Aparcada al borde sólo asoma la flecha, como una pestañita: los años ocuparían
-   media pantalla para algo que nadie está mirando. El tirador está centrado en el
-   borde derecho, así que la mitad queda fuera — de ahí el desplazamiento, que se
-   calcula sobre la píldora corta (~26 px) y no sobre la larga, que sí se saldría. */
-.bc-handle[aria-valuenow="100"] .bc-grip b { display: none; }
-.bc-handle[aria-valuenow="100"] .bc-grip { transform: translateX(-16px); font-size: 13px; }
 .bc-handle:focus-visible .bc-grip { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* Pegada a un borde, la píldora se saldría de la pantalla: se recoge hacia dentro. */
+.bc-handle[aria-valuenow="0"] .bc-grip { transform: translateX(46px); }
+.bc-handle[aria-valuenow="100"] .bc-grip { transform: translateX(-46px); }
 
 /* Route info — tall rectangular panel docked on the right; chips stay visible */
 /* Chip flotante mientras se sigue un recorrido (la caja grande queda cerrada) */
@@ -1259,8 +1261,12 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
    puede consultar Especies a mitad de camino y volver. */
 body.guiding #legend,
 body.guiding #base-compare,
-body.guiding #cmp-map,
 body.guiding #search-btn { display: none; }
+/* Sin tirador no puede quedarse media pantalla en 2015: la imagen actual vuelve a
+   cubrirlo todo. Se hace desde el CSS y no llamando a setCompare desde cada modo,
+   así al salir se repone solo y no hay una llamada que se olvide. */
+body.guiding #img-now,
+body.picking-points #img-now { clip-path: none !important; }
 
 /* Tarjetas de guía (ir al inicio · llegada a un punto). Una sola a la vez, ancladas
    abajo, sobre el mapa y por encima de la barra de pestañas. */
@@ -1314,7 +1320,6 @@ body.picking-points #admin-fab,
 body.picking-points #edit-bar,
 body.picking-points #legend,
 body.picking-points #base-compare,
-body.picking-points #cmp-map,
 body.picking-points #search-btn,
 body.picking-points #route-bar,
 body.picking-points #route-info { display: none !important; }
