@@ -828,6 +828,62 @@ async function saveMedia(row, blob) {
   } catch (e) { CTX.toast(friendlyErr(e)); }
 }
 async function classifyMedia(m, type, id) { await saveMedia(mediaRow(m, { subject_type: type, subject_id: id, status: 'classified' })); }
+
+// Clasificar VARIAS de una vez. `saveMedia` repinta y saca un aviso por foto, que
+// con 30 seleccionadas es 30 repintados y 30 avisos — y el repintado se llevaría
+// por delante la barra de progreso. Aquí se guarda en silencio y se repinta UNA
+// vez al final.
+async function classifyMany(ids, type, subjectId) {
+  const bar = document.getElementById('fm-selbar');
+  const say = (t) => { if (bar) bar.querySelector('.fm-selcount').textContent = t; };
+  let ok = 0, fail = 0, queued = 0;
+  for (let i = 0; i < ids.length; i++) {
+    // Se relee de `allMedia()` en cada vuelta: `mediaRow` reconstruye la fila
+    // ENTERA, así que partir de una copia vieja borraría lo que cambió entretanto.
+    const m = allMedia().find((x) => x.id === ids[i]);
+    if (!m) { fail++; continue; }
+    say(`⏳ ${i + 1}/${ids.length}`);
+    try {
+      const res = await saveRow('media', mediaRow(m, { subject_type: type, subject_id: subjectId, status: 'classified' }));
+      CTX.applyLocalRow('media', res.row);
+      ok++; if (res.queued) queued++;
+    } catch (e) { fail++; console.warn('[media] lote', ids[i], e && e.message); }
+  }
+  selClear();
+  renderFotos();
+  CTX.toast(`🏷️ ${ok} clasificada(s)${queued ? ` · ${queued} en cola` : ''}${fail ? ` · ⚠️ ${fail} fallaron` : ''}`);
+}
+async function deleteMany(ids) {
+  if (!confirm(`¿Eliminar ${ids.length} foto(s)/video(s)?`)) return;
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    const m = allMedia().find((x) => x.id === id);
+    // Las curadas viven en el catálogo del build: no se pueden borrar desde aquí
+    // y decirlo es mejor que contarlas como éxito.
+    if (!m || m.source === 'curated') { fail++; continue; }
+    try { await deleteRow('media', id); CTX.removeLocalRow('media', id); ok++; }
+    catch (e) { fail++; console.warn('[media] borrar lote', id, e && e.message); }
+  }
+  selClear();
+  renderFotos();
+  CTX.toast(`🗑️ ${ok} eliminada(s)${fail ? ` · ${fail} no se pudieron (curadas o error)` : ''}`);
+}
+// Barra flotante: sólo existe si hay algo seleccionado.
+function renderSelBar() {
+  let bar = document.getElementById('fm-selbar');
+  if (!mediaSel.size) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div'); bar.id = 'fm-selbar'; bar.className = 'fm-selbar';
+    (document.getElementById('admin-panel') || document.body).appendChild(bar);
+  }
+  bar.innerHTML = `<span class="fm-selcount">${mediaSel.size} seleccionada(s)</span>
+    <button data-b="assign" class="admin-add">🏷️ Clasificar todas</button>
+    <button data-b="del" class="admin-cancel">🗑️</button>
+    <button data-b="none" class="admin-cancel">✕</button>`;
+  bar.querySelector('[data-b="assign"]').onclick = () => assignPicker([...mediaSel]);
+  bar.querySelector('[data-b="del"]').onclick = () => deleteMany([...mediaSel]);
+  bar.querySelector('[data-b="none"]').onclick = () => { selClear(); renderFotos(); };
+}
 async function setPrimaryMedia(m) {
   const sibs = subjectMedia(m.subject_type, m.subject_id);
   for (const s of sibs) {
@@ -881,12 +937,19 @@ function addMedia(preset) {
 }
 
 // Tarjeta de un medio (foto/video) con sus acciones.
+// Selección múltiple. Vive fuera del render: la bandeja se repinta a cada guardado
+// y una selección que se pierde al repintar no sirve para nada.
+const mediaSel = new Set();
+function selClear() { mediaSel.clear(); }
+
 function mediaCardHTML(m, opts = {}) {
+  const sel = mediaSel.has(m.id);
   const thumb = m.kind === 'video'
     ? `<div class="fm-thumb fm-video" style="${m.poster ? `background-image:url('${esc(m.poster)}')` : ''}"><span>▶</span></div>`
     : `<div class="fm-thumb" style="background-image:url('${esc(m.thumb || m.full)}')"></div>`;
   const order = opts.subject ? `<button data-a="up" title="Subir">↑</button><button data-a="down" title="Bajar">↓</button>` : '';
-  return `<div class="fm-card" data-id="${esc(m.id)}">
+  return `<div class="fm-card${sel ? ' sel' : ''}" data-id="${esc(m.id)}">
+    <label class="fm-pick" title="Seleccionar"><input type="checkbox" data-sel ${sel ? 'checked' : ''}></label>
     ${thumb}
     <div class="fm-meta">
       <span class="fm-subj">${subjectLabel(m)}${m.caption ? ` · <i>${esc(m.caption)}</i>` : ''}</span>
@@ -904,12 +967,33 @@ function mediaCardHTML(m, opts = {}) {
     </div>
   </div>`;
 }
+// «Todas las visibles» es lo que convierte esto en útil: filtras por carpeta o
+// buscas «aves», marcas todas y clasificas de una vez.
+function selAllBtnHTML(n) {
+  return n ? `<button class="admin-pick fm-selall" id="fm-selall">☑️ Seleccionar las ${n} visibles</button>` : '';
+}
+function wireSelAll(container, list) {
+  const b = container.querySelector('#fm-selall');
+  if (!b) return;
+  b.onclick = () => {
+    const todas = list.every((m) => mediaSel.has(m.id));
+    list.forEach((m) => (todas ? mediaSel.delete(m.id) : mediaSel.add(m.id)));
+    renderFotos();
+  };
+}
 function wireMediaCards(container, opts = {}) {
   container.querySelectorAll('.fm-card').forEach((card) => {
     const m = allMedia().find((x) => x.id === card.dataset.id); if (!m) return;
     // Tocar la miniatura la abre a pantalla completa. Clasificar una foto pide
     // MIRARLA, y en un recuadro de 90 px no se distingue una orquídea de una
     // bromelia. Es el mismo visor que usa la galería pública.
+    const cb = card.querySelector('[data-sel]');
+    if (cb) cb.onchange = (e) => {
+      e.stopPropagation();
+      if (cb.checked) mediaSel.add(m.id); else mediaSel.delete(m.id);
+      card.classList.toggle('sel', cb.checked);
+      renderSelBar();
+    };
     const th = card.querySelector('.fm-thumb');
     if (th && CTX.openLightbox) {
       th.style.cursor = 'zoom-in';
@@ -932,9 +1016,14 @@ function wireMediaCards(container, opts = {}) {
 
 // Selector de sujeto (punto o especie) para clasificar/reasignar un medio.
 function assignPicker(m) {
+  // Acepta una foto o una LISTA de ids: el selector es el mismo, sólo cambia a
+  // cuántas se aplica. Duplicarlo para el lote habría dejado dos buscadores que
+  // se van separando con el tiempo.
+  const many = Array.isArray(m);
+  const ids = many ? m : [m.id];
   let ov = document.getElementById('fm-assign');
   if (!ov) { ov = document.createElement('div'); ov.id = 'fm-assign'; ov.className = 'fm-assign'; document.body.appendChild(ov); }
-  let pt = m.subject_type || 'waypoint';
+  let pt = many ? 'species' : (m.subject_type || 'waypoint');
   const render = () => {
     const items = pt === 'species'
       ? CTX.state.species.slice().sort((a, b) => (a.common_name || a.scientific_name || '').localeCompare(b.common_name || b.scientific_name || ''))
@@ -943,14 +1032,14 @@ function assignPicker(m) {
           .map((w) => ({ id: w.properties.id, label: (CTX.L(w.properties, 'title') || w.properties.title || w.properties.id), sub: w.properties.tipo || '' }));
     ov.innerHTML = `<div class="fm-assign-box">
       <button class="card-close" id="fa-x" aria-label="Cerrar">×</button>
-      <h3>Clasificar foto/video</h3>
+      <h3>${many ? `Clasificar ${ids.length} foto(s)/video(s)` : 'Clasificar foto/video'}</h3>
       <div class="fm-type-toggle">
         <button data-tp="waypoint" class="${pt === 'waypoint' ? 'sel' : ''}">📍 Punto</button>
         <button data-tp="species" class="${pt === 'species' ? 'sel' : ''}">🦋 Especie</button>
       </div>
       <input class="admin-search" id="fa-search" placeholder="🔎 Buscar…">
       <div class="fm-assign-list" id="fa-list">${items.map((it) => `<button class="fm-assign-item" data-id="${esc(it.id)}"><b>${esc(it.label)}</b>${it.sub ? ` <span>${esc(it.sub)}</span>` : ''}</button>`).join('')}</div>
-      ${m.subject_id ? '<button class="admin-cancel" id="fa-unclass">Dejar sin clasificar</button>' : ''}
+      ${!many && m.subject_id ? '<button class="admin-cancel" id="fa-unclass">Dejar sin clasificar</button>' : ''}
     </div>`;
     const close = () => ov.remove();
     ov.querySelector('#fa-x').onclick = close;
@@ -960,7 +1049,11 @@ function assignPicker(m) {
       const q = e.target.value.trim().toLowerCase();
       ov.querySelectorAll('.fm-assign-item').forEach((it) => { it.style.display = !q || it.textContent.toLowerCase().includes(q) ? '' : 'none'; });
     };
-    ov.querySelectorAll('.fm-assign-item').forEach((it) => it.onclick = async () => { close(); await classifyMedia(m, pt, it.dataset.id); });
+    ov.querySelectorAll('.fm-assign-item').forEach((it) => it.onclick = async () => {
+      close();
+      if (many) await classifyMany(ids, pt, it.dataset.id);
+      else await classifyMedia(m, pt, it.dataset.id);
+    });
     const uc = ov.querySelector('#fa-unclass'); if (uc) uc.onclick = async () => { close(); await saveMedia(mediaRow(m, { subject_type: null, subject_id: null, is_primary: false, status: 'unclassified' })); };
   };
   render();
@@ -1244,6 +1337,7 @@ export function openMediaFor(type, id) {
 }
 function renderFotos() {
   clearHighlight();
+  renderSelBar();
   const body = document.getElementById('admin-body');
   const n = unclassifiedMedia().length;
   body.innerHTML = `
@@ -1282,12 +1376,14 @@ function renderFotos() {
           : 'Elige la carpeta <code>Cantares/fotos</code> y luego de qué subcarpetas y cuántas. (Conectar Dropbox lo haría automático — ver <code>docs/DROPBOX_MUESTRAS.md</code>.)'}</div>
       <div id="fm-intake-out"></div>
       <div class="admin-note">Sube o clasifica fotos/videos. Las que llegan sin sujeto se listan aquí para asignarlas a un punto o especie.</div>
+      ${selAllBtnHTML(list.length)}
       ${list.length ? `<div class="fm-grid">${list.map((m) => mediaCardHTML(m)).join('')}</div>`
         : '<div class="admin-note" style="text-align:center;padding:20px">✓ Nada sin clasificar.</div>'}`;
     document.getElementById('fm-add').onclick = () => addMedia(null);
     document.getElementById('fm-intake').onclick = pickArchiveFolder;
     const dbx = document.getElementById('fm-dbx'); if (dbx) dbx.onclick = connectDropbox;
     fm.querySelectorAll('.fm-origins button').forEach((b) => b.onclick = () => { mediaOrigin = b.dataset.o; renderFotos(); });
+    wireSelAll(fm, list);
     wireMediaCards(fm);
   } else {
     renderFotosSubject(fm);
@@ -1441,6 +1537,7 @@ function renderFotosAll(fm) {
     <div class="fm-modes fm-origins">${st}</div>
     <input class="admin-search" id="fm-all-q" placeholder="🔎 Buscar por punto, especie, pie, sugerencia…" value="${esc(mediaQuery)}">
     <div class="admin-note">Todo lo que hay en el inventario de fotos y videos. Toca «Clasificar» o «Reasignar» en cualquiera — también en las curadas del catálogo, que quedan sobrescritas por la edición.</div>
+    ${selAllBtnHTML(shown.length)}
     ${shown.length ? `<div class="fm-grid">${shown.map((m) => mediaCardHTML(m)).join('')}</div>`
       : '<div class="admin-note" style="text-align:center;padding:20px">Nada coincide con el filtro.</div>'}
     ${list.length > shown.length ? `<button class="admin-pick" id="fm-all-more">Ver ${Math.min(BROWSE_PAGE, list.length - shown.length)} más (${list.length - shown.length} restantes)</button>` : ''}`;
@@ -1453,6 +1550,7 @@ function renderFotosAll(fm) {
     const nq = document.getElementById('fm-all-q'); if (nq) { nq.focus(); nq.setSelectionRange(nq.value.length, nq.value.length); } };
   const more = document.getElementById('fm-all-more');
   if (more) more.onclick = () => { browseShown += BROWSE_PAGE; renderFotos(); };
+  wireSelAll(fm, shown);
   wireMediaCards(fm);
 }
 function renderFotosSubject(fm) {

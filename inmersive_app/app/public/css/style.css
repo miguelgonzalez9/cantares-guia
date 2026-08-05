@@ -1347,3 +1347,23 @@ body.picking-points #route-info { display: none !important; }
 #admin-ptsel-hud .adh-n {
   max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* ---- Selección múltiple en la bandeja de fotos ---- */
+/* La casilla va SOBRE la miniatura, no dentro de los botones: tocar la foto la
+   abre grande y tocar la casilla la selecciona, sin pelearse por el mismo píxel. */
+.fm-card { position: relative; }
+.fm-card.sel { outline: 2px solid var(--moss); outline-offset: -2px; }
+.fm-pick { position: absolute; top: 4px; left: 4px; z-index: 2; padding: 5px;
+  border-radius: 8px; background: rgba(255,255,255,0.88); box-shadow: var(--shadow);
+  display: grid; place-items: center; cursor: pointer; }
+/* Objetivo táctil decente sin agrandar el recuadro blanco. */
+.fm-pick input { width: 17px; height: 17px; margin: 0; accent-color: var(--moss); cursor: pointer; }
+.fm-selall { margin-bottom: 8px; }
+/* Barra de acciones: fija abajo, por encima de la rejilla, sólo si hay selección. */
+.fm-selbar {
+  position: sticky; bottom: 0; z-index: 6; display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding: 9px 10px; border-radius: 12px;
+  background: var(--navy); color: #fff; box-shadow: 0 -3px 14px rgba(0,0,0,0.25);
+}
+.fm-selcount { flex: 1; font-size: 12.5px; font-weight: 700; }
+.fm-selbar button { margin: 0; flex: none; }
