@@ -25,7 +25,10 @@ const APP_KEY = 've0vclsn1x8lun2';
 // aunque el código tuviera un fallo. Con **Full Dropbox** el token puede leerlo
 // TODO y esta constante es sólo buena voluntad. Recomendado: App folder, y ahí
 // `ARCHIVE_ROOT = ''`. Ver docs/DROPBOX_MUESTRAS.md.
-export const ARCHIVE_ROOT = '/Cantares/fotos';
+// App folder: las rutas de la API son relativas a `Apps/<nombre>/`, así que la
+// carpeta copiada ahí dentro es `/fotos`. Con `/Cantares/fotos` la API responde
+// «path/not_found» — esa ruta existe en el disco, pero NO dentro del sandbox.
+export const ARCHIVE_ROOT = '/fotos';
 
 /** ¿La ruta cae dentro del archivo? Defensa en profundidad: con App folder es
  *  redundante (Dropbox ya no deja salir), con Full Dropbox es lo único que evita
