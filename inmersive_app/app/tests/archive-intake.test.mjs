@@ -7,8 +7,8 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseArchivePath, coverageGaps, planSample, buildEntries, DEFAULT_BATCH }
-  from '../public/js/archive-intake.js';
+import { parseArchivePath, coverageGaps, planSample, planByFolder, countByFolder,
+  buildEntries, fromFiles, fromDropbox, DEFAULT_BATCH } from '../public/js/archive-intake.js';
 
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const admin = readFileSync(join(PUB, 'js', 'admin.js'), 'utf8');
@@ -46,7 +46,7 @@ assert.strictEqual(gaps.speciesBySlug.get('roble'), 'roble');
 // 3. EL PUNTO DEL ASUNTO: la muestra se reparte, no se lleva la categoría gorda.
 //    `paisaje` tiene 100 fotos y `hongos` 2; con «los primeros 40» saldrían 40
 //    paisajes y ningún hongo.
-const many = (cat, n) => Array.from({ length: n }, (_, i) => ({ file: { name: `${cat}${i}.jpg` }, category: cat, speciesId: null, punto: null }));
+const many = (cat, n) => Array.from({ length: n }, (_, i) => ({ name: `${cat}${i}.jpg`, dir: cat, category: cat, speciesId: null, punto: null }));
 const mixed = [...many('paisaje', 100), ...many('hongos', 2), ...many('aves', 30)];
 const pick = planSample(mixed, gaps, 12);
 assert.strictEqual(pick.length, 12);
@@ -57,8 +57,8 @@ assert.ok(porCat.paisaje <= 5 && porCat.aves <= 5, `ninguna categoría acapara: 
 // 4. Prioridad: un estrato que tapa un hueco real va ANTES que el resto.
 const conHueco = [
   ...many('paisaje', 50),
-  { file: { name: 'y.jpg' }, category: 'arboles', speciesId: 'yolombo', punto: null },   // especie sin fotos
-  { file: { name: 'p.jpg' }, category: 'paisaje', speciesId: null, punto: 'punto_2' },   // punto sin fotos
+  { name: 'y.jpg', dir: 'arboles', category: 'arboles', speciesId: 'yolombo', punto: null },   // especie sin fotos
+  { name: 'p.jpg', dir: 'paisaje', category: 'paisaje', speciesId: null, punto: 'punto_2' },   // punto sin fotos
 ];
 const first3 = planSample(conHueco, gaps, 3);
 assert.ok(first3.some((p) => p.speciesId === 'yolombo'), 'la especie sin fotos entra primero');
@@ -68,7 +68,7 @@ assert.ok(first3.some((p) => p.punto === 'punto_2'), 'el punto sin fotos tambié
 const pocas = many('hongos', 3);
 const todas = planSample(pocas, gaps, DEFAULT_BATCH);
 assert.strictEqual(todas.length, 3);
-assert.strictEqual(new Set(todas.map((p) => p.file.name)).size, 3, 'sin repetidos');
+assert.strictEqual(new Set(todas.map((p) => p.name)).size, 3, 'sin repetidos');
 assert.deepStrictEqual(planSample([], gaps, 10), []);
 
 // 6. El catálogo del clasificador manda sobre la carpeta: resolvió la especie
@@ -79,7 +79,7 @@ const files = [
   { name: 'notas.txt', webkitRelativePath: 'fotos/notas.txt' },
 ];
 const cat = { 'a.jpg': { category: 'plantas', scientific_name: 'Panopsis suaveolens', species_id: 'panopsis-suaveolens', punto: 'punto_2' } };
-const ent = buildEntries(files, cat, gaps);
+const ent = buildEntries(fromFiles(files), cat, gaps);
 assert.strictEqual(ent.length, 2, 'lo que no es imagen se ignora');
 assert.strictEqual(ent[0].category, 'plantas', 'la categoría del catálogo gana a la carpeta');
 assert.strictEqual(ent[0].speciesId, 'yolombo');
@@ -107,4 +107,67 @@ assert.ok(/webkitdirectory = true/.test(admin), 'elegir carpeta entera, no fiche
 assert.ok(/'js\/archive-intake\.js',/.test(sw), 'falta en SHELL_ASSETS');
 assert.ok(/refreshRoutes, refreshTrails, refreshMedia,/.test(app));
 
-console.log('archive-intake: 8/8 OK');
+
+// 9. CUPO POR CARPETA: elegir «aves: 3, hongos: 1» da exactamente eso, y una
+//    carpeta con 0 (o sin cupo) no entra — así es como se excluye.
+const conCarpetas = [...many('aves', 30), ...many('hongos', 10), ...many('paisaje', 50)];
+const porCarpeta = planByFolder(conCarpetas, gaps, { aves: 3, hongos: 1 });
+const cuenta = porCarpeta.reduce((a, p) => (a[p.dir] = (a[p.dir] || 0) + 1, a), {});
+assert.deepStrictEqual(cuenta, { aves: 3, hongos: 1 }, 'ni una de paisaje, que no tenía cupo');
+assert.deepStrictEqual(planByFolder(conCarpetas, gaps, { aves: 0 }), [], 'cupo 0 = excluida');
+assert.deepStrictEqual(planByFolder(conCarpetas, gaps, {}), [], 'sin cupos no se trae nada');
+// Pedir más de lo que hay devuelve lo que hay, sin repetir.
+const dieces = planByFolder(conCarpetas, gaps, { hongos: 99 });
+assert.strictEqual(dieces.length, 10);
+assert.strictEqual(new Set(dieces.map((p) => p.name)).size, 10);
+
+// 10. El conteo por carpeta es lo que se enseña antes de elegir.
+assert.deepStrictEqual(countByFolder(conCarpetas), { aves: 30, hongos: 10, paisaje: 50 });
+
+// 11. Las dos fuentes producen la MISMA forma: a partir de buildEntries, Dropbox
+//     y el selector de carpeta son indistinguibles. `get` es lo único distinto —
+//     y sólo se llama con las elegidas, para no bajar 900 y quedarse con 40.
+const dbxItems = [{ name: 'b.jpg', path: '/cantares/fotos/aves/b.jpg', dir: 'aves' }];
+let bajadas = 0;
+const entDbx = buildEntries(fromDropbox(dbxItems, () => { bajadas++; return Promise.resolve('blob'); }), {}, gaps);
+assert.strictEqual(entDbx.length, 1);
+assert.strictEqual(entDbx[0].dir, 'aves');
+assert.strictEqual(entDbx[0].category, 'aves');
+assert.strictEqual(bajadas, 0, 'listar NO puede bajar nada');
+assert.strictEqual(await entDbx[0].get(), 'blob');
+assert.strictEqual(bajadas, 1, 'sólo se baja al pedirlo');
+
+// 12. Dropbox: el argumento viaja en una CABECERA HTTP, que sólo admite ASCII.
+//     El archivo tiene tildes y eñes; sin escapar, Dropbox devuelve 400 y parece
+//     un problema de permisos.
+const { headerSafeJSON } = await import('../public/js/dropbox.js');
+const h = headerSafeJSON({ path: '/Cantares/fotos/LÉEME ñ.jpg' });
+assert.ok(!/[^\x00-\x7F]/.test(h), `la cabecera debe ser ASCII pura: ${h}`);
+assert.deepStrictEqual(JSON.parse(h), { path: '/Cantares/fotos/LÉEME ñ.jpg' }, 'y seguir significando lo mismo');
+assert.strictEqual(headerSafeJSON({ path: '/a/b.jpg' }), '{"path":"/a/b.jpg"}', 'el ASCII se deja en paz');
+
+
+// 13. PRIVACIDAD. Lo que se sube queda alcanzable por URL pública (la tabla
+//     `media` es de lectura pública), y este archivo es familiar. Las carpetas
+//     sin revisar NO pueden quedar marcadas solas: publicar una captura de
+//     WhatsApp por darle a un botón no puede ser el camino por defecto.
+const { insideArchive } = await import('../public/js/dropbox.js');
+const SKIP = (dir) => dir === '(raíz)' || /(^|\/)_/.test(dir);
+for (const d of ['(raíz)', '_sin_clasificar', '_desde_app', 'aves/_originales'])
+  assert.ok(SKIP(d), `${d} no puede marcarse sola`);
+for (const d of ['aves', 'plantas', 'hongos', 'aves/molothrus-bonariensis'])
+  assert.ok(!SKIP(d), `${d} sí es una categoría revisada`);
+
+// 14. Con Full Dropbox el token puede leer TODA la cuenta, así que el código no
+//     puede pedir nada fuera del archivo. Es defensa en profundidad — la frontera
+//     de verdad es elegir una app de tipo App folder.
+assert.ok(insideArchive('/Cantares/fotos/aves/x.jpg', '/Cantares/fotos'));
+assert.ok(insideArchive('/cantares/FOTOS/aves/x.jpg', '/Cantares/fotos'), 'Dropbox no distingue mayúsculas');
+for (const bad of ['/info/escrituras.pdf', '/Cantares/documentos/x.pdf', '/Cantares/fotos-privado/x.jpg',
+                   '/Cantares/fotos/../../info/x.pdf'])
+  assert.ok(!insideArchive(bad, '/Cantares/fotos'), `debe rechazar ${bad}`);
+// Con App folder la raíz ES la carpeta de la app: todo vale menos escaparse.
+assert.ok(insideArchive('/aves/x.jpg', ''));
+assert.ok(!insideArchive('/../otro/x.jpg', ''));
+
+console.log('archive-intake: 14/14 OK');

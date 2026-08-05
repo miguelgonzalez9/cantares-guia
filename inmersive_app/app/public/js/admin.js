@@ -3,7 +3,9 @@
 // directo a Supabase. Sólo se activa para cuentas con rol 'admin'.
 import { isAdmin } from './cloud.js';
 import { saveRow, deleteRow, compressImage, patchRow } from './sync.js';
-import { coverageGaps, readCatalog, buildEntries, planSample, uploadSample, DEFAULT_BATCH as INTAKE_BATCH } from './archive-intake.js';
+import { coverageGaps, readCatalog, buildEntries, fromFiles, fromDropbox, planByFolder,
+  countByFolder, uploadSample } from './archive-intake.js';
+import * as Dbx from './dropbox.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 import { doLogout } from './auth-ui.js';
 
@@ -903,6 +905,15 @@ function mediaCardHTML(m, opts = {}) {
 function wireMediaCards(container, opts = {}) {
   container.querySelectorAll('.fm-card').forEach((card) => {
     const m = allMedia().find((x) => x.id === card.dataset.id); if (!m) return;
+    // Tocar la miniatura la abre a pantalla completa. Clasificar una foto pide
+    // MIRARLA, y en un recuadro de 90 px no se distingue una orquídea de una
+    // bromelia. Es el mismo visor que usa la galería pública.
+    const th = card.querySelector('.fm-thumb');
+    if (th && CTX.openLightbox) {
+      th.style.cursor = 'zoom-in';
+      th.title = 'Ver grande';
+      th.onclick = (e) => { e.stopPropagation(); CTX.openLightbox(m.full, m.kind); };
+    }
     card.querySelectorAll('[data-a]').forEach((b) => b.onclick = (e) => {
       e.stopPropagation();
       const a = b.dataset.a;
@@ -1259,64 +1270,146 @@ function renderFotos() {
     fm.innerHTML = `
       <div class="fm-modes fm-origins">${chips}</div>
       <button class="admin-add" id="fm-add">＋ Añadir foto / video</button>
-      <button class="admin-pick" id="fm-intake">📥 Traer una muestra del archivo (Dropbox)</button>
+      <div class="fm-modes">
+        ${Dbx.dropboxConfigured() ? `<button id="fm-dbx">${Dbx.dropboxLinked() ? '📥 Traer del archivo (Dropbox)' : '🔗 Conectar Dropbox'}</button>` : ''}
+        <button id="fm-intake">📂 Elegir carpeta a mano</button>
+      </div>
       <div class="admin-note">Hoy faltan <b>${g.speciesMissing.size}</b> especie(s) y <b>${g.pointsMissing.size}</b> punto(s) sin ninguna foto.
-        Elige la carpeta <code>Cantares/fotos</code> y la app escoge una muestra repartida entre categorías y especies, dando prioridad a esos huecos. Lo ya subido se salta.</div>
+        ${Dbx.dropboxConfigured()
+          ? 'Con Dropbox conectado la app lista el archivo sola; tú eliges de qué carpetas y cuántas.'
+          : 'Elige la carpeta <code>Cantares/fotos</code> y luego de qué subcarpetas y cuántas. (Conectar Dropbox lo haría automático — ver <code>docs/DROPBOX_MUESTRAS.md</code>.)'}</div>
       <div id="fm-intake-out"></div>
       <div class="admin-note">Sube o clasifica fotos/videos. Las que llegan sin sujeto se listan aquí para asignarlas a un punto o especie.</div>
       ${list.length ? `<div class="fm-grid">${list.map((m) => mediaCardHTML(m)).join('')}</div>`
         : '<div class="admin-note" style="text-align:center;padding:20px">✓ Nada sin clasificar.</div>'}`;
     document.getElementById('fm-add').onclick = () => addMedia(null);
     document.getElementById('fm-intake').onclick = pickArchiveFolder;
+    const dbx = document.getElementById('fm-dbx'); if (dbx) dbx.onclick = connectDropbox;
     fm.querySelectorAll('.fm-origins button').forEach((b) => b.onclick = () => { mediaOrigin = b.dataset.o; renderFotos(); });
     wireMediaCards(fm);
   } else {
     renderFotosSubject(fm);
   }
 }
-// «Traer una muestra del archivo»: el admin señala la carpeta de Dropbox UNA vez
-// y la app hace el resto. El navegador no puede leer Dropbox por su cuenta —eso
-// es la caja de arena, y está bien— así que el selector de carpeta es el único
-// paso manual. Sube por `saveRow`, o sea por la cola offline y con la sesión de
-// admin: sin claves nuevas y sin caminos de escritura nuevos.
+// ---- Traer una muestra del archivo -----------------------------------------
+// Dos fuentes, la misma tubería: Dropbox (automático, sin señalar nada) o el
+// selector de carpeta (respaldo, y lo único posible mientras no haya app key).
+// Con Dropbox la app lista sola el archivo por su API —que habla CORS— y baja
+// SÓLO las fotos elegidas. Todo sube por `saveRow`: cola offline y sesión de
+// admin, sin claves nuevas ni caminos de escritura nuevos.
+const DEFAULT_PER_FOLDER = 5;
+// Carpetas que NO se marcan solas: la raíz (fotos sueltas sin clasificar), lo que
+// empieza por `_` (bandejas de trabajo: `_sin_clasificar`, `_desde_app`) y lo que
+// no es una categoría del clasificador. Se pueden marcar a mano; el punto es que
+// nadie publique sin querer una captura de WhatsApp por darle a un botón.
+const SKIP_BY_DEFAULT = (dir) => dir === '(raíz)' || /(^|\/)_/.test(dir);
+let intakeEntries = [], intakeQuotas = {};
+
+function intakeOut() { return document.getElementById('fm-intake-out'); }
+function intakeSay(html) { const o = intakeOut(); if (o) o.innerHTML = `<div class="admin-note">${html}</div>`; }
+
 function pickArchiveFolder() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.multiple = true;
   // Carpeta entera cuando el navegador lo permite; si no, selección múltiple a
-  // mano. Sin `webkitdirectory` no hay rutas, así que la categoría se pierde y
-  // sólo queda el reparto por lo que diga el catálogo — se avisa abajo.
+  // mano. Sin `webkitdirectory` no hay rutas, así que no hay carpetas que elegir.
   try { inp.webkitdirectory = true; } catch (e) { /* móvil: selección múltiple */ }
-  inp.onchange = () => runArchiveIntake([...(inp.files || [])]);
+  inp.onchange = async () => {
+    const files = [...(inp.files || [])];
+    if (!files.length) return;
+    intakeSay('⏳ Leyendo la carpeta…');
+    const gaps = coverageGaps(CTX.state);
+    await loadIntake(fromFiles(files), await readCatalog(files), gaps);
+  };
   inp.click();
 }
-async function runArchiveIntake(files) {
-  const out = document.getElementById('fm-intake-out');
-  const say = (html) => { if (out) out.innerHTML = `<div class="admin-note">${html}</div>`; };
-  if (!files.length) return;
-  say('⏳ Leyendo la carpeta…');
+async function connectDropbox() {
+  if (!Dbx.dropboxConfigured()) { CTX.toast('Falta la app key de Dropbox — ver docs/DROPBOX_MUESTRAS.md'); return; }
+  if (!Dbx.dropboxLinked()) { await Dbx.dropboxConnect(); return; }   // se va y vuelve
+  intakeSay('⏳ Listando el archivo en Dropbox…');
+  try {
+    const items = await Dbx.listImages();
+    if (!items.length) { intakeSay(`No hay imágenes en <code>${esc(Dbx.ARCHIVE_ROOT)}</code>.`); return; }
+    await loadIntake(fromDropbox(items, Dbx.download), {}, coverageGaps(CTX.state));
+  } catch (e) {
+    // Un token caducado o revocado no debe parecer un fallo de la app.
+    intakeSay(`⚠️ Dropbox: ${esc(e.message || String(e))}`);
+  }
+}
+// Deja la selección lista y pinta el formulario de carpetas y cupos.
+async function loadIntake(items, catalog, gaps) {
+  intakeEntries = buildEntries(items, catalog, gaps);
+  if (!intakeEntries.length) { intakeSay('No hay imágenes en lo que elegiste.'); return; }
+  const n = countByFolder(intakeEntries);
+  // Marcadas por defecto SÓLO las carpetas de categoría ya clasificadas. Lo que
+  // sube queda alcanzable por URL pública (la tabla `media` es de lectura
+  // pública), y este archivo es familiar: tiene capturas de WhatsApp, gente y
+  // material de terceros. Las carpetas sin revisar y las fotos sueltas de la raíz
+  // se dejan sin marcar a propósito — se pueden marcar a mano, mirándolas antes.
+  intakeQuotas = {};
+  Object.keys(n).forEach((d) => {
+    intakeQuotas[d] = SKIP_BY_DEFAULT(d) ? 0 : Math.min(DEFAULT_PER_FOLDER, n[d]);
+  });
+  renderIntakeForm(n, Object.keys(catalog).length);
+}
+function renderIntakeForm(counts, nCat) {
+  const out = intakeOut(); if (!out) return;
+  const dirs = Object.keys(counts).sort();
+  const total = () => dirs.reduce((s, d) => s + (intakeQuotas[d] || 0), 0);
+  out.innerHTML = `
+    <div class="ik-box">
+      <div class="ik-head">${intakeEntries.length} imagen(es) en ${dirs.length} carpeta(s)
+        ${nCat ? ` · catálogo leído (${nCat} fichas)` : ''}</div>
+      <div class="ik-list">
+        ${dirs.map((d) => `<label class="ik-row${SKIP_BY_DEFAULT(d) ? ' ik-warn' : ''}">
+          <input type="checkbox" data-d="${esc(d)}" ${intakeQuotas[d] ? 'checked' : ''}>
+          <span class="ik-name">${esc(d)}${SKIP_BY_DEFAULT(d) ? ' <b title="Sin revisar: míralas antes de publicarlas">⚠︎</b>' : ''}</span><span class="ik-n">${counts[d]}</span>
+          <input class="ik-q" type="number" min="0" max="${counts[d]}" step="1"
+            data-q="${esc(d)}" value="${intakeQuotas[d] || 0}" aria-label="Cuántas de ${esc(d)}">
+        </label>`).join('')}
+      </div>
+      <div class="ik-foot">
+        <button class="admin-cancel" id="ik-none">Ninguna</button>
+        <button class="admin-add" id="ik-go">📥 Traer <b id="ik-total">${total()}</b></button>
+      </div>
+      <div class="admin-note">Dentro de cada carpeta la muestra se reparte entre especies y da prioridad a las que hoy no tienen ninguna foto. Lo ya subido se salta.</div>
+      <div class="admin-note ik-privacy">⚠️ <b>Lo que traigas queda alcanzable por URL pública</b> aunque salga «sin clasificar»: la tabla de fotos es de lectura pública. Las carpetas marcadas con ⚠︎ (raíz y las que empiezan por <code>_</code>) no se marcan solas — míralas antes. Si algo no debía subir, bórralo aquí mismo y desaparece.</div>
+    </div>`;
+  const sync = () => { const t = document.getElementById('ik-total'); if (t) t.textContent = String(total()); };
+  out.querySelectorAll('.ik-q').forEach((i) => i.oninput = () => {
+    const d = i.dataset.q;
+    intakeQuotas[d] = Math.max(0, Math.min(counts[d], parseInt(i.value, 10) || 0));
+    const cb = out.querySelector(`[data-d="${CSS.escape(d)}"]`);
+    if (cb) cb.checked = intakeQuotas[d] > 0;   // poner 0 es la forma de excluirla
+    sync();
+  });
+  out.querySelectorAll('[data-d]').forEach((cb) => cb.onchange = () => {
+    const d = cb.dataset.d;
+    intakeQuotas[d] = cb.checked ? Math.min(DEFAULT_PER_FOLDER, counts[d]) : 0;
+    const q = out.querySelector(`[data-q="${CSS.escape(d)}"]`);
+    if (q) q.value = String(intakeQuotas[d]);
+    sync();
+  });
+  document.getElementById('ik-none').onclick = () => { dirs.forEach((d) => intakeQuotas[d] = 0); renderIntakeForm(counts, nCat); };
+  document.getElementById('ik-go').onclick = () => runArchiveIntake();
+}
+async function runArchiveIntake() {
   const gaps = coverageGaps(CTX.state);
-  const catalog = await readCatalog(files);
-  const entries = buildEntries(files, catalog, gaps);
-  if (!entries.length) { say('No hay imágenes en lo que elegiste.'); return; }
-  const picks = planSample(entries, gaps, INTAKE_BATCH);
-  const strata = new Set(picks.map((p) => p.speciesId ? `species:${p.speciesId}` : `cat:${p.category}`));
-  const conCat = entries.some((e) => e.category);
-  say(`${entries.length} imagen(es) encontradas · muestra de <b>${picks.length}</b> repartida entre ${strata.size} grupo(s)`
-    + `${Object.keys(catalog).length ? ` · catálogo del clasificador leído (${Object.keys(catalog).length} fichas)` : ''}`
-    + `${conCat ? '' : ' · <b>sin rutas de carpeta</b>: no se pudo repartir por categoría'}`);
+  const picks = planByFolder(intakeEntries, gaps, intakeQuotas);
+  if (!picks.length) { intakeSay('No marcaste ninguna carpeta.'); return; }
   // Lo que ya está en la nube, por hash de CONTENIDO: repetir la tanda no vuelve
   // a subir nada. Es la misma identidad que usa data_prep/26_sync_media.py.
   const known = new Set(allMedia().map((m) => m.content_hash).filter(Boolean));
   const r = await uploadSample(picks, known, (i, n, name) =>
-    say(`⏳ Subiendo ${i}/${n} — ${esc(name)}`));
+    intakeSay(`⏳ ${i}/${n} — ${esc(name)}`));
   await CTX.refreshMedia();
   renderFotos();
-  const o = document.getElementById('fm-intake-out');
+  const o = intakeOut();
   if (o) o.innerHTML = `<div class="admin-note">✓ ${r.subidas} subida(s)`
     + `${r.encoladas ? ` (${r.encoladas} en cola, se suben con señal)` : ''}`
     + `${r.repetidas ? ` · ${r.repetidas} ya estaban` : ''}`
     + `${r.fallidas ? ` · ⚠️ ${r.fallidas} fallaron` : ''}`
-    + ` — clasifícalas abajo.</div>`;
+    + ` — clasifícalas abajo. Toca una miniatura para verla grande.</div>`;
   CTX.toast(r.subidas ? `📥 ${r.subidas} foto(s) del archivo, sin clasificar` : 'Nada nuevo que traer');
 }
 
