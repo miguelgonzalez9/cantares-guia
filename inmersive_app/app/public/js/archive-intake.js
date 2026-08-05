@@ -113,6 +113,29 @@ export function planSample(entries, gaps, n = DEFAULT_BATCH) {
   return out;
 }
 
+/** Muestra con CUPO POR CARPETA: `{carpeta: cuántas}`. Cada carpeta se resuelve
+ *  con el mismo criterio de arriba (estratos + huecos primero) pero dentro de su
+ *  propio cupo, así que elegir «aves: 20, hongos: 5» da exactamente eso.
+ *  Una carpeta sin cupo (o con 0) no entra: es la forma de excluirla. */
+export function planByFolder(entries, gaps, quotas) {
+  const byDir = new Map();
+  for (const e of entries) {
+    const d = e.dir || '(raíz)';
+    if (!quotas[d]) continue;
+    (byDir.get(d) || byDir.set(d, []).get(d)).push(e);
+  }
+  const out = [];
+  for (const [dir, list] of byDir) out.push(...planSample(list, gaps, quotas[dir]));
+  return out;
+}
+
+/** Cuántas imágenes hay por carpeta, para enseñarlo antes de elegir. */
+export function countByFolder(entries) {
+  const n = {};
+  entries.forEach((e) => { const d = e.dir || '(raíz)'; n[d] = (n[d] || 0) + 1; });
+  return n;
+}
+
 /** sha256 en hexadecimal — la MISMA identidad de contenido que usa
  *  `data_prep/26_sync_media.py`, para que las dos direcciones deduplican igual.
  *  Sin esto, cada tanda volvería a subir lo mismo. */
@@ -137,18 +160,41 @@ export async function readCatalog(files) {
 }
 
 // ---------------------------------------------------------------- orquestación
-/** Construye las entradas candidatas a partir de los ficheros elegidos. */
-export function buildEntries(files, catalog, gaps) {
+/** Adaptador: ficheros del selector → la forma común. La ruta relativa lleva
+ *  delante el nombre de la carpeta elegida, que cambia según desde dónde se
+ *  elija; se descarta para que ambas fuentes hablen igual. */
+export function fromFiles(files) {
+  return files.map((f) => ({
+    name: f.name,
+    relPath: (f.webkitRelativePath || f.name).split('/').slice(1).join('/') || f.name,
+    get: () => Promise.resolve(f),
+  }));
+}
+/** Adaptador: listado de Dropbox → la forma común. `get` baja la foto, y sólo se
+ *  llama con las elegidas: bajar 900 para quedarse con 40 sería absurdo. */
+export function fromDropbox(items, download) {
+  return items.map((it) => ({
+    name: it.name,
+    relPath: it.dir === '(raíz)' ? it.name : `${it.dir}/${it.name}`,
+    get: () => download(it.path),
+  }));
+}
+
+/** Construye las entradas candidatas. `items` viene de `fromFiles` o `fromDropbox`:
+ *  a partir de aquí las dos fuentes son la misma cosa. */
+export function buildEntries(items, catalog, gaps) {
   const out = [];
-  for (const f of files) {
-    if (!IMG_RE.test(f.name)) continue;
-    const { category, species } = parseArchivePath(f.webkitRelativePath || f.name);
-    const cat = catalog[f.name] || {};
+  for (const it of items) {
+    if (!IMG_RE.test(it.name)) continue;
+    // `parseArchivePath` espera la raíz delante; los adaptadores ya la quitaron.
+    const { category, species } = parseArchivePath('x/' + it.relPath);
+    const cat = catalog[it.name] || {};
     // La especie del catálogo manda sobre la de la carpeta: el catálogo la
     // resolvió contra el inventario cerrado; la carpeta es sólo una convención.
     const slug = (cat.species_id || species || '').toLowerCase();
+    const dir = it.relPath.split('/').slice(0, -1).join('/') || '(raíz)';
     out.push({
-      file: f,
+      name: it.name, dir, get: it.get,
       category: cat.category || category,
       speciesId: gaps.speciesBySlug.get(slug) || null,
       speciesHint: cat.scientific_name || (species ? species.replace(/-/g, ' ') : null),
@@ -165,13 +211,14 @@ export async function uploadSample(picks, knownHashes, onProgress = () => {}) {
   let i = 0;
   for (const p of picks) {
     i++;
-    onProgress(i, picks.length, p.file.name);
+    onProgress(i, picks.length, p.name);
     try {
-      const hash = await sha256Hex(p.file);
+      const src = await p.get();          // del disco o de Dropbox, da igual aquí
+      const hash = await sha256Hex(src);
       // Ya está en la nube: no se vuelve a subir. Es lo que hace que se pueda
       // repetir la tanda sin miedo y sin gastar almacenamiento dos veces.
       if (knownHashes.has(hash)) { res.repetidas++; continue; }
-      const blob = await compressImage(p.file);
+      const blob = await compressImage(src);
       const r = await saveRow('media', {
         id: `arch_${hash.slice(0, 16)}`,   // id derivado del CONTENIDO → reintentar no duplica
         kind: 'photo', url: null,
@@ -188,7 +235,7 @@ export async function uploadSample(picks, knownHashes, onProgress = () => {}) {
       if (r && r.queued) res.encoladas++;
     } catch (e) {
       res.fallidas++;
-      console.warn('[intake]', p.file.name, e && e.message);
+      console.warn('[intake]', p.name, e && e.message);
     }
   }
   return res;

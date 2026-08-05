@@ -8,6 +8,7 @@ import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap 
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps, saveRow, deleteRow, compressImage } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
+import { dropboxHandleRedirect } from './dropbox.js';
 
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const CONFIG = {
@@ -2631,6 +2632,10 @@ function setLang(lang) {
 
 // ---------- init ----------
 async function main() {
+  // Volver de Dropbox: canjear el código y limpiar la URL ANTES de nada. Si se
+  // deja para después, la puerta de entrada o el service worker pueden recargar
+  // y el código —de un solo uso— se pierde.
+  try { await dropboxHandleRedirect(); } catch (e) { console.warn('dropbox', e && e.message); }
   $$('.tab').forEach((tab) => tab.onclick = () => switchView(tab.dataset.view));
   $('#wp-close').onclick = closeWaypoint;
   $('#lang-toggle').onclick = () => setLang(LANG === 'es' ? 'en' : 'es');
@@ -2719,7 +2724,7 @@ async function main() {
       initAdmin({ state, map: state.map, t, L, LANG, toast, makeDraggable,
         typeColor: (tp) => typeMeta(tp).color,
         refreshWaypoints, refreshSpecies, refreshRoutes, refreshTrails, refreshMedia,
-        applyLocalRow, removeLocalRow, pushBack, popBack, applyWaypointFilter,
+        applyLocalRow, removeLocalRow, pushBack, popBack, applyWaypointFilter, openLightbox,
         showPointPopup: (id) => { const w = wpById(id); if (w) miniPopup(w); },   // mismo popup que fuera del modo edición (con "más info" + "Editar")
         pointTypes: () => Object.keys(TYPE_META).map((tp) => ({ tipo: tp, emoji: TYPE_META[tp].emoji, color: TYPE_META[tp].color, label: typeLabel(tp), es: TYPE_META[tp].es, en: TYPE_META[tp].en })),
         registerPointType, savePointType,
