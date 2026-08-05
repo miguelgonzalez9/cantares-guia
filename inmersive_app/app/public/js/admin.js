@@ -1298,6 +1298,11 @@ function renderFotos() {
 // SÓLO las fotos elegidas. Todo sube por `saveRow`: cola offline y sesión de
 // admin, sin claves nuevas ni caminos de escritura nuevos.
 const DEFAULT_PER_FOLDER = 5;
+// Carpetas que NO se marcan solas: la raíz (fotos sueltas sin clasificar), lo que
+// empieza por `_` (bandejas de trabajo: `_sin_clasificar`, `_desde_app`) y lo que
+// no es una categoría del clasificador. Se pueden marcar a mano; el punto es que
+// nadie publique sin querer una captura de WhatsApp por darle a un botón.
+const SKIP_BY_DEFAULT = (dir) => dir === '(raíz)' || /(^|\/)_/.test(dir);
 let intakeEntries = [], intakeQuotas = {};
 
 function intakeOut() { return document.getElementById('fm-intake-out'); }
@@ -1336,10 +1341,15 @@ async function loadIntake(items, catalog, gaps) {
   intakeEntries = buildEntries(items, catalog, gaps);
   if (!intakeEntries.length) { intakeSay('No hay imágenes en lo que elegiste.'); return; }
   const n = countByFolder(intakeEntries);
-  // Por defecto TODAS marcadas con un cupo pequeño: lo normal es querer un poco
-  // de cada sitio, y quitar una casilla cuesta menos que marcar quince.
+  // Marcadas por defecto SÓLO las carpetas de categoría ya clasificadas. Lo que
+  // sube queda alcanzable por URL pública (la tabla `media` es de lectura
+  // pública), y este archivo es familiar: tiene capturas de WhatsApp, gente y
+  // material de terceros. Las carpetas sin revisar y las fotos sueltas de la raíz
+  // se dejan sin marcar a propósito — se pueden marcar a mano, mirándolas antes.
   intakeQuotas = {};
-  Object.keys(n).forEach((d) => { intakeQuotas[d] = Math.min(DEFAULT_PER_FOLDER, n[d]); });
+  Object.keys(n).forEach((d) => {
+    intakeQuotas[d] = SKIP_BY_DEFAULT(d) ? 0 : Math.min(DEFAULT_PER_FOLDER, n[d]);
+  });
   renderIntakeForm(n, Object.keys(catalog).length);
 }
 function renderIntakeForm(counts, nCat) {
@@ -1351,9 +1361,9 @@ function renderIntakeForm(counts, nCat) {
       <div class="ik-head">${intakeEntries.length} imagen(es) en ${dirs.length} carpeta(s)
         ${nCat ? ` · catálogo leído (${nCat} fichas)` : ''}</div>
       <div class="ik-list">
-        ${dirs.map((d) => `<label class="ik-row">
+        ${dirs.map((d) => `<label class="ik-row${SKIP_BY_DEFAULT(d) ? ' ik-warn' : ''}">
           <input type="checkbox" data-d="${esc(d)}" ${intakeQuotas[d] ? 'checked' : ''}>
-          <span class="ik-name">${esc(d)}</span><span class="ik-n">${counts[d]}</span>
+          <span class="ik-name">${esc(d)}${SKIP_BY_DEFAULT(d) ? ' <b title="Sin revisar: míralas antes de publicarlas">⚠︎</b>' : ''}</span><span class="ik-n">${counts[d]}</span>
           <input class="ik-q" type="number" min="0" max="${counts[d]}" step="1"
             data-q="${esc(d)}" value="${intakeQuotas[d] || 0}" aria-label="Cuántas de ${esc(d)}">
         </label>`).join('')}
@@ -1363,6 +1373,7 @@ function renderIntakeForm(counts, nCat) {
         <button class="admin-add" id="ik-go">📥 Traer <b id="ik-total">${total()}</b></button>
       </div>
       <div class="admin-note">Dentro de cada carpeta la muestra se reparte entre especies y da prioridad a las que hoy no tienen ninguna foto. Lo ya subido se salta.</div>
+      <div class="admin-note ik-privacy">⚠️ <b>Lo que traigas queda alcanzable por URL pública</b> aunque salga «sin clasificar»: la tabla de fotos es de lectura pública. Las carpetas marcadas con ⚠︎ (raíz y las que empiezan por <code>_</code>) no se marcan solas — míralas antes. Si algo no debía subir, bórralo aquí mismo y desaparece.</div>
     </div>`;
   const sync = () => { const t = document.getElementById('ik-total'); if (t) t.textContent = String(total()); };
   out.querySelectorAll('.ik-q').forEach((i) => i.oninput = () => {

@@ -10,11 +10,35 @@ mano» — que hace exactamente lo mismo pidiéndote la carpeta.
 
 ---
 
+## Antes de nada: tu Dropbox tiene cosas privadas
+
+Sí. `info/` guarda escrituras, contabilidad y exportaciones de WhatsApp, y el
+resto de la cuenta es tuyo. **Elige el tipo de app con eso en mente**, porque es
+la única frontera real — el código puede tener fallos, un permiso no.
+
+| Tipo de app | Qué puede leer el token | Recomendación |
+|---|---|---|
+| **App folder** | **Sólo** `Apps/<nombre>/`. El resto de tu Dropbox no existe para él. | ✅ **Ésta** |
+| Full Dropbox | Toda tu cuenta, incluido `info/`. | ⚠️ Sólo si no quieres mover las fotos |
+
+Con **App folder** Dropbox crea `Apps/Cantares Guía/`; mueves o copias ahí la
+carpeta `fotos` y pones `ARCHIVE_ROOT = ''` en `js/dropbox.js`. A partir de ese
+momento, **aunque este código tuviera un fallo o alguien lo modificara, no puede
+ver nada más**: no es que no lo intente, es que Dropbox no se lo permite.
+
+Con **Full Dropbox** funciona sin mover nada, pero el token que queda en tu
+navegador puede leer toda la cuenta. El código sólo pide `/Cantares/fotos` y hay
+una guarda (`insideArchive`) que rechaza cualquier otra ruta — pero eso es
+**defensa en profundidad, no una frontera**. Si tu Dropbox tiene material que no
+quieres exponer ni a un fallo, usa App folder.
+
+---
+
 ## Puesta en marcha (una vez, ~2 minutos)
 
 1. Entra a <https://www.dropbox.com/developers/apps> → **Create app**.
    - API: **Scoped access**
-   - Tipo de acceso: **Full Dropbox** (el archivo está en `/Cantares/fotos`)
+   - Tipo de acceso: **App folder** (recomendado; ver arriba)
    - Nombre: `Cantares Guía` (o el que quieras)
 
 2. En la pestaña **Permissions**, marca **sólo** estos dos y guarda:
@@ -22,7 +46,7 @@ mano» — que hace exactamente lo mismo pidiéndote la carpeta.
    - `files.content.read`
 
    > Sólo lectura a propósito: la app **no puede** escribir ni borrar nada en tu
-   > Dropbox aunque tuviera un fallo.
+   > Dropbox aunque tuviera un fallo. No marques ningún `.write`.
 
 3. En **Settings → OAuth 2 → Redirect URIs**, añade exactamente:
 
@@ -32,10 +56,13 @@ mano» — que hace exactamente lo mismo pidiéndote la carpeta.
 
    (Si pruebas en local, añade también `http://localhost:8000/`.)
 
-4. Copia la **App key** y pégala en `app/public/js/dropbox.js`:
+4. Copia la **App key** y pégala en `app/public/js/dropbox.js`. Si elegiste
+   **App folder**, ajusta también la raíz:
 
    ```js
    const APP_KEY = 'tu_app_key_aqui';
+   export const ARCHIVE_ROOT = '';          // App folder: la raíz YA es tu carpeta
+   // export const ARCHIVE_ROOT = '/Cantares/fotos';   // Full Dropbox
    ```
 
 5. Sube el cambio y **sube la versión de `sw.js`**. En la app: Admin → Fotos →
@@ -76,6 +103,28 @@ secreto de una Edge Function, jamás en el cliente.
 Todo entra como `status: 'unclassified'`, `origin: 'local-archive'` y sin sujeto:
 quien decide qué es cada foto es una persona, en la bandeja. Toca una miniatura
 para verla grande antes de clasificarla.
+
+---
+
+## Lo que subes queda alcanzable públicamente
+
+Esto es **independiente de Dropbox** y conviene tenerlo claro: la tabla `media` es
+de **lectura pública** (`media_read ... using (true)`, migración 17) y los ficheros
+viven en un bucket público de Supabase Storage. Una foto «sin clasificar» **no se
+muestra** en ninguna galería —no tiene sujeto— pero **su URL existe y responde**.
+
+Por eso:
+
+- Las carpetas **sin revisar** (la raíz, y las que empiezan por `_` como
+  `_sin_clasificar` o `_desde_app`) **no se marcan solas** y salen con ⚠︎. El
+  archivo familiar tiene capturas de WhatsApp, gente y material de terceros.
+- **Mira antes de traer.** Toca la miniatura para verla grande.
+- Si algo no debía subir: **bórralo en la bandeja** y desaparece de la tabla y del
+  bucket.
+
+Si en algún momento quieres que ni siquiera sean alcanzables por URL mientras
+esperan clasificación, eso es un cambio de backend: bucket privado + URLs firmadas
+para el admin. Hoy no es así.
 
 ---
 

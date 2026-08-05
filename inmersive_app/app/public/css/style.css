@@ -1217,6 +1217,9 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
   border: 1px solid var(--line); border-radius: 8px; background: var(--mist); color: var(--ink); }
 .ik-foot { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .ik-foot .admin-add { flex: 1; margin: 0; }
+/* Carpetas sin revisar: se ven distintas ANTES de marcarlas, no después. */
+.ik-warn .ik-name { color: var(--red, #b02a2a); }
+.ik-privacy { border: 1px solid rgba(250,184,20,0.55); background: #fffdf6; border-radius: 10px; padding: 8px 10px; }
 
 /* ============ EDITOR DE CONTENIDO (admin) ================================= */
 .ce-edit-btn {

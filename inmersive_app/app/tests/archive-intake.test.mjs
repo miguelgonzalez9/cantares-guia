@@ -146,4 +146,28 @@ assert.ok(!/[^\x00-\x7F]/.test(h), `la cabecera debe ser ASCII pura: ${h}`);
 assert.deepStrictEqual(JSON.parse(h), { path: '/Cantares/fotos/LÉEME ñ.jpg' }, 'y seguir significando lo mismo');
 assert.strictEqual(headerSafeJSON({ path: '/a/b.jpg' }), '{"path":"/a/b.jpg"}', 'el ASCII se deja en paz');
 
-console.log('archive-intake: 12/12 OK');
+
+// 13. PRIVACIDAD. Lo que se sube queda alcanzable por URL pública (la tabla
+//     `media` es de lectura pública), y este archivo es familiar. Las carpetas
+//     sin revisar NO pueden quedar marcadas solas: publicar una captura de
+//     WhatsApp por darle a un botón no puede ser el camino por defecto.
+const { insideArchive } = await import('../public/js/dropbox.js');
+const SKIP = (dir) => dir === '(raíz)' || /(^|\/)_/.test(dir);
+for (const d of ['(raíz)', '_sin_clasificar', '_desde_app', 'aves/_originales'])
+  assert.ok(SKIP(d), `${d} no puede marcarse sola`);
+for (const d of ['aves', 'plantas', 'hongos', 'aves/molothrus-bonariensis'])
+  assert.ok(!SKIP(d), `${d} sí es una categoría revisada`);
+
+// 14. Con Full Dropbox el token puede leer TODA la cuenta, así que el código no
+//     puede pedir nada fuera del archivo. Es defensa en profundidad — la frontera
+//     de verdad es elegir una app de tipo App folder.
+assert.ok(insideArchive('/Cantares/fotos/aves/x.jpg', '/Cantares/fotos'));
+assert.ok(insideArchive('/cantares/FOTOS/aves/x.jpg', '/Cantares/fotos'), 'Dropbox no distingue mayúsculas');
+for (const bad of ['/info/escrituras.pdf', '/Cantares/documentos/x.pdf', '/Cantares/fotos-privado/x.jpg',
+                   '/Cantares/fotos/../../info/x.pdf'])
+  assert.ok(!insideArchive(bad, '/Cantares/fotos'), `debe rechazar ${bad}`);
+// Con App folder la raíz ES la carpeta de la app: todo vale menos escaparse.
+assert.ok(insideArchive('/aves/x.jpg', ''));
+assert.ok(!insideArchive('/../otro/x.jpg', ''));
+
+console.log('archive-intake: 14/14 OK');

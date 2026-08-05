@@ -18,7 +18,24 @@
 // app sigue funcionando igual, con el selector de carpeta a mano.
 const APP_KEY = '';
 // Carpeta raíz del archivo DENTRO de Dropbox (no la ruta del disco).
+//
+// LO IMPORTANTE NO ES ESTA CONSTANTE, ES EL TIPO DE APP EN DROPBOX. Con una app
+// de tipo **App folder**, Dropbox sólo deja ver `Apps/<nombre>/` y el resto de la
+// cuenta —escrituras, contabilidad, lo personal— es INVISIBLE para este token,
+// aunque el código tuviera un fallo. Con **Full Dropbox** el token puede leerlo
+// TODO y esta constante es sólo buena voluntad. Recomendado: App folder, y ahí
+// `ARCHIVE_ROOT = ''`. Ver docs/DROPBOX_MUESTRAS.md.
 export const ARCHIVE_ROOT = '/Cantares/fotos';
+
+/** ¿La ruta cae dentro del archivo? Defensa en profundidad: con App folder es
+ *  redundante (Dropbox ya no deja salir), con Full Dropbox es lo único que evita
+ *  que un fallo pida un fichero de otra carpeta. No sustituye al permiso. */
+export function insideArchive(path, root = ARCHIVE_ROOT) {
+  const p = String(path || '').toLowerCase();
+  const r = String(root || '').toLowerCase().replace(/\/$/, '');
+  if (!r) return !p.includes('..');
+  return (p === r || p.startsWith(r + '/')) && !p.includes('..');
+}
 
 const AUTH_URL = 'https://www.dropbox.com/oauth2/authorize';
 const TOKEN_URL = 'https://api.dropboxapi.com/oauth2/token';
@@ -131,6 +148,8 @@ export async function listImages(root = ARCHIVE_ROOT) {
 
 /** Baja UNA foto. Se llama sólo con las elegidas. */
 export async function download(path) {
+  // Nada fuera del archivo, pase lo que pase aguas arriba.
+  if (!insideArchive(path)) throw new Error(`fuera del archivo: ${path}`);
   const res = await fetch(`${CONTENT}/files/download`, { method: 'POST',
     headers: { Authorization: `Bearer ${await token()}`, 'Dropbox-API-Arg': headerSafeJSON({ path }) } });
   if (!res.ok) throw new Error(`dropbox download ${res.status}`);
