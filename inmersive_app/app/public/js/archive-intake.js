@@ -136,6 +136,22 @@ export function countByFolder(entries) {
   return n;
 }
 
+/** Id estable derivado de la RUTA en el archivo. Es lo que permite saber que una
+ *  foto ya se trajo SIN BAJARLA: el hash del contenido sólo se conoce después de
+ *  descargar, así que deduplicar sólo por contenido obligaba a bajarse 40 fotos
+ *  para descubrir que las 40 ya estaban. Con Dropbox eso son megas y minutos.
+ *
+ *  Legible a propósito (`arch_aves_p1160506_jpg_1a2b3c`): cuando algo sale mal se
+ *  ve de qué foto se trata sin cruzar tablas. El sufijo es un FNV-1a de la ruta
+ *  COMPLETA, para que dos ficheros con el mismo nombre en carpetas distintas no
+ *  colisionen tras recortar. */
+export function archiveId(relPath) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < relPath.length; i++) { h ^= relPath.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  const slug = relPath.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(-70);
+  return `arch_${slug}_${h.toString(36)}`;
+}
+
 /** sha256 en hexadecimal — la MISMA identidad de contenido que usa
  *  `data_prep/26_sync_media.py`, para que las dos direcciones deduplican igual.
  *  Sin esto, cada tanda volvería a subir lo mismo. */
@@ -194,7 +210,7 @@ export function buildEntries(items, catalog, gaps) {
     const slug = (cat.species_id || species || '').toLowerCase();
     const dir = it.relPath.split('/').slice(0, -1).join('/') || '(raíz)';
     out.push({
-      name: it.name, dir, get: it.get,
+      name: it.name, dir, get: it.get, id: archiveId(it.relPath),
       category: cat.category || category,
       speciesId: gaps.speciesBySlug.get(slug) || null,
       speciesHint: cat.scientific_name || (species ? species.replace(/-/g, ' ') : null),
@@ -202,6 +218,16 @@ export function buildEntries(items, catalog, gaps) {
     });
   }
   return out;
+}
+
+/** Quita de la selección lo que ya está en la app, ANTES de descargar nada.
+ *  `knownIds` = ids ya presentes; `knownHashes` = hashes de contenido ya
+ *  presentes. La ruta es lo único que se conoce sin bajar el fichero, así que
+ *  esta criba es la que ahorra el trabajo de verdad. */
+export function dropAlreadyThere(picks, knownIds) {
+  const keep = [], skipped = [];
+  for (const p of picks) (knownIds.has(p.id) ? skipped : keep).push(p);
+  return { keep, skipped };
 }
 
 /** Sube la muestra. `onProgress(hechas, total, texto)` para pintar el avance.
@@ -215,16 +241,23 @@ export async function uploadSample(picks, knownHashes, onProgress = () => {}) {
     try {
       const src = await p.get();          // del disco o de Dropbox, da igual aquí
       const hash = await sha256Hex(src);
-      // Ya está en la nube: no se vuelve a subir. Es lo que hace que se pueda
-      // repetir la tanda sin miedo y sin gastar almacenamiento dos veces.
+      // Segunda criba, por CONTENIDO: caza la misma foto guardada dos veces con
+      // nombres distintos, que en un archivo familiar pasa constantemente. La
+      // primera criba (por ruta) ya evitó bajar lo que se trajo en otra tanda.
       if (knownHashes.has(hash)) { res.repetidas++; continue; }
       const blob = await compressImage(src);
       const r = await saveRow('media', {
-        id: `arch_${hash.slice(0, 16)}`,   // id derivado del CONTENIDO → reintentar no duplica
+        // Id derivado de la RUTA, no del contenido: así se puede saber que ya
+        // está sin bajarla. Reintentar sigue sin duplicar — es un upsert.
+        id: p.id,
         kind: 'photo', url: null,
         subject_type: null, subject_id: null,      // la clasifica una persona, no esto
         status: 'unclassified', origin: 'local-archive',
         content_hash: hash,
+        // La carpeta ES la clasificación local (migración 24). Antes se usaba
+        // para repartir la muestra y se tiraba: en la bandeja todas llegaban
+        // iguales y había que abrir cada una para saber si era ave o paisaje.
+        archive_dir: p.dir && p.dir !== '(raíz)' ? p.dir : null,
         species_hint: p.speciesHint || null,
         caption: null, caption_en: null, credit: null,
         is_primary: false, sort: 0, focal_x: 0.5, focal_y: 0.5,

@@ -4,7 +4,7 @@
 import { isAdmin } from './cloud.js';
 import { saveRow, deleteRow, compressImage, patchRow } from './sync.js';
 import { coverageGaps, readCatalog, buildEntries, fromFiles, fromDropbox, planByFolder,
-  countByFolder, uploadSample } from './archive-intake.js';
+  countByFolder, uploadSample, dropAlreadyThere } from './archive-intake.js';
 import * as Dbx from './dropbox.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 import { doLogout } from './auth-ui.js';
@@ -757,7 +757,7 @@ function unclassifiedMedia() {
 // del clasificador y procedencia. El id entra porque a veces es lo único que se
 // tiene a mano (viene de un error de consola o del script de sincronización).
 function mediaHaystack(m) {
-  return [subjectLabel(m), m.caption, m.caption_en, m.species_hint,
+  return [subjectLabel(m), m.caption, m.caption_en, m.species_hint, m.archive_dir,
     ORIGIN_LABEL[m.origin] || m.origin, m.id, m.credit].filter(Boolean).join(' ').toLowerCase();
 }
 // TODAS las fotos del inventario, curadas incluidas. La bandeja mostraba sólo lo
@@ -816,6 +816,7 @@ function mediaRow(m, patch) {
     taken_at: m.taken_at || null, walk_id: m.walk_id || null,
     species_hint: m.species_hint || null,
     hint_confidence: m.hint_confidence != null ? m.hint_confidence : null,
+    archive_dir: m.archive_dir || null,
     ...patch };
 }
 async function saveMedia(row, blob) {
@@ -891,6 +892,7 @@ function mediaCardHTML(m, opts = {}) {
       <span class="fm-subj">${subjectLabel(m)}${m.caption ? ` · <i>${esc(m.caption)}</i>` : ''}</span>
       ${m.species_hint && !m.subject_id ? `<span class="fm-hint" title="Sugerencia del clasificador, sin confirmar">🤖 ${esc(m.species_hint)}${m.hint_confidence != null ? ` ${(m.hint_confidence * 100).toFixed(0)}%` : ''}</span>` : ''}
       ${m.origin && m.origin !== 'admin-upload' ? `<span class="fm-origin">${esc(ORIGIN_LABEL[m.origin] || m.origin)}</span>` : ''}
+      ${m.archive_dir ? `<span class="fm-origin fm-dir" title="Carpeta del archivo local">🗂 ${esc(m.archive_dir)}</span>` : ''}
       <div class="fm-btns">
         <button data-a="assign">${m.subject_id ? '↻ Reasignar' : '🏷️ Clasificar'}</button>
         ${m.subject_id ? `<button data-a="primary" class="${m.is_primary ? 'on' : ''}" title="Portada">★</button>` : ''}
@@ -1395,13 +1397,22 @@ function renderIntakeForm(counts, nCat) {
 }
 async function runArchiveIntake() {
   const gaps = coverageGaps(CTX.state);
-  const picks = planByFolder(intakeEntries, gaps, intakeQuotas);
-  if (!picks.length) { intakeSay('No marcaste ninguna carpeta.'); return; }
-  // Lo que ya está en la nube, por hash de CONTENIDO: repetir la tanda no vuelve
-  // a subir nada. Es la misma identidad que usa data_prep/26_sync_media.py.
+  const planned = planByFolder(intakeEntries, gaps, intakeQuotas);
+  if (!planned.length) { intakeSay('No marcaste ninguna carpeta.'); return; }
+  // PRIMERA CRIBA, por ruta y SIN DESCARGAR NADA: lo traído en tandas anteriores
+  // se descarta aquí. Antes había que bajar la foto para calcular su hash y
+  // descubrir que ya estaba — con Dropbox eso son megas y minutos tirados.
+  const { keep: picks, skipped } = dropAlreadyThere(planned, new Set(allMedia().map((m) => m.id)));
+  if (!picks.length) {
+    intakeSay(`✓ Nada nuevo: las ${skipped.length} de la muestra ya estaban. Sube el cupo o marca otra carpeta.`);
+    return;
+  }
+  // Segunda criba, por hash de CONTENIDO: caza la misma foto guardada dos veces
+  // con nombres distintos. Es la misma identidad que usa 26_sync_media.py.
   const known = new Set(allMedia().map((m) => m.content_hash).filter(Boolean));
   const r = await uploadSample(picks, known, (i, n, name) =>
-    intakeSay(`⏳ ${i}/${n} — ${esc(name)}`));
+    intakeSay(`⏳ ${i}/${n} — ${esc(name)}${skipped.length ? ` · ${skipped.length} ya estaban` : ''}`));
+  r.repetidas += skipped.length;
   await CTX.refreshMedia();
   renderFotos();
   const o = intakeOut();

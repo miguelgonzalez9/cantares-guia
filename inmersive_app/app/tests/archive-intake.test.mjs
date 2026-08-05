@@ -95,7 +95,7 @@ assert.ok(/subject_type: null, subject_id: null/.test(src));
 // El hash es la identidad del CONTENIDO — igual que 26_sync_media.py — y el id
 // se deriva de él, así que repetir la tanda no duplica ni vuelve a subir.
 assert.ok(/if \(knownHashes\.has\(hash\)\) \{ res\.repetidas\+\+; continue; \}/.test(src));
-assert.ok(/id: `arch_\$\{hash\.slice\(0, 16\)\}`/.test(src));
+assert.ok(/id: p\.id,/.test(src), 'el id sale de la RUTA (ver caso 15), no del contenido');
 assert.ok(/'SHA-256'/.test(src));
 // Y va por saveRow: cola offline, sesión de admin, sin caminos de escritura nuevos.
 assert.ok(/await saveRow\('media'/.test(src) && !/fetch\(/.test(src), 'nada de subir a mano');
@@ -170,4 +170,42 @@ for (const bad of ['/info/escrituras.pdf', '/Cantares/documentos/x.pdf', '/Canta
 assert.ok(insideArchive('/aves/x.jpg', ''));
 assert.ok(!insideArchive('/../otro/x.jpg', ''));
 
-console.log('archive-intake: 14/14 OK');
+
+// 15. DUPLICADOS SIN DESCARGAR. El hash del contenido sólo se conoce tras bajar
+//     el fichero, así que deduplicar sólo por contenido obliga a bajarse 40 fotos
+//     para descubrir que las 40 ya estaban. El id sale de la RUTA, que sí se sabe
+//     de antemano.
+const { archiveId, dropAlreadyThere } = await import('../public/js/archive-intake.js');
+assert.strictEqual(archiveId('aves/x.jpg'), archiveId('aves/x.jpg'), 'estable');
+assert.notStrictEqual(archiveId('aves/x.jpg'), archiveId('flores/x.jpg'),
+  'mismo nombre en carpetas distintas NO puede colisionar');
+assert.ok(/^arch_[a-z0-9_]+$/.test(archiveId('Aves/P1160506.JPG')), 'id apto para una clave de texto');
+assert.ok(archiveId('aves/p1160506.jpg').includes('p1160506'), 'legible: se ve de qué foto habla');
+// Rutas largas: se recorta el slug, pero el sufijo va de la ruta COMPLETA, así que
+// dos rutas que sólo difieren al principio siguen dando ids distintos.
+const a = 'aves/' + 'x'.repeat(90) + '/f.jpg', b = 'flores/' + 'x'.repeat(90) + '/f.jpg';
+assert.notStrictEqual(archiveId(a), archiveId(b));
+assert.ok(archiveId(a).length < 100);
+
+const picks = [{ id: 'arch_a', name: 'a.jpg' }, { id: 'arch_b', name: 'b.jpg' }, { id: 'arch_c', name: 'c.jpg' }];
+const { keep, skipped } = dropAlreadyThere(picks, new Set(['arch_b']));
+assert.deepStrictEqual(keep.map((p) => p.id), ['arch_a', 'arch_c']);
+assert.deepStrictEqual(skipped.map((p) => p.id), ['arch_b']);
+assert.strictEqual(dropAlreadyThere(picks, new Set(['arch_a', 'arch_b', 'arch_c'])).keep.length, 0,
+  'una tanda repetida no baja ni un byte');
+assert.strictEqual(dropAlreadyThere([], new Set()).keep.length, 0);
+
+// 16. LA CLASIFICACIÓN LOCAL VIAJA. La carpeta ES la clasificación del archivo;
+//     antes se usaba para repartir la muestra y se tiraba al subir, así que en la
+//     bandeja todas llegaban iguales. Ahora se guarda (migración 24).
+const src2 = readFileSync(join(PUB, 'js', 'archive-intake.js'), 'utf8');
+assert.ok(/archive_dir: p\.dir && p\.dir !== '\(raíz\)' \? p\.dir : null/.test(src2),
+  'la carpeta se guarda, y la raíz no cuenta como carpeta');
+assert.ok(/id: p\.id,/.test(src2), 'el id sube derivado de la ruta');
+const appSrc = readFileSync(join(PUB, 'js', 'app.js'), 'utf8');
+assert.ok(/archive_dir: r\.archive_dir \|\| null/.test(appSrc), 'debe sobrevivir al merge nube/estático');
+const adminSrc = readFileSync(join(PUB, 'js', 'admin.js'), 'utf8');
+assert.ok(/archive_dir: m\.archive_dir \|\| null/.test(adminSrc), 'un upsert no puede borrarla');
+assert.ok(/fm-dir/.test(adminSrc), 'y se ve en la tarjeta');
+
+console.log('archive-intake: 16/16 OK');
