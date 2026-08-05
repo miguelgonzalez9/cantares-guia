@@ -149,6 +149,9 @@ function normMedia(r) {
     taken_at: r.taken_at || null, walk_id: r.walk_id || null,
     species_hint: r.species_hint || null,
     hint_confidence: r.hint_confidence != null ? r.hint_confidence : null,
+    // Carpeta del archivo de la que vino (migración 24). Sin normalizarla aquí se
+    // pierde en el merge y la bandeja no puede ni mostrarla ni filtrar por ella.
+    archive_dir: r.archive_dir || null,
     reviewed: r.reviewed === true,
     contributor: r.contributor || null,
   };
