@@ -16,7 +16,7 @@
 
 // App key del App Console de Dropbox. Vacía = la función queda desactivada y la
 // app sigue funcionando igual, con el selector de carpeta a mano.
-const APP_KEY = '';
+const APP_KEY = 've0vclsn1x8lun2';
 // Carpeta raíz del archivo DENTRO de Dropbox (no la ruta del disco).
 //
 // LO IMPORTANTE NO ES ESTA CONSTANTE, ES EL TIPO DE APP EN DROPBOX. Con una app
