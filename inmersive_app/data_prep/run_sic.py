@@ -26,6 +26,11 @@ except Exception:
 HERE = Path(__file__).resolve().parent
 STEPS = [
     ("Clasificar fotos nuevas (flora + puntos)", "14_classify_photos.py"),
+    # Justo después de clasificar: la app lee de la carpeta de Dropbox de la app
+    # (App folder), no de `Cantares/fotos`. Sin este paso esa copia se queda vieja
+    # en cuanto el clasificador ordena algo nuevo. Se omite solo si aún no has
+    # conectado la app. Ver docs/DROPBOX_MUESTRAS.md.
+    ("Espejo → carpeta de la app (Dropbox)", "28_mirror_app_folder.py"),
     ("Fotos admin → app", "10_process_photos.py"),
     ("Fotos del juego → inventario", "13_ingest_game_photos.py"),
     ("Catálogo de documentos", "12_build_doc_catalog.py"),
