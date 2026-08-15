@@ -1279,7 +1279,12 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
    puede consultar Especies a mitad de camino y volver. */
 body.guiding #legend,
 body.guiding #base-compare,
-body.guiding #search-btn { display: none; }
+body.guiding #search-btn,
+/* La barra de grabación también: durante la guía hay DOS botones de parar (el
+   suyo y el ■ del chip) y el equivocado suelta el wakelock — la pantalla se
+   apaga, el navegador corta el GPS y los avisos de los puntos mueren en
+   silencio. Durante la guía se termina desde el chip, y punto. */
+body.guiding .rec-bar { display: none; }
 /* Sin tirador no puede quedarse media pantalla en 2015: la imagen actual vuelve a
    cubrirlo todo. Se hace desde el CSS y no llamando a setCompare desde cada modo,
    así al salir se repone solo y no hay una llamada que se olvide. */

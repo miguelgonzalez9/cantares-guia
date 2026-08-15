@@ -32,7 +32,37 @@
       "start_id": null,
       "end_id": "punto_16",
       "summary": "Cerca de 160 especies de aves (un 12% de las de Colombia): el águila crestada surcando sus «autopistas de aire», loras dragueras y 15 colibríes, entre ellos el rumbito pechiblanco, el más pequeño del país. Trae audífonos y Merlin.",
-      "summary_en": "Around 160 bird species (12% of Colombia’s): the crested eagle riding its “air highways”, dragon-tree parrots and 15 hummingbirds, including the white-bellied woodstar, the smallest in the country. Bring headphones and Merlin."
+      "summary_en": "Around 160 bird species (12% of Colombia’s): the crested eagle riding its “air highways”, dragon-tree parrots and 15 hummingbirds, including the white-bellied woodstar, the smallest in the country. Bring headphones and Merlin.",
+      "scripts": {
+        "punto_2": {
+          "en": null,
+          "es": "- Introducción al recorrido de las aves. Primer país en biodiversidad de aves en el mundo, de esas cuantas hay en rioblanco y las especies especiales, y. de esas cuantas se han avistado en Cantares.  \n- Descripción del águila historia del nido etc."
+        },
+        "punto_4": {
+          "en": null,
+          "es": "Indicación de descanso y observación."
+        },
+        "punto_5": {
+          "en": null,
+          "es": "- Avistamiento de águila, y más información. \n- Palomas y loras gragueras. \n- Árboles que atraen a las aves."
+        },
+        "punto_10": {
+          "en": null,
+          "es": "- Usar guion interpretativo."
+        },
+        "punto_14": {
+          "en": null,
+          "es": "Cierre del recorrido."
+        },
+        "punto_16": {
+          "en": null,
+          "es": "- Hablar de ambas aves."
+        },
+        "punto_mrgt7l58311": {
+          "en": null,
+          "es": "Buscar en guión interpretativo."
+        }
+      }
     },
     {
       "id": "arboles",
@@ -54,7 +84,13 @@
       "start_id": "punto_11",
       "end_id": "punto_1",
       "summary": "Orquídeas de los géneros Cyrtochilum, Epidendrum y Masdevallia, bromelias epífitas que sirven de sala cuna a los renacuajos, y el anturio negro, flor emblema de Manizales.",
-      "summary_en": "Orchids of the genera Cyrtochilum, Epidendrum and Masdevallia, epiphytic bromeliads that cradle tadpoles, and the black anthurium, the emblem flower of Manizales."
+      "summary_en": "Orchids of the genera Cyrtochilum, Epidendrum and Masdevallia, epiphytic bromeliads that cradle tadpoles, and the black anthurium, the emblem flower of Manizales.",
+      "scripts": {
+        "punto_1": {
+          "en": null,
+          "es": "Orquídeas de los géneros Cyrtochilum, Epidendrum y Masdevallia, bromelias epífitas que sirven de sala cuna a los renacuajos, y el anturio negro, flor emblema de Manizales."
+        }
+      }
     },
     {
       "id": "paisaje",
@@ -76,7 +112,25 @@
       "start_id": null,
       "end_id": null,
       "summary": "De potrero de kikuyo a bosque: el vivero-«laboratorio» de flora nativa y las áreas en restauración donde el ganado salió hace unos cinco años.",
-      "summary_en": "From kikuyu pasture to forest: the native-plant nursery “laboratory” and the restoration areas where cattle left about five years ago."
+      "summary_en": "From kikuyu pasture to forest: the native-plant nursery “laboratory” and the restoration areas where cattle left about five years ago.",
+      "scripts": {
+        "punto_4": {
+          "en": null,
+          "es": "Pino rey, magnolio, yolombos. Cierre del recorrido."
+        },
+        "punto_5": {
+          "en": null,
+          "es": "Fotos y videos de la siembra de vivocuenca. Cantidades y especies de árboles sembradas. Formas de la siembra"
+        },
+        "punto_11": {
+          "en": null,
+          "es": "Introducción al recorrido. Proceso de recolección y reproducción de semillas y abonos."
+        },
+        "arbol_1456": {
+          "en": null,
+          "es": "Información de árboles de lento crecimiento y maderables. Buscar si está en peligro."
+        }
+      }
     },
     {
       "id": "nocturno",

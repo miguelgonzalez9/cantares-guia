@@ -41,7 +41,7 @@ const state = {
   map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
   staticWaypoints: [], staticSpecies: [],   // respaldos para el merge con la nube
   activeRoute: null, userPos: null, watchId: null, userAccuracy: null, firstFix: false,
-  lastTriggered: {}, openWaypointId: null, baseIndex: 2, zonesVisible: false,
+  lastTriggered: {}, navDone: {}, openWaypointId: null, baseIndex: 2, zonesVisible: false,
   reserveInfo: null, media: { bySubject: {} }, boundary: null,
   hiddenTypes: new Set(),   // tipos de punto ocultados por el usuario
   guiding: null,            // id del recorrido en modo "seguir" (GPS)
@@ -190,6 +190,7 @@ function applyCloudContent(rows) {
     if (r.id === 'historia') state.historia = r.doc;
     else if (r.id === 'comercial') state.comercial = r.doc;
     else if (r.id === 'reserve_info') state.reserveInfo = r.doc;
+    else if (r.id === 'freeroam') state.freeroam = r.doc;   // zona de recorrido libre (casa)
   });
 }
 function photosFor(type, id) { return state.media.bySubject[`${type}:${id}`] || []; }
@@ -281,12 +282,15 @@ const I18N = {
     tour_listen_sub: 'El teléfono lee cada punto en voz alta', tour_read_sub: 'El texto aparece en pantalla',
     th_title: 'Ve al inicio del recorrido', th_go: '🧭 Cómo llegar',
     th_close: 'Ya estoy aquí', th_arrived: '✓ Llegaste al inicio. ¡Buen camino!',
+    nav_next: '➡️ Siguiente', nav_to_end: 'Final del recorrido',
+    data_missing: '⚠️ Faltan datos por descargar (no se alcanzaron a guardar). El mapa y los senderos funcionan; vuelve a abrir la app con señal para completar.',
     gc_close: 'Seguir', gc_listen: '🔊 Escuchar de nuevo',
     ortho_h: '🛰️ Antes / después (ortofoto)', ortho_p: 'Ortofoto fotogramétrica de la reserva (~4,4 cm/píxel).',
     carbon_h: '🌳 Carbono capturado',
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
     f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos', f_anf: '🐸 Anfibios',
     f_seen: '👁 Vistas', f_potential: '✨ Potenciales', f_bothtier: 'Ambas',
+    f_mapped: '📍 En el mapa', f_listed: '📋 Solo en el listado',
     grp_anfibio: 'Anfibios',
     count_suffix: 'especies · el inventario crece con cada avistamiento', possible: 'posible',
     info_h: 'La Reserva',
@@ -377,12 +381,15 @@ const I18N = {
     tour_listen_sub: 'Your phone reads each point aloud', tour_read_sub: 'The text appears on screen',
     th_title: 'Head to the start of the route', th_go: '🧭 Directions',
     th_close: "I'm here", th_arrived: '✓ You reached the start. Enjoy the walk!',
+    nav_next: '➡️ Next', nav_to_end: 'End of the route',
+    data_missing: '⚠️ Some data never finished downloading. The map and trails work; reopen the app with signal to complete it.',
     gc_close: 'Continue', gc_listen: '🔊 Play again',
     ortho_h: '🛰️ Before / after (orthophoto)', ortho_p: 'Photogrammetric orthophoto of the reserve (~4.4 cm/pixel).',
     carbon_h: '🌳 Carbon captured',
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
     f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals', f_anf: '🐸 Amphibians',
     f_seen: '👁 Seen', f_potential: '✨ Possible', f_bothtier: 'Both',
+    f_mapped: '📍 On the map', f_listed: '📋 List only',
     grp_anfibio: 'Amphibians',
     count_suffix: 'species · the inventory grows with every sighting', possible: 'possible',
     info_h: 'The Reserve',
@@ -533,13 +540,35 @@ function makeImageryMap(el, stop) {
     // haría que los dos encuadres se pelearan en los bordes.
     center: m.getCenter(), zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch(),
     style: imageryStyle(stop),
+    // Estos dos mapas son un FONDO que sigue al principal, no una capa que se
+    // explora: el desvanecido de tiles y la revalidación por expiración sólo
+    // añaden repintados en cada paso del zoom.
+    fadeDuration: 0, refreshExpiredTiles: false,
   });
 }
+// Mover el mapa principal obliga a redibujar los DOS mapas de imagen: son tres
+// lienzos WebGL por fotograma, y en un monitor grande con rueda de ratón es
+// donde el zoom se siente pesado. Dos recortes, sin cambiar lo que se ve:
+//   1. una sola sincronización por fotograma (MapLibre dispara 'move' varias
+//      veces por cuadro durante el zoom y la inercia);
+//   2. no se sincroniza el mapa que está TAPADO por la cortina — si la línea
+//      está en un extremo, uno de los dos no se ve y redibujarlo es gratis
+//      sólo en apariencia. Al reaparecer se pone al día en el mismo cuadro.
+let _syncRaf = 0;
 function syncImagery() {
-  const m = state.map; if (!m) return;
-  const c = { center: m.getCenter(), zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() };
-  if (imgMaps.old) imgMaps.old.jumpTo(c);
-  if (imgMaps.now) imgMaps.now.jumpTo(c);
+  if (_syncRaf) return;
+  _syncRaf = requestAnimationFrame(() => {
+    _syncRaf = 0;
+    const m = state.map; if (!m) return;
+    const c = { center: m.getCenter(), zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() };
+    const pct = state.comparePct == null ? 50 : state.comparePct;
+    // Guiando (y eligiendo puntos) el CSS quita el recorte: la imagen actual
+    // cubre todo y la antigua no se ve. Hay que mirar eso, no sólo la cortina,
+    // o durante la navegación se congelaría la única imagen visible.
+    const clipOff = document.body.classList.contains('guiding') || document.body.classList.contains('picking-points');
+    if (imgMaps.old && !clipOff && pct < 99.5) imgMaps.old.jumpTo(c);   // la antigua asoma
+    if (imgMaps.now && (clipOff || pct > 0.5)) imgMaps.now.jumpTo(c);   // la actual asoma
+  });
 }
 // pct = posición de la línea, 0 (todo pasado) a 100 (todo presente).
 function setCompare(pct) {
@@ -550,11 +579,20 @@ function setCompare(pct) {
   // La imagen ACTUAL se recorta por la izquierda: se ve de la línea hacia la
   // derecha. Lo que asoma a su izquierda es la antigua, que está debajo entera.
   if (now) now.style.clipPath = `inset(0 0 0 ${x.toFixed(2)}%)`;
+  syncImagery();   // el mapa que vuelve a asomar se pone al día (gratis: va por rAF)
 }
 function initCompare() {
   const h = $('#bc-handle'); if (!h || !state.map) return;
   const elOld = $('#img-old'), elNow = $('#img-now');
   if (!elOld || !elNow) return;
+  // Diagnóstico: `?noimg` arranca SIN los dos mapas de imagen (queda el dibujo
+  // sobre fondo liso). Sirve para saber en 10 segundos si el zoom pesado son
+  // ellos o el mapa principal, sin adivinar. Mismo espíritu que `?nomap`.
+  if (new URLSearchParams(location.search).has('noimg')) {
+    elOld.style.display = elNow.style.display = 'none';
+    const bc = $('#base-compare'); if (bc) bc.style.display = 'none';
+    return;
+  }
   $('#bc-old').textContent = baseLabel(cmpOldStop());
   $('#bc-new').textContent = baseLabel(cmpNowStop());
   imgMaps.old = makeImageryMap(elOld, cmpOldStop());
@@ -850,6 +888,41 @@ function routeStartEnd(id) {
   return { segs, startCoord, endCoord, startWp, endWp };
 }
 
+// ---------- zona de recorrido libre (el claro de la casa) ----------
+// Alrededor de la casa no hay sendero que seguir: hay pasto, y la traza real
+// zigzaguea porque así se caminó el día que se grabó. Como guía eso no dice
+// nada. Dentro del polígono el recorrido se dibuja RECTO: se conservan el
+// vértice por donde entra y aquel por donde sale, y se tira todo lo de en medio.
+// El polígono lo dibuja el admin y vive en la tabla `content` (id 'freeroam');
+// sin polígono definido, todo esto es un no-op y el trazado queda como estaba.
+function inPolygon(pt, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < ((xj - xi) * (pt[1] - yi)) / ((yj - yi) || 1e-12) + xi) inside = !inside;
+  }
+  return inside;
+}
+function freeRoamRing() {
+  const p = state.freeroam && state.freeroam.polygon;
+  return Array.isArray(p) && p.length >= 4 ? p : null;   // anillo cerrado mínimo
+}
+function freeRoamPath(cs) {
+  const ring = freeRoamRing();
+  if (!ring || !Array.isArray(cs) || cs.length < 3) return cs;
+  const out = [];
+  let i = 0;
+  while (i < cs.length) {
+    if (!inPolygon(cs[i], ring)) { out.push(cs[i]); i++; continue; }
+    let j = i;                                   // tramo consecutivo dentro de la zona
+    while (j + 1 < cs.length && inPolygon(cs[j + 1], ring)) j++;
+    out.push(cs[i]);                             // por donde entra
+    if (j > i) out.push(cs[j]);                  // por donde sale (recta entre los dos)
+    i = j + 1;
+  }
+  return out.length >= 2 ? out : cs;
+}
+
 // Encadena senderos en el ORDEN dado (route.segments), orientando cada uno para
 // conectar con el anterior. Ese orden fija la dirección del recorrido.
 const trailById = (tid) => state.trails.find((t) => t.properties.id === tid);
@@ -881,7 +954,7 @@ function buildRoutePath(id) {
   // según los puntos de inicio/fin si se dieron (para que el flujo del camino
   // apunte hacia donde el admin marcó, aunque no cambie el orden de senderos).
   if (route && Array.isArray(route.segments) && route.segments.length) {
-    let path = orderedPathFromSegments(route.segments);
+    let path = freeRoamPath(orderedPathFromSegments(route.segments));
     if (path && path.length >= 2) {
       const last = path.length - 1;
       const sC = sWp && sWp.geometry.coordinates, eC = eWp && eWp.geometry.coordinates;
@@ -922,8 +995,27 @@ function buildRoutePath(id) {
   }
   if (!path || path.length < 2) return null;
   if (endCoord && haversine(path[0], endCoord) < haversine(path[path.length - 1], endCoord)) path.reverse();
-  info.path = path;
+  info.path = freeRoamPath(path);
   return info;
+}
+
+// Ordena unos puntos EN EL SENTIDO en que se recorren, dados los senderos (en
+// orden) y el punto de inicio. Es la misma proyección sobre el trazado que usa
+// la caja de información del recorrido; el editor la reutiliza para que los
+// guiones salgan en el orden en que el visitante llega a cada punto, no en el
+// orden en que el admin los fue tocando en el mapa.
+function orderPointsAlongSegments(segIds, ptIds, startId) {
+  const ids = (ptIds || []).slice();
+  let path = orderedPathFromSegments(segIds || []);
+  if (!path || path.length < 2) return ids;                 // sin trazado: se deja como está
+  const sWp = startId ? wpById(startId) : null;
+  if (sWp) {                                                // orientar start→end
+    const sC = sWp.geometry.coordinates;
+    if (haversine(path[0], sC) > haversine(path[path.length - 1], sC)) path = path.slice().reverse();
+  }
+  const pos = new Map();
+  ids.forEach((id) => { const w = wpById(id); pos.set(id, w ? pathPos(path, w.geometry.coordinates) : Infinity); });
+  return ids.sort((a, b) => pos.get(a) - pos.get(b));
 }
 
 // Label for a route endpoint: explicit waypoint title, else nearest route waypoint.
@@ -951,8 +1043,18 @@ function startFlow() {
   stopFlow();
   const map = state.map;
   if (!map || !map.getLayer('route-flow')) return;
+  // Quien pidió menos animación no la recibe: son 11 repintados por segundo,
+  // permanentes, y el recorrido se entiende igual sin ellos.
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   let i = 0;
   state.flowTimer = setInterval(() => {
+    // Mientras el usuario mueve o hace zoom, la animación se calla. Cambiar
+    // `line-dasharray` invalida el atlas de líneas de MapLibre y lo obliga a
+    // rehacer el trazado: hacerlo 11 veces por segundo EN MEDIO de un zoom es
+    // lo que hace que el zoom se sienta pesado y retrasado (sobre todo con
+    // rueda de ratón, que genera muchos más fotogramas que un pellizco).
+    // La animación se reanuda sola al soltar.
+    if (map.isMoving() || map.isZooming() || map.isRotating()) return;
     i = (i + 1) % DASH_SEQ.length;
     if (map.getLayer('route-flow')) map.setPaintProperty('route-flow', 'line-dasharray', DASH_SEQ[i]);
     else stopFlow();
@@ -1293,37 +1395,87 @@ function bearingWord(from, to) {
 
 const TRAILHEAD_M = 30;   // dentro de esto se considera que ya llegó al inicio
 
-// Tarjeta «ve al inicio»: se muestra mientras el visitante está lejos del primer
-// punto del recorrido. Antes no había NADA que dijera por dónde empezar — el
-// recorrido arrancaba y el mapa se quedaba mirando.
+// Puntos del recorrido EN ORDEN de visita (misma proyección sobre el trazado que
+// usa la caja de información y el editor de guiones).
+function routePointsInOrder(id) {
+  const r = state.routesById[id];
+  if (!r) return [];
+  const ids = state.waypoints.filter((w) => (w.properties.routes || []).includes(id)).map((w) => w.properties.id);
+  return orderPointsAlongSegments(r.segments || [], ids, r.start_id).map(wpById).filter(Boolean);
+}
+// ¿A dónde toca ir AHORA? Antes de llegar al inicio, al inicio; después, al
+// siguiente punto que no se haya visitado; al final, al punto de fin.
+// `state.navDone` es distinto de `lastTriggered`: aquél se reinicia al alejarse
+// (para poder volver a sonar), y como "ya visitado" haría que la guía mandara de
+// vuelta a un punto por el que ya se pasó.
+function navTarget() {
+  if (!state.guiding) return null;
+  const built = buildRoutePath(state.guiding);
+  const path = built && built.path;
+  if (!path || !path.length) return null;
+  if (!state.atTrailhead) return { coord: path[0], label: t('th_title'), id: '__inicio__' };
+  const next = routePointsInOrder(state.guiding).find((w) => !state.navDone[w.properties.id]);
+  if (next) return { coord: next.geometry.coordinates, label: L(next.properties, 'title') || next.properties.title || '', id: next.properties.id, wp: next };
+  return { coord: path[path.length - 1], label: t('nav_to_end'), id: '__fin__' };
+}
+// Traza en vivo hasta el objetivo, por los senderos (Dijkstra) — el equivalente
+// a la línea azul de Google Maps. Se recalcula sólo si te moviste de verdad o si
+// cambió el objetivo: reproyectar la red entera en cada fijo del GPS calienta el
+// teléfono para nada.
+function navDrawLeg(target) {
+  const map = state.map;
+  if (!map || !map.getSource('nav-route') || !state.userPos || !target) return;
+  const moved = !state._navFrom || haversine(state._navFrom, state.userPos) > 8;
+  if (!moved && state._navTo === target.id) return;
+  state._navFrom = state.userPos; state._navTo = target.id;
+  let r = routeOnTrails(state.userPos, target.coord);
+  if (!r) r = { coords: [state.userPos, target.coord] };
+  map.getSource('nav-route').setData({ type: 'FeatureCollection',
+    features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: r.coords } }] });
+}
+function navClearLeg() {
+  const src = state.map && state.map.getSource('nav-route');
+  if (src) src.setData(emptyFC());
+  state._navFrom = null; state._navTo = null;
+}
+// Tarjeta de navegación: qué sigue, a qué distancia y hacia dónde. Nace de la
+// vieja tarjeta «ve al inicio», que hacía esto mismo pero sólo para el primer
+// punto y se apagaba al llegar — justo cuando empieza a hacer falta.
 function renderTrailhead() {
   if (!state.guiding) return hideTrailhead();
-  const built = buildRoutePath(state.guiding);
-  const start = built && built.path && built.path[0];
-  if (!start) return hideTrailhead();
   if (!state.userPos) return;              // sin GPS todavía: no se puede decir nada útil
-  const d = haversine(state.userPos, start);
-  if (d <= TRAILHEAD_M) {
-    if (!state.atTrailhead) { state.atTrailhead = true; toast(t('th_arrived')); }
-    return hideTrailhead();
+  const target = navTarget();
+  if (!target) return hideTrailhead();
+  const d = haversine(state.userPos, target.coord);
+  if (target.id === '__inicio__' && d <= TRAILHEAD_M) {
+    state.atTrailhead = true; toast(t('th_arrived'));
+    return renderTrailhead();              // ya en el inicio: la tarjeta pasa al primer punto
   }
+  navDrawLeg(target);
   let el = document.getElementById('trailhead-card');
   if (!el) {
     el = document.createElement('div');
     el.id = 'trailhead-card'; el.className = 'guide-sheet';
     (document.getElementById('view-recorridos') || document.body).appendChild(el);
   }
+  const head = target.id === '__inicio__' ? t('th_title') : `${t('nav_next')}: ${escapeHtml(target.label)}`;
   el.innerHTML = `
-    <div class="gs-head"><b>${t('th_title')}</b>
+    <div class="gs-head"><b>${head}</b>
       <button class="gs-x" id="th-x" aria-label="${escapeHtml(t('th_close'))}">×</button></div>
-    <p class="gs-body">${fmtDist(d)} · ${escapeHtml(bearingWord(state.userPos, start))}</p>
-    <button class="gs-cta" id="th-go">${t('th_go')}</button>`;
-  document.getElementById('th-go').onclick = () =>
-    navigateTo({ geometry: { coordinates: start },
-                 properties: { id: '__inicio__', title: t('th_title') } });
-  document.getElementById('th-x').onclick = () => { state.atTrailhead = true; hideTrailhead(); };
+    <p class="gs-body">${fmtDist(d)} · ${escapeHtml(bearingWord(state.userPos, target.coord))}</p>
+    ${target.id === '__inicio__' ? `<button class="gs-cta" id="th-go">${t('th_go')}</button>` : ''}`;
+  const go = document.getElementById('th-go');
+  if (go) go.onclick = () => navigateTo({ geometry: { coordinates: target.coord },
+    properties: { id: '__inicio__', title: t('th_title') } });
+  // La × salta este objetivo (no cierra la guía): un punto que no se quiere ver,
+  // o al que no se llega, no puede dejar la tarjeta clavada el resto del camino.
+  document.getElementById('th-x').onclick = () => {
+    if (target.id === '__inicio__') state.atTrailhead = true;
+    else if (target.wp) state.navDone[target.id] = true;
+    renderTrailhead();
+  };
 }
-function hideTrailhead() { const el = document.getElementById('trailhead-card'); if (el) el.remove(); }
+function hideTrailhead() { const el = document.getElementById('trailhead-card'); if (el) el.remove(); navClearLeg(); }
 
 // Tarjeta de llegada a un punto. Sustituye al toast + mini-popup + voz sueltos:
 // una idea por tarjeta, y el visitante decide si quiere más.
@@ -1359,7 +1511,10 @@ function showGuideCard(wp) {
   if (say) say.onclick = () => speakScript(sc);
   if (sc && !reading) speakScript(sc);
 }
-function hideGuideCard() { const el = document.getElementById('guide-card'); if (el) el.remove(); }
+// Cerrar la tarjeta CALLA la voz: seguir oyendo el guión de un punto que ya
+// cerraste es lo que hace que la gente le baje el volumen al teléfono y se
+// pierda el resto de la audioguía.
+function hideGuideCard() { const el = document.getElementById('guide-card'); if (el) { el.remove(); stopSpeech(); } }
 
 // Elegir entre escuchar y leer, una vez, al arrancar el recorrido. Se recuerda,
 // así que a partir del segundo recorrido el botón arranca directo.
@@ -1445,7 +1600,21 @@ function onDeviceOrientation(e) {
   const scr = (screen.orientation && screen.orientation.angle) || 0;
   h = (h + scr + 360) % 360;
   state.heading = smoothHeading(state.heading, h);
-  if (!_headingRaf) _headingRaf = requestAnimationFrame(() => { _headingRaf = 0; pushUserFeature(); });
+  if (!_headingRaf) _headingRaf = requestAnimationFrame(() => { _headingRaf = 0; pushUserFeature(); navFollowHeading(); });
+}
+// Mapa orientado a donde MIRAS mientras te guía (como el coche de Google Maps):
+// «arriba» deja de ser el norte y pasa a ser el frente, que es lo que permite
+// leer el mapa de reojo sin girarlo mentalmente. Sólo durante la guía y sólo si
+// el mapa te está siguiendo: si paneaste para mirar adelante, no te lo peleo.
+// El umbral de 8° evita reencuadrar en cada micro-oscilación de la brújula.
+const NAV_PITCH = 55;
+function navFollowHeading() {
+  if (!state.guiding || !state.following || state.heading == null) return;
+  const map = state.map; if (!map) return;
+  const cur = map.getBearing();
+  const diff = Math.abs(((state.heading - cur + 540) % 360) - 180);
+  if (diff < 8) return;
+  map.easeTo({ bearing: state.heading, duration: 300 });
 }
 function startHeading() {
   if (state._headingOn || !window.isSecureContext) return;
@@ -1479,7 +1648,7 @@ function onPosition(pos) {
     else if (state.following) state.map.easeTo({ center: state.userPos, duration: 600 });
   }
   checkProximity();
-  if (state.guiding && !state.atTrailhead) renderTrailhead();
+  if (state.guiding) renderTrailhead();   // destino, distancia, rumbo y traza en vivo
 }
 // Radio del halo de precisión = accuracy (m) en píxeles al zoom actual.
 // Se proyecta un punto `accuracy` metros al norte del usuario y se mide la
@@ -1508,6 +1677,7 @@ function startGuiding(id, mode) {
   if (mode) { state.tourMode = mode; localStorage.setItem('cantares_tour_mode', mode); }
   state.guiding = id;
   state.atTrailhead = false;
+  state.navDone = {};   // ningún punto visitado todavía en ESTE recorrido
   // Modo enfocado: fuera leyenda, capas de satélite y buscador. Es la queja de
   // fondo — demasiadas cosas a la vez. Caminando sólo hacen falta el camino, los
   // puntos del recorrido y qué hacer ahora.
@@ -1515,7 +1685,9 @@ function startGuiding(id, mode) {
   applyWaypointFilter();
   primeSpeech();   // gesto del usuario: habilita el TTS para leer los guiones al llegar
   const built = buildRoutePath(id);
-  if (built && state.map) state.map.easeTo({ center: built.path[0], zoom: 17.5, duration: 800 });
+  // Cámara de navegación: inclinada y de cerca. En plano y de lejos el mapa es
+  // una lámina; inclinado se lee «lo que viene» sin pensarlo.
+  if (built && state.map) state.map.easeTo({ center: built.path[0], zoom: 17.5, pitch: NAV_PITCH, duration: 800 });
   if (state.watchId == null) locate();   // begin GPS follow (google-maps style)
   state.following = true;
   // Grabar también el recorrido guiado en el historial del usuario.
@@ -1536,10 +1708,14 @@ function startGuiding(id, mode) {
 }
 function stopGuiding() {
   const wasId = state.guiding;
+  if (!wasId) return;   // idempotente: el par keepAwake/releaseAwake no puede descuadrarse
   popBack('guiding');
   state.guiding = null;
   state.atTrailhead = false;
   document.body.classList.remove('guiding');   // vuelve la leyenda, el satélite y el buscador
+  // Cámara de vuelta a plano y al norte: dejarla inclinada y girada después de
+  // terminar desorienta a quien sólo quería mirar el mapa.
+  if (state.map) state.map.easeTo({ pitch: 0, bearing: 0, duration: 500 });
   hideTrailhead(); hideGuideCard();
   applyWaypointFilter();
   stopSpeech();   // corta cualquier guión en curso al terminar el recorrido
@@ -1593,11 +1769,15 @@ function stopSpeech() { if ('speechSynthesis' in window) try { window.speechSynt
 // otro punto antes de terminar, reemplaza (nunca se solapan dos audios).
 function speakScript(s) {
   if (!s || !('speechSynthesis' in window)) return;
-  const text = (LANG === 'en' ? s.en : s.es) || s.es || s.en;
+  // El idioma se elige JUNTO con el texto, no por separado: si falta el guión en
+  // inglés se cae al español, y anunciar en-US sobre un texto español hace que
+  // la voz lo lea con fonética inglesa — ininteligible para todo el mundo.
+  const useEn = LANG === 'en' && !!s.en;
+  const text = useEn ? s.en : (s.es || s.en);
   if (!text) return;
   try {
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = LANG === 'en' ? 'en-US' : 'es-CO';
+    u.lang = useEn ? 'en-US' : (s.es ? 'es-CO' : 'en-US');
     u.rate = 0.95;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
@@ -1612,9 +1792,11 @@ function checkProximity() {
     const d = haversine(state.userPos, wp.geometry.coordinates);
     if (d <= CONFIG.proximityMeters && !state.lastTriggered[id]) {
       state.lastTriggered[id] = true;
+      state.navDone[id] = true;      // visitado: la guía ya no vuelve a mandarte aquí
       // Una sola tarjeta, no un toast + un popup + una voz a la vez: cada
       // llegada dice una cosa. El detalle completo sigue a un toque.
       showGuideCard(wp);
+      renderTrailhead();             // y el destino pasa al punto siguiente
     } else if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) state.lastTriggered[id] = false;
   });
 }
@@ -1676,7 +1858,24 @@ let speciesFilter = 'all';
 // grupo (aves y árboles/flora): lo del censo confirmado es 'seen', lo marcado
 // 'potential' es potencial. Sin reserve_status → 'seen' (confirmado). Default: vistas.
 let seenFilter = 'seen';
-function speciesTier(s) { return s.reserve_status || 'seen'; }
+// La capa depende de la FUENTE de verdad de cada grupo:
+//   aves  → eBird (`reserve_status`, lo escribe data_prep/18_ebird_reserve_lists.py)
+//   árboles → el inventario de PUNTOS del mapa: un árbol con punto está mapeado;
+//             uno que solo aparece en el listado botánico, no.
+// El resto de grupos no tiene dos capas y cae en 'seen' (una sola).
+function speciesTier(s) {
+  if (s.reserve_status) return s.reserve_status;
+  if (speciesGroup(s) === 'arbol') return isTreeSpecies(s) ? 'seen' : 'potential';
+  return 'seen';
+}
+// Etiquetas de la capa según el grupo elegido: para aves es visto/potencial
+// (eBird); para árboles es estar o no en el inventario de puntos. Usar «vistas»
+// para un árbol sería mentir sobre lo que mide el número.
+function tierLabels() {
+  return speciesFilter === 'arbol'
+    ? { seen: t('f_mapped'), potential: t('f_listed') }
+    : { seen: t('f_seen'), potential: t('f_potential') };
+}
 function renderSpeciesFilters() {
   const wrap = $('#species-filters');
   // Sólo los grupos presentes (según el grupo derivado), en el orden canónico.
@@ -1688,7 +1887,9 @@ function renderSpeciesFilters() {
     const b = document.createElement('button');
     b.className = 'filter-chip' + (key === speciesFilter ? ' active' : '');
     b.textContent = label;
-    b.onclick = () => { speciesFilter = key; renderSpeciesFilters(); renderSpeciesGrid(); };
+    // Cambiar de categoría reinicia la capa a «vistas»: cada grupo mide una cosa
+    // distinta, y arrastrar «potenciales» de aves a árboles no significa nada.
+    b.onclick = () => { speciesFilter = key; seenFilter = 'seen'; renderSpeciesFilters(); renderSpeciesGrid(); };
     wrap.appendChild(b);
   });
   // Segunda fila: capa vistas / potenciales, en INTERSECCIÓN con el filtro de grupo
@@ -1696,11 +1897,16 @@ function renderSpeciesFilters() {
   // ese grupo tiene potenciales (p. ej. Aves; Flora sin potenciales no lo muestra).
   const tw = $('#species-tier');
   if (!tw) return;
+  // Sin categoría elegida (Todas / Destacadas) el toggle no aparece: mezclaría
+  // capas que miden cosas distintas (eBird para aves, inventario para árboles) en
+  // un mismo número, que es justo lo que lo hacía incomprensible.
+  if (speciesFilter === 'all' || speciesFilter === 'flagship') { tw.innerHTML = ''; return; }
   const base = groupFiltered();
   const nPot = base.filter((s) => speciesTier(s) === 'potential').length;
   if (!nPot) { tw.innerHTML = ''; return; }   // sin potenciales en este grupo → sin toggle
   const nSeen = base.length - nPot;
-  const tiers = [['seen', `${t('f_seen')} (${nSeen})`], ['potential', `${t('f_potential')} (${nPot})`], ['all', t('f_bothtier')]];
+  const lbl = tierLabels();
+  const tiers = [['seen', `${lbl.seen} (${nSeen})`], ['potential', `${lbl.potential} (${nPot})`], ['all', t('f_bothtier')]];
   tw.innerHTML = '';
   tiers.forEach(([key, label]) => {
     const b = document.createElement('button');
@@ -1719,8 +1925,12 @@ function groupFiltered() {
 }
 function filteredSpecies() {
   const base = groupFiltered();
-  // La capa vistas/potenciales sólo aplica si el grupo actual tiene potenciales;
-  // si no, se ignora para no dejar la rejilla vacía al cambiar de grupo.
+  // Sin categoría elegida no hay toggle visible (ver renderSpeciesFilters), así
+  // que TAMPOCO se filtra: un filtro que actúa sin botón que lo muestre es un
+  // filtro invisible, y el visitante no entiende por qué le faltan especies.
+  if (speciesFilter === 'all' || speciesFilter === 'flagship') return base;
+  // La capa sólo aplica si el grupo actual tiene potenciales; si no, se ignora
+  // para no dejar la rejilla vacía al cambiar de grupo.
   if (!base.some((s) => speciesTier(s) === 'potential')) return base;
   return base.filter((s) => seenFilter === 'all' || speciesTier(s) === seenFilter);
 }
@@ -2404,7 +2614,10 @@ function routeOnTrails(from, to) {
   if (!isFinite(dist[t.i])) return null;
   const path = [];
   for (let u = t.i; u !== -1; u = prev[u]) path.unshift(g.nodes[u]);
-  return { coords: [from, ...path, to], distM: dist[t.i] + s.d + t.d, onTrail: true };
+  // Recta dentro de la zona de recorrido libre; la distancia se recalcula sobre
+  // el trazado ya simplificado para no anunciar metros que nadie va a caminar.
+  const coords = freeRoamPath([from, ...path, to]);
+  return { coords, distM: pathLengthM(coords), onTrail: true };
 }
 // Botón "Cómo llegar" del punto: rutea desde el GPS. Si aún no hay ubicación,
 // la pide y reintenta; si no hay camino por senderos, traza una línea directa.
@@ -2653,11 +2866,11 @@ async function main() {
   // Menos desorden en móvil: la leyenda arranca colapsada (un tap la abre).
   if (window.matchMedia && window.matchMedia('(max-width: 560px)').matches) $('#legend').classList.add('collapsed');
   makeDraggable($('#locate-btn'), $('#locate-btn'), 'cantares_pos_locate', locate);
-  // iOS ignora user-scalable=no en el viewport: hay que bloquear sus gestos de
-  // pellizco a mano. Son eventos propios de WebKit; MapLibre usa touch* y no se
-  // ve afectado, así que el zoom DEL MAPA sigue funcionando igual.
+  // El pellizco de página ya NO se bloquea (ver el viewport en index.html): era
+  // el otro cerrojo que impedía agrandar la letra. Se sigue bloqueando sobre el
+  // mapa, que tiene su propio zoom y donde el gesto del navegador estorba.
   ['gesturestart', 'gesturechange', 'gestureend'].forEach((ev) =>
-    document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
+    $('#map').addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
   window.addEventListener('online', renderOfflineStatus);
   window.addEventListener('offline', renderOfflineStatus);
   window.addEventListener('cantares:recstate', renderRouteBar);   // refresca el chip "Recorrido libre"
@@ -2673,8 +2886,14 @@ async function main() {
     if (r.ok) { CONFIG.baseStops.push({ key: 'ortho', pmtiles: true }); state.baseIndex = CONFIG.baseStops.length - 1; }
   } catch (e) { /* no ortho yet */ }
 
+  // Ningún archivo de datos puede tumbar la app entera: si `species.json` (546 KB)
+  // no alcanzó a descargarse antes de perder la señal, el mapa, los senderos y
+  // los recorridos NO dependen de él y tienen que seguir funcionando. Lo que
+  // falte se avisa abajo, en vez de dejar una pantalla en blanco.
+  const missing = [];
+  const loadOr = (key, fallback) => loadJSON(CONFIG.data[key]).catch(() => { missing.push(key); return fallback; });
   const [routesDoc, speciesDoc, reserveInfo, mediaDoc, groupsDoc, historiaDoc, comercialDoc] = await Promise.all([
-    loadJSON(CONFIG.data.routes), loadJSON(CONFIG.data.species),
+    loadOr('routes', { routes: [] }), loadOr('species', { species: [] }),
     loadJSON(CONFIG.data.reserveInfo).catch(() => null),
     loadJSON(CONFIG.data.media).catch(() => null),
     loadJSON(CONFIG.data.speciesGroups).catch(() => null),
@@ -2684,11 +2903,12 @@ async function main() {
   state.historia = historiaDoc;
   state.comercial = comercialDoc;
   state.speciesGroups = (groupsDoc && Array.isArray(groupsDoc.groups) && groupsDoc.groups.length) ? groupsDoc.groups : SPECIES_GROUPS_FALLBACK;
-  state.routes = routesDoc.routes;
-  state.staticRoutes = routesDoc.routes;   // respaldo para el merge con la nube
+  state.routes = routesDoc.routes || [];
+  state.staticRoutes = state.routes;   // respaldo para el merge con la nube
   state.routesById = Object.fromEntries(state.routes.map((r) => [r.id, r]));
-  state.species = speciesDoc.species;
-  state.staticSpecies = speciesDoc.species;   // respaldo para el merge con la nube
+  state.species = speciesDoc.species || [];
+  state.staticSpecies = state.species;   // respaldo para el merge con la nube
+  if (missing.length) toast(t('data_missing'));
   state.reserveInfo = reserveInfo;
   state.staticMedia = mediaDoc;             // respaldo para el merge con la nube
   state.cloudMedia = [];
@@ -2716,7 +2936,7 @@ async function main() {
     await loadCloudData();                       // preferir datos de la nube (ediciones del admin)
     renderSpeciesFilters(); renderSpeciesGrid(); renderLegend();
     if (!localStorage.getItem('cantares_onboarded')) showOnboarding();
-    await initGame({ state, t, L, toast, rerenderSpecies: () => renderSpeciesGrid(),
+    await initGame({ state, t, L, toast, rerenderSpecies: () => renderSpeciesGrid(), pushBack, popBack,
       cloud: { enabled: Cloud.cloudConfigured() && Cloud.isLoggedIn(), user: Cloud.currentUser(),
         addSighting: Cloud.addSighting, mySightings: Cloud.mySightings, uploadImage: Cloud.uploadImage } });
     if (!new URLSearchParams(location.search).has('nomap')) {
@@ -2732,6 +2952,9 @@ async function main() {
         pointTypes: () => Object.keys(TYPE_META).map((tp) => ({ tipo: tp, emoji: TYPE_META[tp].emoji, color: TYPE_META[tp].color, label: typeLabel(tp), es: TYPE_META[tp].es, en: TYPE_META[tp].en })),
         registerPointType, savePointType,
         ensureGps: () => { if (state.watchId == null) locate(); },   // GPS caliente para marcar sin esperar
+        orderPointsAlongSegments,   // guiones en el orden del recorrido (editor de recorridos)
+        freeRoam: () => state.freeroam,
+        setFreeRoam: (doc) => { state.freeroam = doc; if (state.activeRoute) selectRoute(state.activeRoute); },
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
       initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); } });
     }
@@ -2812,6 +3035,11 @@ function applyCloudSpecies(cs) {
 }
 async function loadCloudData() {
   if (!Cloud.cloudConfigured()) return;
+  // Sin internet no se intenta siquiera: `main` espera a que esto termine antes
+  // de pintar el mapa, y con una barra de señal (`navigator.onLine` dice true y
+  // miente) las siete peticiones se quedan colgadas del timeout mientras el
+  // visitante mira una pantalla vacía. Los refrescos posteriores ya lo hacían.
+  if (!navigator.onLine) return;
   try {
     const [cw, cs, cr, ct, cm, cpt, cc] = await Promise.all([
       Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null),

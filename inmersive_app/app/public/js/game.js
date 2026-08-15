@@ -337,7 +337,13 @@ function snapLocation() {
 
 
 // ---------- modales ----------
-function closeModal() { document.querySelectorAll('.gm-overlay').forEach((n) => n.remove()); }
+// Los modales del juego entran en la pila del botón «atrás»: sin esto, atrás con
+// el asistente de captura abierto saltaba de pestaña o cerraba la app entera —
+// con la foto dentro. Es el gesto que más repiten los niños.
+function closeModal() {
+  document.querySelectorAll('.gm-overlay').forEach((n) => n.remove());
+  if (CTX && CTX.popBack) CTX.popBack('gm');
+}
 function openModal(html) {
   closeModal();
   const ov = document.createElement('div');
@@ -346,7 +352,18 @@ function openModal(html) {
   ov.querySelector('.gm-close').onclick = closeModal;
   ov.onclick = (e) => { if (e.target === ov) closeModal(); };
   document.body.appendChild(ov);
+  if (CTX && CTX.pushBack) CTX.pushBack('gm', closeModal);
   return ov.querySelector('.gm-body');
+}
+// Un botón que dispara trabajo asíncrono se apaga mientras dura: dos toques
+// seguidos creaban DOS registros (cada uno con su id) y los dos se subían.
+function once(btn, fn) {
+  if (!btn) return;
+  btn.onclick = async (e) => {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try { await fn(e); } finally { if (btn.isConnected) btn.disabled = false; }
+  };
 }
 
 // ---------- alta de jugador ----------
@@ -364,7 +381,7 @@ function openProfileModal(after) {
     body.querySelectorAll('.gm-avatar').forEach((x) => x.classList.remove('sel'));
     b.classList.add('sel'); avatar = b.dataset.a;
   });
-  body.querySelector('#gm-go').onclick = async () => {
+  once(body.querySelector('#gm-go'), async () => {
     const name = body.querySelector('#gm-name').value.trim();
     if (!name) { body.querySelector('#gm-name').focus(); return; }
     const player = { id: uid(), name, emoji: avatar, created: new Date().toISOString() };
@@ -374,7 +391,7 @@ function openProfileModal(after) {
     rebuildCapMap(); renderGamePanel(); CTX.rerenderSpecies();
     closeModal();
     if (after) after();
-  };
+  });
 }
 
 // ---------- asistente de captura (3 pasos) ----------
@@ -573,7 +590,7 @@ function renderWizardConfirm(body) {
     <button id="gm-save" class="gm-primary">${T('g_save')}</button>
     <button id="gm-backb" class="gm-linkbtn">${T('g_back')}</button>`;
   body.querySelector('#gm-backb').onclick = () => renderWizardId(body);
-  body.querySelector('#gm-save').onclick = async () => {
+  once(body.querySelector('#gm-save'), async () => {
     const before = new Set(earnedBadges(player.id).map((a) => a.id));
     const obs = {
       id: uid(), playerId: player.id,
@@ -610,12 +627,15 @@ function renderWizardConfirm(body) {
         if (!obs.photo) return;   // `media.url` es NOT NULL y la rellena el blob
         await saveRow('media', {
           id: 'gm-' + obs.id, kind: 'photo',
-          // Sólo se da por clasificada si el visitante eligió una especie DEL
-          // inventario. Un «hallazgo» (nombre escrito a mano) entra sin
-          // clasificar: el admin decide si existe. Antes sin clasificar que mal.
+          // NINGUNA foto de visitante se publica sola, ni cuando eligió una
+          // especie del inventario: quien toca una tarjeta no está confirmando
+          // una identificación (los niños tocan lo que sea) y la foto entraría
+          // directa a la galería pública de esa especie. Entra SIEMPRE sin
+          // clasificar, con la elección guardada como conjetura, y el admin la
+          // publica con un toque desde la bandeja. Antes sin clasificar que mal.
           subject_type: obs.speciesId ? 'species' : null,
           subject_id: obs.speciesId || null,
-          status: obs.speciesId ? 'classified' : 'unclassified',
+          status: 'unclassified',
           origin: 'game-capture', walk_id: currentWalkId(),
           lat: obs.lat, lng: obs.lon, taken_at: new Date(obs.time).toISOString(),
           // Lo que se sugirió, separado de lo que se confirmó: `subject_id` es el
@@ -639,7 +659,7 @@ function renderWizardConfirm(body) {
       </div>`;
     body.querySelector('#gm-done').onclick = closeModal;
     body.querySelector('#gm-again').onclick = () => { closeModal(); openCaptureWizard(); };
-  };
+  });
 }
 
 // ---------- ranking ----------

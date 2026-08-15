@@ -72,6 +72,25 @@ export function openPointEditor(id) {
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
+// ---- cámara directa (registrar un punto en campo sin pasar por la galería) ----
+// `capture="environment"` abre la cámara trasera del teléfono; es una función
+// nativa del navegador, no hace falta getUserMedia ni un visor propio. En
+// escritorio el atributo se ignora y cae al selector de archivos de siempre.
+// El input oculto comparte el `onchange` del de galería, así la foto sigue el
+// mismo camino (comprimir → cola offline) sin duplicar lógica.
+function camControls(inputId) {
+  return `<button type="button" class="admin-pick cam-btn" id="${inputId}-cam">📷 Tomar foto</button>
+    <input type="file" id="${inputId}-cap" accept="image/*" capture="environment" hidden>`;
+}
+function wireCamera(root, inputId, onFile) {
+  const gal = root.querySelector('#' + inputId);
+  const cap = root.querySelector('#' + inputId + '-cap');
+  const btn = root.querySelector('#' + inputId + '-cam');
+  if (gal) gal.onchange = onFile;
+  if (cap) cap.onchange = onFile;
+  if (btn) btn.onclick = () => cap && cap.click();
+}
+
 // Lista de checkboxes de especies (con nombre común) para el editor de puntos.
 // Sin escribir ids ni nombres científicos a mano: cero errores de tipeo.
 function speciesChecks(selected) {
@@ -86,6 +105,32 @@ function speciesChecks(selected) {
       const search = `${s.common_name || ''} ${s.scientific_name || ''}`.toLowerCase();
       return `<label class="admin-chk" data-n="${esc(search)}"><input type="checkbox" value="${esc(s.id)}" ${on ? 'checked' : ''}> ${esc(label)}</label>`;
     }).join('');
+}
+
+// ---- selector con búsqueda (listas largas de edición) ----------------------
+// Orden alfabético + filtro por subcadena. Mismo patrón y mismas clases que el
+// selector de sujeto de la bandeja de Fotos, que ya funcionaba así: un <select>
+// de 60 senderos es imposible de usar con el pulgar. La lista aparece al enfocar
+// y se cierra al elegir.
+function pickerHTML(id, placeholder) {
+  return `<input class="admin-search" id="${id}-q" placeholder="${esc(placeholder)}">
+    <div class="fm-assign-list hidden" id="${id}-list"></div>`;
+}
+function wirePicker(root, id, items, onPick) {
+  const q = root.querySelector('#' + id + '-q'), box = root.querySelector('#' + id + '-list');
+  if (!q || !box) return;
+  const sorted = items.slice().sort((a, b) => String(a.label).localeCompare(String(b.label), 'es'));
+  const draw = () => {
+    const s = q.value.trim().toLowerCase();
+    const hits = sorted.filter((it) => !s || String(it.label).toLowerCase().includes(s));
+    box.classList.remove('hidden');
+    box.innerHTML = hits.length
+      ? hits.map((it) => `<button type="button" class="fm-assign-item" data-id="${esc(it.id)}"><b>${esc(it.label)}</b></button>`).join('')
+      : '<div class="admin-note">Sin coincidencias</div>';
+    box.querySelectorAll('.fm-assign-item').forEach((b) => b.onclick = () => { q.value = ''; box.classList.add('hidden'); onPick(b.dataset.id); });
+  };
+  q.oninput = draw;
+  q.onfocus = draw;
 }
 
 function panelEl() {
@@ -296,12 +341,14 @@ function editPunto(id) {
       <div class="admin-photo">
         <div class="admin-photo-prev" id="f-photo-prev" style="${p.photo ? `background-image:url('${esc(p.photo)}')` : ''}"></div>
         <input type="file" id="f-photo" accept="image/*">
+        ${camControls('f-photo')}
       </div>
       ${p.photo ? '<button type="button" class="admin-pick" id="f-dl">⬇️ Descargar foto</button>' : ''}
       <label>Foto de la hoja <span style="font-weight:400;color:var(--muted)">(opcional, para árboles)</span></label>
       <div class="admin-photo">
         <div class="admin-photo-prev" id="f-leaf-prev" style="${p.photo_leaf ? `background-image:url('${esc(p.photo_leaf)}')` : ''}"></div>
         <input type="file" id="f-leaf" accept="image/*">
+        ${camControls('f-leaf')}
       </div>
       ${p.photo_leaf ? '<button type="button" class="admin-pick" id="f-leaf-dl">⬇️ Descargar hoja</button>' : ''}
       ${id ? '<button type="button" class="admin-pick fm-open" id="f-media">🖼️ Fotos y videos (galería, portada)…</button>' : ''}
@@ -334,11 +381,11 @@ function editPunto(id) {
   const fmb = body.querySelector('#f-media'); if (fmb) fmb.onclick = () => openMediaFor('waypoint', id);
   const fdl = body.querySelector('#f-dl'); if (fdl) fdl.onclick = () => downloadPhoto(photoUrl, (p.title || 'punto'));
   const fldl = body.querySelector('#f-leaf-dl'); if (fldl) fldl.onclick = () => downloadPhoto(photoLeafUrl, (p.title || 'punto') + '_hoja');
-  body.querySelector('#f-leaf').onchange = async (e) => {
+  wireCamera(body, 'f-leaf', async (e) => {
     const file = e.target.files[0]; if (!file) return;
     photoLeafBlob = await compressImage(file);
     body.querySelector('#f-leaf-prev').style.backgroundImage = `url('${URL.createObjectURL(photoLeafBlob)}')`;
-  };
+  });
   const setLoc = (lng, lat) => { loc = [lng, lat]; const s = body.querySelector('#f-loc'); if (s) s.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`; };
   const coordsInput = body.querySelector('#f-coords');
   if (coordsInput) coordsInput.oninput = (e) => {
@@ -423,7 +470,7 @@ function editPunto(id) {
     map.on('click', clickH);
   };
   body.querySelector('#f-move').onclick = () => { saveDraftPoint(); startMovePoint(id, loc); };
-  body.querySelector('#f-photo').onchange = async (e) => {
+  wireCamera(body, 'f-photo', async (e) => {
     const file = e.target.files[0]; if (!file) return;
     const errEl = body.querySelector('#f-err');
     errEl.textContent = 'Preparando foto…';
@@ -432,7 +479,7 @@ function editPunto(id) {
     photoBlob = await compressImage(file);
     body.querySelector('#f-photo-prev').style.backgroundImage = `url('${URL.createObjectURL(photoBlob)}')`;
     errEl.textContent = '';
-  };
+  });
   body.querySelector('#f-cancel').onclick = renderPuntos;
   if (id) body.querySelector('#f-del').onclick = async () => {
     if (!confirm('¿Eliminar este punto?')) return;
@@ -917,8 +964,12 @@ function editCaption(m) {
   if (val == null) return;
   saveMedia(mediaRow(m, { caption: val.trim() || null }));
 }
-function addMedia(preset) {
-  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,video/*';
+// `fromCamera` abre la cámara del teléfono directamente (sin pasar por el
+// carrete). Mismo camino de guardado: comprimir → cola offline.
+function addMedia(preset, fromCamera) {
+  const inp = document.createElement('input'); inp.type = 'file';
+  inp.accept = fromCamera ? 'image/*' : 'image/*,video/*';
+  if (fromCamera) inp.capture = 'environment';
   inp.onchange = async () => {
     const file = inp.files[0]; if (!file) return;
     const isVid = /^video\//.test(file.type);
@@ -1365,6 +1416,7 @@ function renderFotos() {
     const g = coverageGaps(CTX.state);
     fm.innerHTML = `
       <div class="fm-modes fm-origins">${chips}</div>
+      <button class="admin-add" id="fm-cam">📷 Tomar foto</button>
       <button class="admin-add" id="fm-add">＋ Añadir foto / video</button>
       <div class="fm-modes">
         ${Dbx.dropboxConfigured() ? `<button id="fm-dbx">${Dbx.dropboxLinked() ? '📥 Traer del archivo (Dropbox)' : '🔗 Conectar Dropbox'}</button>` : ''}
@@ -1380,6 +1432,7 @@ function renderFotos() {
       ${list.length ? `<div class="fm-grid">${list.map((m) => mediaCardHTML(m)).join('')}</div>`
         : '<div class="admin-note" style="text-align:center;padding:20px">✓ Nada sin clasificar.</div>'}`;
     document.getElementById('fm-add').onclick = () => addMedia(null);
+    document.getElementById('fm-cam').onclick = () => addMedia(null, true);
     document.getElementById('fm-intake').onclick = pickArchiveFolder;
     const dbx = document.getElementById('fm-dbx'); if (dbx) dbx.onclick = connectDropbox;
     fm.querySelectorAll('.fm-origins button').forEach((b) => b.onclick = () => { mediaOrigin = b.dataset.o; renderFotos(); });
@@ -1588,10 +1641,12 @@ function renderFotosSubject(fm) {
   if (sub) {
     const list = subjectMedia(sub.type, sub.id);
     mediaBox.innerHTML = `
+      <button class="admin-add" id="fm-cam-subj">📷 Tomar foto para ${esc(label)}</button>
       <button class="admin-add" id="fm-add-subj">＋ Añadir foto / video a ${esc(label)}</button>
       ${list.length ? `<div class="fm-grid">${list.map((m) => mediaCardHTML(m, { subject: true })).join('')}</div>`
         : '<div class="admin-note" style="text-align:center;padding:16px">Aún sin fotos/videos. Añade una arriba.</div>'}`;
     document.getElementById('fm-add-subj').onclick = () => addMedia({ type: sub.type, id: sub.id });
+    document.getElementById('fm-cam-subj').onclick = () => addMedia({ type: sub.type, id: sub.id }, true);
     wireMediaCards(mediaBox, { subject: true });
   }
 }
@@ -1632,7 +1687,9 @@ function drawUpdate() {
 }
 function drawClear() {
   const map = CTX.map;
-  releaseAwake();   // la pantalla ya puede apagarse
+  // Sólo suelta la pantalla quien la pidió: el dibujo por vértices nunca la pide,
+  // y soltarla aquí se la quitaba al modo guiado o al grabador si estaban activos.
+  if (draw && draw.awake) { draw.awake = false; releaseAwake(); }
   if (draw && draw.clickHandler) map.off('click', draw.clickHandler);
   if (draw && draw.watchId != null) navigator.geolocation.clearWatch(draw.watchId);
   if (map.getSource('admin-draw')) { const e = { type: 'FeatureCollection', features: [] }; map.getSource('admin-draw').setData(e); map.getSource('admin-draw-v').setData(e); }
@@ -1671,6 +1728,7 @@ function endDraw(keep) {
   const mode = draw.mode, onDone = draw.onDone;
   let coords = draw.coords.slice();
   drawClear();
+  drawClearDraft();   // la grabación terminó: el trazado ya está en el formulario
   const h = document.getElementById('admin-draw-hud'); if (h) h.remove();
   // Simplificar con tolerancia BAJA (1.2 m): quita el ruido colineal pero
   // conserva los vértices de los zig-zags (que se desvían más que eso).
@@ -1708,10 +1766,36 @@ function startVertexDraw(onDone) {
   CTX.map.on('click', draw.clickHandler);
   showDrawHud();
 }
+// El trazado por GPS vive en RAM mientras se camina. Media hora de sendero se
+// perdía entera si el teléfono se quedaba sin batería o el navegador recargaba
+// la pestaña — y volver a caminarlo cuesta media hora más. Se guarda una copia
+// en localStorage cada pocos puntos y se ofrece retomarla al empezar de nuevo.
+const DRAW_KEY = 'cantares_gpsdraw', DRAW_MAX_AGE_MS = 24 * 3600 * 1000;
+function drawSaveDraft() {
+  if (!draw || draw.mode !== 'gps') return;
+  try { localStorage.setItem(DRAW_KEY, JSON.stringify({ ts: Date.now(), coords: draw.coords })); } catch (e) { /* cuota llena */ }
+}
+function drawLoadDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAW_KEY) || 'null');
+    if (!d || !Array.isArray(d.coords) || d.coords.length < 2) return null;
+    if (Date.now() - (d.ts || 0) > DRAW_MAX_AGE_MS) return null;   // de otro día: ya no sirve
+    return d;
+  } catch (e) { return null; }
+}
+function drawClearDraft() { try { localStorage.removeItem(DRAW_KEY); } catch (e) { /* nada que borrar */ } }
+
 function startGpsDraw(onDone) {
   if (!navigator.geolocation) { CTX.toast('GPS no disponible'); return; }
   if (!drawInit()) { CTX.toast('Espera a que cargue el mapa'); onDone(null); return; }
-  draw = { coords: [], onDone, mode: 'gps', ema: null, acc: null, warm: 0, paused: false, startTs: null, lastGoodTs: null };
+  // ¿Quedó un trazado a medias? Preguntar ANTES de empezar: arrancar de cero
+  // encima de una grabación interrumpida es perderla por segunda vez.
+  const saved = drawLoadDraft();
+  const mins = saved ? Math.round((Date.now() - saved.ts) / 60000) : 0;
+  const resume = saved && confirm(`Hay un trazado sin terminar de hace ${mins} min con ${saved.coords.length} puntos. ¿Seguir con él?\n\n(Cancelar empieza uno nuevo y descarta el anterior.)`);
+  if (saved && !resume) drawClearDraft();
+  draw = { coords: resume ? saved.coords.slice() : [], onDone, mode: 'gps', ema: null, acc: null, warm: 0, paused: false, startTs: null, lastGoodTs: null, awake: true };
+  if (resume) { drawUpdate(); CTX.toast(`↩️ Retomando el trazado (${draw.coords.length} puntos)`); }
   closePanel();
   // Con la pantalla apagada el navegador corta el GPS: mantenerla encendida.
   keepAwake().then((ok) => {
@@ -1746,7 +1830,10 @@ function startGpsDraw(onDone) {
       // y hav(last,ema) queda < piso, así que no se acumulan puntos falsos.
       const last = draw.coords[draw.coords.length - 1];
       const gate = Math.max(2.5, (acc || 10) * 0.35);
-      if (!last || hav(last, draw.ema) > gate) { draw.coords.push(draw.ema.slice()); drawUpdate(); }
+      if (!last || hav(last, draw.ema) > gate) {
+        draw.coords.push(draw.ema.slice()); drawUpdate();
+        if (draw.coords.length % 5 === 0) drawSaveDraft();   // copia de seguridad cada 5 puntos
+      }
     }
     updateDrawHud();
   }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 });
@@ -1911,7 +1998,13 @@ function editMapMove(e) {
 }
 function editDeselect() { editSel = null; editActiveVx = -1; editCutMode = false; editExtendMode = false; editMovePt = false; clearEditHandles(); markSelectedRow(null); hideEditBar(); }
 
+// ¿Hay un modo de elección en curso (senderos, puntos, inicio/fin, recuadro)?
+// Mientras dure, el modo edición NO escucha el mapa: si escucha, un mismo toque
+// lo procesan dos manejadores y el segundo deshace lo que hizo el primero.
+function pickingActive() { return !!(pick || ptSel || ptPickHandler || marquee || draw); }
+
 function editMapClick(e) {
+  if (pickingActive()) return;
   const map = CTX.map, p = [e.lngLat.lng, e.lngLat.lat];
   if (editCutMode && editSel && editSel.kind === 'sendero') { editCutAt(p); return; }        // cortar
   if (editExtendMode && editSel && editSel.kind === 'sendero') { editExtendAppend(p); return; } // extender (dibujar)
@@ -2257,16 +2350,33 @@ function clearPtHl() {
 
 // ---------------- elegir senderos en el mapa (crear recorrido interactivo) ----------------
 let pick = null, _routeDraft = null;
+// Engorda las líneas de sendero mientras se eligen: un dedo no acierta una línea
+// de 2 px. Se restaura al salir (el valor de partida vive en app.js).
+const TRAIL_W = 2.2, TRAIL_W_PICK = 5;
+function trailPickWidth(on) {
+  const map = CTX.map;
+  if (!styleReady() || !map.getLayer('trails-all')) return;
+  try { map.setPaintProperty('trails-all', 'line-width', on ? TRAIL_W_PICK : TRAIL_W); } catch (e) { /* estilo recargando */ }
+}
 function startRoutePick(id) {
   const map = CTX.map;
   closePanel();
+  // Es un MODO, igual que elegir puntos: se apaga el resto de la edición para que
+  // el toque no lo capturen dos manejadores a la vez (era la razón por la que la
+  // selección "no permitía" elegir: editMapClick deseleccionaba en el mismo tap).
+  document.body.classList.add('picking-points');
+  hideEditBar();
+  pickDim(true);            // puntos atenuados: manda la red de senderos
+  trailPickWidth(true);
   map.getCanvas().style.cursor = 'crosshair';
   CTX.toast('Toca los senderos en orden. Toca uno de nuevo para quitarlo.');
   const seg = _routeDraft.segments;
   pick = { id, orig: seg.slice(), handler: null };
   const update = () => { highlightSegments(seg, _routeDraft.color); updatePickHud(seg.length); };
   pick.handler = (e) => {
-    const f = map.queryRenderedFeatures(e.point, { layers: ['trails-all'] });
+    // Con TOLERANCIA (misma caja de ~11 px del modo edición). Antes se consultaba
+    // un único píxel: en el teléfono casi nunca cae justo encima de la línea.
+    const f = queryTrailsAt(e.point);
     if (!f.length) return;
     const tid = f[0].properties.id; if (tid == null) return;
     const i = seg.indexOf(tid);
@@ -2276,7 +2386,7 @@ function startRoutePick(id) {
   map.on('click', pick.handler);
   // Resaltar el sendero bajo el mouse ANTES de elegirlo (escritorio).
   pick.hover = (e) => {
-    const f = map.queryRenderedFeatures(e.point, { layers: ['trails-all'] });
+    const f = queryTrailsAt(e.point);
     const tid = f.length ? f[0].properties.id : null;
     map.getCanvas().style.cursor = tid != null ? 'pointer' : 'crosshair';
     setHover(tid);
@@ -2299,6 +2409,8 @@ function endPick(keep) {
   if (!keep) _routeDraft.segments = pick.orig;   // ✕ = descartar cambios de esta sesión
   map.off('click', pick.handler);
   if (pick.hover) map.off('mousemove', pick.hover);
+  document.body.classList.remove('picking-points');
+  pickDim(false); trailPickWidth(false);
   clearHover(); map.getCanvas().style.cursor = ''; pick = null;
   const h = document.getElementById('admin-pick-hud'); if (h) h.remove();
   openPanel(); editRecorrido(id);
@@ -2511,6 +2623,7 @@ function renderSenderos() {
   const trails = CTX.state.trails.slice().sort((a, b) => (a.properties.name || '').localeCompare(b.properties.name || ''));
   body.innerHTML = `
     <button class="admin-add" id="tr-add">＋ Nuevo sendero</button>
+    <button class="admin-add" id="fz-edit">🏠 Zona de recorrido libre…</button>
     <input class="admin-search" placeholder="🔎 Buscar sendero… (toca para verlo en el mapa)">
     <div class="admin-list">${trails.map((tr) => `
       <div class="admin-row" data-id="${esc(tr.properties.id)}">
@@ -2518,9 +2631,71 @@ function renderSenderos() {
         <button class="admin-edit" data-id="${esc(tr.properties.id)}">Editar</button>
       </div>`).join('')}</div>`;
   body.querySelector('#tr-add').onclick = () => editSendero(null);
+  body.querySelector('#fz-edit').onclick = editZonaLibre;
   body.querySelectorAll('.admin-edit').forEach((b) => b.onclick = (e) => { e.stopPropagation(); editSendero(b.dataset.id); });
   wireList('sendero');
   if (_selId) markSelectedRow(_selId);
+}
+
+// ---------------- zona de recorrido libre (el claro de la casa) ----------------
+// Un solo polígono, guardado como un documento más de la tabla `content`
+// (id 'freeroam') — sin migración, con las políticas RLS que ya existen y
+// pasando por la cola offline como cualquier otro cambio. Dentro de él los
+// recorridos se dibujan rectos (ver freeRoamPath en app.js).
+const freeRoamRingOf = () => { const d = CTX.freeRoam && CTX.freeRoam(); const p = d && d.polygon; return Array.isArray(p) && p.length >= 4 ? p : null; };
+function showFreeRoam(ring) {
+  if (ring) setHl([{ type: 'Feature', properties: { _c: '#ffd000' }, geometry: { type: 'LineString', coordinates: ring } }]);
+  else clearHighlight();
+}
+function editZonaLibre() {
+  const body = document.getElementById('admin-body');
+  const ring = freeRoamRingOf();
+  showFreeRoam(ring);
+  body.innerHTML = `
+    <div class="admin-form">
+      <div class="admin-group-h">🏠 Zona de recorrido libre</div>
+      <div class="admin-note">El claro de la casa no es sendero: es pasto. Dentro de esta zona los recorridos
+        se trazan en <b>línea recta</b> entre por donde entran y por donde salen, en vez de repetir el zigzag
+        con que se grabó la traza. Dibuja el borde tocando el mapa; se cierra solo.</div>
+      <div class="admin-loc">
+        <span id="fz-state">${ring ? `${ring.length - 1} vértices · ${fmtLen(ring)} de borde` : 'sin definir'}</span>
+        <div class="admin-loc-btns">
+          <button type="button" class="admin-pick" id="fz-draw">✏️ ${ring ? 'Dibujar de nuevo' : 'Dibujar'}</button>
+          ${ring ? '<button type="button" class="admin-pick" id="fz-del">🗑️ Quitar</button>' : ''}
+        </div>
+      </div>
+      <div class="admin-err" id="fz-err"></div>
+      <div class="admin-actions"><button class="admin-cancel" id="fz-back">Volver</button></div>
+    </div>`;
+  body.querySelector('#fz-back').onclick = () => { clearHighlight(); renderSenderos(); };
+  body.querySelector('#fz-draw').onclick = () => {
+    clearHighlight();
+    CTX.toast('Toca el mapa alrededor de la casa. ✓ Terminar cierra el polígono.');
+    startVertexDraw(async (coords) => {
+      if (!coords) { editZonaLibre(); return; }
+      if (coords.length < 3) { editZonaLibre(); document.getElementById('fz-err').textContent = 'Un polígono necesita al menos 3 vértices.'; return; }
+      const closed = coords.concat([coords[0]]);   // anillo cerrado
+      await saveFreeRoam({ polygon: closed });
+    });
+  };
+  const del = body.querySelector('#fz-del');
+  if (del) del.onclick = async () => {
+    if (!confirm('¿Quitar la zona de recorrido libre? Los recorridos volverán a seguir la traza original.')) return;
+    await saveFreeRoam({ polygon: [] });
+  };
+}
+async function saveFreeRoam(doc) {
+  const body = document.getElementById('admin-body');
+  const err = body && body.querySelector('#fz-err');
+  try {
+    const res = await saveRow('content', { id: 'freeroam', doc });
+    CTX.setFreeRoam && CTX.setFreeRoam(doc);       // el trazado se recalcula ya, sin recargar
+    editZonaLibre();
+    CTX.toast(res.queued ? '💾 Zona guardada en el teléfono — se subirá con señal' : 'Zona guardada');
+  } catch (e) {
+    if (err) err.textContent = friendlyErr(e);
+    else CTX.toast(friendlyErr(e));
+  }
 }
 function editSendero(id) {
   const body = document.getElementById('admin-body');
@@ -2530,7 +2705,9 @@ function editSendero(id) {
   if (draft) { p.name = draft.name; p.routes = draft.routes; }
   let coords = CTX._draftLine ? CTX._draftLine : (existing ? existing.geometry.coordinates.slice() : null);
   CTX._draftLine = null;
-  const routeChecks = CTX.state.routes.map((r) => `<label class="admin-chk"><input type="checkbox" value="${r.id}" ${(p.routes || []).includes(r.id) ? 'checked' : ''}> ${esc(CTX.L(r, 'name'))}</label>`).join('');
+  const routeChecks = CTX.state.routes.slice()
+    .sort((a, b) => String(CTX.L(a, 'name') || a.id).localeCompare(String(CTX.L(b, 'name') || b.id), 'es'))
+    .map((r) => `<label class="admin-chk"><input type="checkbox" value="${r.id}" ${(p.routes || []).includes(r.id) ? 'checked' : ''}> ${esc(CTX.L(r, 'name'))}</label>`).join('');
   body.innerHTML = `
     <div class="admin-form">
       <label>Nombre</label><input id="tr-name" value="${esc(p.name)}">
@@ -2628,7 +2805,6 @@ function editRecorrido(id) {
   // al llegar a cada punto DURANTE ESTE recorrido. Un punto sin guión no suena.
   let scriptWork = { ...(r.scripts || {}) };
   const wpTitle = (pid) => { const w = CTX.state.waypoints.find((x) => x.properties.id === pid); return w ? (CTX.L(w.properties, 'title') || w.properties.title || pid) : pid; };
-  const wpOpts = (sel) => '<option value="">—</option>' + CTX.state.waypoints.map((w) => `<option value="${w.properties.id}" ${sel === w.properties.id ? 'selected' : ''}>${esc(CTX.L(w.properties, 'title') || w.properties.id)}</option>`).join('');
   body.innerHTML = `
     <div class="admin-form">
       <label>Nombre (ES)</label><input id="rt-name" value="${esc(r.name)}">
@@ -2682,20 +2858,26 @@ function editRecorrido(id) {
       <div class="admin-loc-btns" style="margin:2px 0 6px">
         <button type="button" class="admin-pick" id="rt-seg-order">🧭 Ordenar inicio → fin</button>
       </div>
-      <select id="rt-segsel"><option value="">＋ añadir sendero…</option>${CTX.state.trails.map((t) => `<option value="${t.properties.id}">${esc(t.properties.name || t.properties.id)}</option>`).join('')}</select>`;
-    el.querySelector('#rt-segsel').onchange = (e) => { if (e.target.value) { segWork.push(e.target.value); renderSegs(); } };
+      ${pickerHTML('rt-segsel', '🔎 ＋ añadir sendero… (escribe para filtrar)')}`;
+    wirePicker(el, 'rt-segsel', CTX.state.trails.map((t) => ({ id: t.properties.id, label: t.properties.name || t.properties.id })),
+      (tid) => { segWork.push(tid); renderSegs(); });
     el.querySelector('#rt-seg-order').onclick = () => { segWork = orderSegmentsStartToEnd(segWork, wpCoord(startId), wpCoord(endId)); renderSegs(); };
     el.querySelectorAll('[data-up]').forEach((b) => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [segWork[i - 1], segWork[i]] = [segWork[i], segWork[i - 1]]; renderSegs(); } });
     el.querySelectorAll('[data-down]').forEach((b) => b.onclick = () => { const i = +b.dataset.down; if (i < segWork.length - 1) { [segWork[i + 1], segWork[i]] = [segWork[i], segWork[i + 1]]; renderSegs(); } });
     el.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { segWork.splice(+b.dataset.rm, 1); renderSegs(); });
     highlightSegments(segWork, color);   // iluminar solo los elegidos, en el color del recorrido
+    renderScriptsBlock();   // cambiar los senderos cambia el orden de los guiones
   };
-  renderSegs();
   // Un textarea (ES/EN) por punto miembro. Se sincroniza a scriptWork en cada
   // tecla para sobrevivir a los re-render (elegir puntos/senderos en el mapa).
   const renderScriptsBlock = () => {
     const el = document.getElementById('rt-scripts'); if (!el) return;
-    const ids = [...memberWork];
+    // En el ORDEN del recorrido (proyectando cada punto sobre el trazado), no en
+    // el orden en que se fueron tocando en el mapa: escribir la audioguía es
+    // seguir el camino, y saltar de un punto a otro sin orden es imposible.
+    const ids = CTX.orderPointsAlongSegments
+      ? CTX.orderPointsAlongSegments(segWork, [...memberWork], startId)
+      : [...memberWork];
     el.innerHTML = ids.length ? ids.map((pid) => {
       const sc = scriptWork[pid] || {};
       return `<div class="admin-script" data-pid="${esc(pid)}">
@@ -2714,7 +2896,7 @@ function editRecorrido(id) {
       d.querySelector('.sc-en').oninput = sync;
     });
   };
-  renderScriptsBlock();
+  renderSegs();   // pinta senderos Y guiones (en el orden del recorrido)
   const saveDraft = () => { _routeDraft = { id: r.id, _new: !id, sort: r.sort,
     name: body.querySelector('#rt-name').value, name_en: body.querySelector('#rt-name-en').value,
     emoji, color, summary: body.querySelector('#rt-sum').value, summary_en: body.querySelector('#rt-sum-en').value,
