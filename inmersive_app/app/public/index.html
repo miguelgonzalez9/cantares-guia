@@ -2,9 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <!-- Sin zoom de página: la app es una interfaz fija (el mapa tiene su propio
-       zoom). Antes, un pellizco por error dejaba el header y la barra torcidos. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <!-- El zoom de página se DEJA abierto. Bloquearlo (maximum-scale/user-scalable)
+       impide agrandar la letra a quien lee con gafas: es una barrera de
+       accesibilidad, no un detalle estético. El header y la barra se defienden
+       con su propio `touch-action`, no quitándole el zoom a todo el mundo. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0e1d" />
   <title>Cantares — Reserva Natural</title>
   <link rel="manifest" href="manifest.webmanifest" />
@@ -12,6 +14,13 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="vendor/maplibre-gl.css" />
   <link rel="stylesheet" href="css/style.css" />
+  <script>
+    // El service worker se registra AQUÍ, lo primero, y no al final de main():
+    // quien escanea el QR en la entrada y pierde la señal en la primera curva
+    // se quedaba sin nada cacheado si no llegaba a pasar la pantalla de inicio.
+    // Es idempotente — app.js lo vuelve a registrar para vigilar los despliegues.
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  </script>
   <script src="vendor/maplibre-gl.js"></script>
   <script src="vendor/pmtiles.js"></script>
 </head>
