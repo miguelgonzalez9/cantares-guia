@@ -13,11 +13,8 @@ corren solos de forma **periódica** (Programador de Tareas de Windows).
                  │                                                       │
  (juego) ──────► │  Supabase `media` (origin: game-capture)  ──────────► │  26_sync_media.py pull [--download]
                  │       (la app escribe la fila al guardar)             │  → catalog_cloud.json + fotos/_desde_app/
-                 │                                                       │
- (admin deja) →  │  info/_inbox/  ─────────────────────────────────────► │  12_build_doc_catalog.py
-                 │       (documentos sueltos)                            │  → info/<categoria>/ + INDEX.md + catalog.json
                  └───────────────────────────────────────────────────────┘
-                         run_sic.py  (orquesta los 3)  ← CantaresSIC (cada 4 h, Task Scheduler)
+                         run_sic.py  (orquesta el pipeline)  ← CantaresSIC (Task Scheduler)
 ```
 
 ---
@@ -72,27 +69,10 @@ pie y consume cualquier JSON de esos que ya exista: lo dejas en
 
 ---
 
-## 2. Documentos — categorizar y encontrar  (`12_build_doc_catalog.py`)
+## 2. Automatización periódica
 
-Hub central en **`info/`** con carpetas por categoría. Dos funciones:
-- **Auto-archiva**: lo que dejes en `info/_inbox/` se mueve solo a su categoría
-  (por palabras clave del nombre).
-- **Indexa**: escanea todos los documentos (en `info/` + los PDFs de `inputs/`),
-  extrae un resumen de texto con **markitdown**, y genera:
-  - **`info/INDEX.md`** — catálogo navegable por un humano (buscable con Ctrl+F).
-  - **`info/catalog.json`** — índice para máquina / búsqueda.
-
-Categorías: `censos_inventarios`, `ambiental`, `normativo`, `cartografia`,
-`interpretacion`, `administrativo`, `otros`. Se afinan editando la lista de
-palabras clave en el script (`CATEGORIES`). No mueve archivos abiertos (lock
-`~$…`) ni los PDFs de `inputs/` (los usan otros scripts): esos se indexan en sitio.
-
----
-
-## 3. Automatización periódica
-
-`run_sic.py` corre en orden: **clasificar fotos** (`14`) → fotos admin→app (`10`) →
-fotos del juego (`13`) → catálogo de documentos (`12`). La tarea **`CantaresSIC`**
+`run_sic.py` corre en orden: **clasificar fotos** (`14`) → espejo a la carpeta de la
+app (`28`) → fotos admin→app (`10`) → fotos del juego (`13`). La tarea **`CantaresSIC`**
 (Programador de Tareas de Windows) lo ejecuta **cada semana (domingo 12:00)**.
 El flujo es bajo; no necesita más. **Necesita el PC encendido**: si estaba apagado a
 esa hora, corre **en cuanto lo prendas e inicies sesión** (opción `StartWhenAvailable`).
@@ -105,36 +85,32 @@ Ver estado:            schtasks /Query /TN CantaresSIC
 Quitar:                powershell -File data_prep/setup_scheduler.ps1 -Remove
 ```
 
-> El catálogo de documentos **cachea las vistas previas** (por fecha de
-> modificación): solo re-lee con markitdown los archivos que cambiaron, así la
-> corrida semanal es rápida aunque haya PDFs grandes.
-
 ---
 
-## 4. Uso diario (sin programar)
+## 3. Uso diario (sin programar)
 
 1. **Fotos (papás)** → soltar TODO, sin ordenar, en `Cantares/fotos/`. El sistema
    las clasifica solo (o `inputs/photos/incoming/<tipo>/<id>/` para curaduría fina).
-2. **Documentos nuevos** → soltar en `info/_inbox/`.
+2. **Documentos nuevos** → guardarlos a mano en su carpeta de `info/`
+   (`censos_inventarios/`, `ambiental/`, `normativo/`, …).
 3. **Respaldar fotos del juego** → botón «Exportar fotos de campo» en la app →
    dejar el `.json` en `inputs/photos/field/_incoming/`.
-4. No hacer nada más: cada 4 h el sistema procesa, archiva e indexa. (O correr
+4. No hacer nada más: cada semana el sistema procesa las fotos. (O correr
    `python inmersive_app/data_prep/run_sic.py` para verlo al instante.)
-5. Para encontrar un documento: abrir `info/INDEX.md` y Ctrl+F.
 
 ---
 
-## 5. Qué se versiona (git) y qué no
+## 4. Qué se versiona (git) y qué no
 
-- **Sí** al repo: los scripts, `media.json`, las imágenes web optimizadas
-  (`app/public/img/`), y el **catálogo** (`info/INDEX.md`, `info/catalog.json`).
+- **Sí** al repo: los scripts, `media.json` y las imágenes web optimizadas
+  (`app/public/img/`).
 - **No** al repo (viven en Dropbox, pesados): los **documentos fuente** de `info/`
   (PDF/DOCX/XLSX), los **originales** de fotos, y las **fotos de campo** del juego.
   Dropbox los respalda. Ver `.gitignore`.
 
 ---
 
-## 6. Pendiente / coordinación
+## 5. Pendiente / coordinación
 
 - **Mostrar fotos de senderos/recorridos en la app**: el pipeline ya las almacena
   en `media.json` (`subject_type` = `trail`/`route`), pero falta engancharlas en la
@@ -147,7 +123,7 @@ Quitar:                powershell -File data_prep/setup_scheduler.ps1 -Remove
 
 ---
 
-## 7. Enriquecimiento del inventario de especies
+## 6. Enriquecimiento del inventario de especies
 
 Todas las fuentes (censo de árboles, eBird, catálogos de fotos) identifican la
 especie por **nombre científico** (clave de unión universal); la app la identifica

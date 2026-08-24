@@ -1,8 +1,8 @@
 # setup_scheduler.ps1 - registra (o quita) la tarea periodica del
 # Sistema de Informacion Cantares en el Programador de Tareas de Windows.
 #
-# La tarea corre  data_prep/run_sic.py : clasifica las fotos nuevas, procesa
-# las carpetas de entrada y reconstruye el catalogo de documentos.
+# La tarea corre  data_prep/run_sic.py : clasifica las fotos nuevas y procesa
+# las carpetas de entrada.
 #
 # COMO FUNCIONA:
 #   - Se dispara SEMANAL (domingo 12:00). El flujo es bajo, no necesita mas.
@@ -40,11 +40,14 @@ $weeksInterval = if ($Every -eq 'biweekly') { 2 } else { 1 }
 $action  = New-ScheduledTaskAction -Execute $python -Argument ('"{0}"' -f $script)
 $trigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval $weeksInterval -DaysOfWeek Sunday -At ([datetime]"12:00")
 # StartWhenAvailable = si se perdio el inicio (PC apagado), corre en cuanto se pueda.
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
+# ExecutionTimeLimit 4h: el clasificador tarda ~2,5 s por foto (CLIP + BioCLIP en
+# CPU), asi que una tanda de mil fotos son ~45 min y con 1h la tarea se mataba a
+# mitad.
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 4) `
             -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
-    -Description "Sistema de Informacion Cantares: clasifica fotos e indexa documentos." -Force | Out-Null
+    -Description "Sistema de Informacion Cantares: clasifica fotos." -Force | Out-Null
 
 if ($?) {
     $freq = if ($Every -eq 'biweekly') { "cada 2 semanas" } else { "cada semana" }
