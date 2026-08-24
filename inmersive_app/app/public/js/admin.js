@@ -8,6 +8,7 @@ import { coverageGaps, readCatalog, buildEntries, fromFiles, fromDropbox, planBy
 import * as Dbx from './dropbox.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
 import { doLogout } from './auth-ui.js';
+import { maybeStartAdminGuide } from './guide.js';
 
 let CTX = null;
 let _pointDraft = null, moveMarker = null;
@@ -142,7 +143,19 @@ let tab = 'puntos';
 function openPanel() {
   renderPanel(); panelEl().classList.remove('hidden'); document.body.classList.add('admin-open');
   if (CTX.pushBack) CTX.pushBack('admin', closePanel);   // atrás cierra el panel, no la app
+  maybeStartAdminGuide();          // la primera vez, la guía se presenta sola
 }
+
+// Puerta para la guía: deja el panel en la pestaña y el modo que pide un tema.
+// `edit` decide además la FORMA del panel en el teléfono — con el modo edición
+// encendido es una hoja de 46vh y deja ver el mapa; apagado tapa la pantalla.
+export async function openAdminAt(tabName, { edit = true } = {}) {
+  if (!CTX) return;
+  if (tabName) tab = tabName;
+  if (panelEl().classList.contains('hidden')) openPanel();
+  if (editMode !== edit) toggleEditMode(edit); else renderPanel();
+}
+export function closeAdmin() { if (!panelEl().classList.contains('hidden')) closePanel(); }
 function closePanel() {
   if (CTX.popBack) CTX.popBack('admin');
   panelEl().classList.add('hidden'); document.body.classList.remove('admin-open');
@@ -824,8 +837,15 @@ function browseMedia() {
 function unclassifiedCount() { try { return unclassifiedMedia().length; } catch (e) { return 0; } }
 function subjectMedia(type, id) { return (CTX.state.media && CTX.state.media.bySubject[`${type}:${id}`]) || []; }
 
+// Un sujeto GRUESO ('species_group' / 'point_type') se comporta como cualquier
+// otro sujeto: tiene galería, portada y orden. Sólo cambia de qué es la foto —
+// «un ave», «un mirador» — cuando no se puede (o no se quiere) precisar más.
+const baseSubjectType = (t) => (t === 'species_group' ? 'species' : t === 'point_type' ? 'waypoint' : (t || 'waypoint'));
+const pointTypeMeta = (tp) => (CTX.pointTypes ? CTX.pointTypes() : []).find((x) => x.tipo === tp);
 function subjectLabel(m) {
   if (!m.subject_id) return '❓ Sin clasificar';
+  if (m.subject_type === 'species_group') return '🏷️ ' + esc(GROUP_LABEL[m.subject_id] || m.subject_id);
+  if (m.subject_type === 'point_type') { const t = pointTypeMeta(m.subject_id); return '🏷️ ' + esc(t ? `${t.emoji} ${t.label}` : m.subject_id); }
   if (m.subject_type === 'species') { const s = CTX.state.species.find((x) => x.id === m.subject_id); return '🦋 ' + esc(s ? (CTX.L(s, 'common_name') || s.scientific_name || m.subject_id) : m.subject_id); }
   const w = CTX.state.waypoints.find((x) => x.properties.id === m.subject_id);
   return '📍 ' + esc(w ? (CTX.L(w.properties, 'title') || w.properties.title || m.subject_id) : m.subject_id);
@@ -1066,6 +1086,86 @@ function wireMediaCards(container, opts = {}) {
 }
 
 // Selector de sujeto (punto o especie) para clasificar/reasignar un medio.
+// ---- sub-clasificación de sujetos (puntos y especies) ----------------------
+// Con ~260 puntos y ~150 especies, la lista plana obligaba a recordar el nombre
+// exacto para clasificar una foto. Estas subcategorías la parten por las MISMAS
+// categorías que el sistema ya tiene — el `tipo` del punto, los recorridos a los
+// que pertenece, y el grupo del inventario (ave/árbol/flor/…) para las especies —
+// así que no hay una taxonomía nueva que mantener en paralelo. Sirven igual para
+// VER (pestaña «Por punto / especie») que para CLASIFICAR (asignar una foto).
+
+// Chips disponibles para un tipo de sujeto, con el conteo de cada uno. Un chip
+// sin nada dentro no se dibuja: un filtro que siempre da vacío es ruido.
+function subjectChips(pt) {
+  if (pt === 'species') {
+    const n = {};
+    (CTX.state.species || []).forEach((s) => { const g = editorGroup(s); n[g] = (n[g] || 0) + 1; });
+    return [{ k: 'all', label: `Todas (${(CTX.state.species || []).length})` }]
+      .concat(GROUPS.filter((g) => n[g]).map((g) => ({ k: 'grp:' + g, label: `${GROUP_LABEL[g]} (${n[g]})` })));
+  }
+  const wps = CTX.state.waypoints || [];
+  const n = {};
+  wps.forEach((w) => { const tp = w.properties.tipo || 'punto'; n[tp] = (n[tp] || 0) + 1; });
+  const tipos = (CTX.pointTypes ? CTX.pointTypes() : []).filter((t) => n[t.tipo])
+    .map((t) => ({ k: 'tipo:' + t.tipo, label: `${t.emoji} ${t.label} (${n[t.tipo]})` }));
+  const rutas = (CTX.state.routes || []).map((r) => {
+    const c = wps.filter((w) => (w.properties.routes || []).includes(r.id)).length;
+    return { k: 'ruta:' + r.id, label: `${r.emoji || '🥾'} ${CTX.L(r, 'name') || r.id} (${c})`, n: c };
+  }).filter((x) => x.n);
+  return [{ k: 'all', label: `Todos (${wps.length})` }].concat(tipos).concat(rutas);
+}
+// Sujetos que quedan tras aplicar un chip. Filtrando por recorrido se devuelven
+// EN EL ORDEN EN QUE SE CAMINAN (y numerados): clasificando las fotos de una
+// salida, ese es justo el orden en que se tomaron.
+function subjectList(pt, chip) {
+  const key = String(chip || 'all');
+  // El primer ítem de una subcategoría es la subcategoría ENTERA: clasificar ahí
+  // una foto de «un ave que no sé cuál es» o «algún mirador». Antes la única
+  // salida era inventar una especie/punto concreto o dejarla sin clasificar.
+  let head = [];
+  if (pt === 'species') {
+    let sp = (CTX.state.species || []).slice();
+    if (key.startsWith('grp:')) {
+      const g = key.slice(4); sp = sp.filter((s) => editorGroup(s) === g);
+      head = [{ id: g, type: 'species_group', label: `🏷️ Todo el grupo: ${GROUP_LABEL[g] || g}`, sub: `${sp.length} especie(s) — sin precisar cuál` }];
+    }
+    return head.concat(sp.map((s) => ({ id: s.id, label: CTX.L(s, 'common_name') || s.scientific_name || s.id, sub: s.scientific_name || '' }))
+      .sort((a, b) => a.label.localeCompare(b.label)));
+  }
+  let wps = (CTX.state.waypoints || []).slice();
+  let ordered = false;
+  if (key.startsWith('tipo:')) {
+    const tp = key.slice(5);
+    wps = wps.filter((w) => (w.properties.tipo || 'punto') === tp);
+    const meta = pointTypeMeta(tp);
+    head = [{ id: tp, type: 'point_type', label: `🏷️ Todo el tipo: ${meta ? `${meta.emoji} ${meta.label}` : tp}`, sub: `${wps.length} punto(s) — sin precisar cuál` }];
+  } else if (key.startsWith('ruta:')) {
+    const rtId = key.slice(5);
+    wps = wps.filter((w) => (w.properties.routes || []).includes(rtId));
+    const r = (CTX.state.routes || []).find((x) => x.id === rtId);
+    if (r && CTX.orderPointsAlongSegments) {
+      const at = new Map(CTX.orderPointsAlongSegments(r.segments || [], wps.map((w) => w.properties.id), r.start_id, r.end_id)
+        .map((id, i) => [id, i]));
+      const rank = (w) => (at.has(w.properties.id) ? at.get(w.properties.id) : 1e9);
+      wps.sort((a, b) => rank(a) - rank(b));
+      ordered = true;
+    }
+  }
+  const items = wps.map((w, i) => ({ id: w.properties.id,
+    label: (ordered ? `${i + 1}. ` : '') + (CTX.L(w.properties, 'title') || w.properties.title || w.properties.id),
+    sub: w.properties.tipo || '' }));
+  return head.concat(ordered ? items : items.sort((a, b) => a.label.localeCompare(b.label)));
+}
+// Un ítem de la lista de sujetos. `type` viaja en el DOM porque un ítem grueso NO
+// es del tipo del selector en que aparece (sale bajo «Especie», pero se guarda
+// como 'species_group').
+const subjectItemHTML = (it, pt) =>
+  `<button class="fm-assign-item${it.type ? ' fm-coarse' : ''}" data-id="${esc(it.id)}" data-type="${esc(it.type || pt)}"><b>${esc(it.label)}</b>${it.sub ? ` <span>${esc(it.sub)}</span>` : ''}</button>`;
+function subjectChipsHTML(chips, sel) {
+  return `<div class="fm-modes fm-subchips">${chips.map((c) =>
+    `<button type="button" data-chip="${esc(c.k)}" class="${sel === c.k ? 'sel' : ''}">${esc(c.label)}</button>`).join('')}</div>`;
+}
+
 function assignPicker(m) {
   // Acepta una foto o una LISTA de ids: el selector es el mismo, sólo cambia a
   // cuántas se aplica. Duplicarlo para el lote habría dejado dos buscadores que
@@ -1074,13 +1174,12 @@ function assignPicker(m) {
   const ids = many ? m : [m.id];
   let ov = document.getElementById('fm-assign');
   if (!ov) { ov = document.createElement('div'); ov.id = 'fm-assign'; ov.className = 'fm-assign'; document.body.appendChild(ov); }
-  let pt = many ? 'species' : (m.subject_type || 'waypoint');
+  let pt = many ? 'species' : baseSubjectType(m.subject_type);
+  // Chip activo por tipo de sujeto: cambiar de Punto a Especie y volver no debe
+  // perder el filtro con el que estabas trabajando (se clasifica por tandas).
+  const chipSel = { waypoint: 'all', species: 'all' };
   const render = () => {
-    const items = pt === 'species'
-      ? CTX.state.species.slice().sort((a, b) => (a.common_name || a.scientific_name || '').localeCompare(b.common_name || b.scientific_name || ''))
-          .map((s) => ({ id: s.id, label: (CTX.L(s, 'common_name') || s.scientific_name || s.id), sub: s.scientific_name || '' }))
-      : CTX.state.waypoints.slice().sort((a, b) => (a.properties.title || '').localeCompare(b.properties.title || ''))
-          .map((w) => ({ id: w.properties.id, label: (CTX.L(w.properties, 'title') || w.properties.title || w.properties.id), sub: w.properties.tipo || '' }));
+    const items = subjectList(pt, chipSel[pt]);
     ov.innerHTML = `<div class="fm-assign-box">
       <button class="card-close" id="fa-x" aria-label="Cerrar">×</button>
       <h3>${many ? `Clasificar ${ids.length} foto(s)/video(s)` : 'Clasificar foto/video'}</h3>
@@ -1088,22 +1187,26 @@ function assignPicker(m) {
         <button data-tp="waypoint" class="${pt === 'waypoint' ? 'sel' : ''}">📍 Punto</button>
         <button data-tp="species" class="${pt === 'species' ? 'sel' : ''}">🦋 Especie</button>
       </div>
+      ${subjectChipsHTML(subjectChips(pt), chipSel[pt])}
       <input class="admin-search" id="fa-search" placeholder="🔎 Buscar…">
-      <div class="fm-assign-list" id="fa-list">${items.map((it) => `<button class="fm-assign-item" data-id="${esc(it.id)}"><b>${esc(it.label)}</b>${it.sub ? ` <span>${esc(it.sub)}</span>` : ''}</button>`).join('')}</div>
+      <div class="fm-assign-list" id="fa-list">${items.length
+        ? items.map((it) => subjectItemHTML(it, pt)).join('')
+        : '<div class="admin-note">Nada en esta subcategoría.</div>'}</div>
       ${!many && m.subject_id ? '<button class="admin-cancel" id="fa-unclass">Dejar sin clasificar</button>' : ''}
     </div>`;
     const close = () => ov.remove();
     ov.querySelector('#fa-x').onclick = close;
     ov.onclick = (e) => { if (e.target === ov) close(); };
     ov.querySelectorAll('.fm-type-toggle button').forEach((b) => b.onclick = () => { pt = b.dataset.tp; render(); });
+    ov.querySelectorAll('.fm-subchips button').forEach((b) => b.onclick = () => { chipSel[pt] = b.dataset.chip; render(); });
     ov.querySelector('#fa-search').oninput = (e) => {
       const q = e.target.value.trim().toLowerCase();
       ov.querySelectorAll('.fm-assign-item').forEach((it) => { it.style.display = !q || it.textContent.toLowerCase().includes(q) ? '' : 'none'; });
     };
     ov.querySelectorAll('.fm-assign-item').forEach((it) => it.onclick = async () => {
       close();
-      if (many) await classifyMany(ids, pt, it.dataset.id);
-      else await classifyMedia(m, pt, it.dataset.id);
+      if (many) await classifyMany(ids, it.dataset.type, it.dataset.id);
+      else await classifyMedia(m, it.dataset.type, it.dataset.id);
     });
     const uc = ov.querySelector('#fa-unclass'); if (uc) uc.onclick = async () => { close(); await saveMedia(mediaRow(m, { subject_type: null, subject_id: null, is_primary: false, status: 'unclassified' })); };
   };
@@ -1608,34 +1711,47 @@ function renderFotosAll(fm) {
 }
 function renderFotosSubject(fm) {
   const sub = mediaSubject;
-  const label = sub ? (sub.type === 'species'
-    ? subjectLabel({ subject_type: 'species', subject_id: sub.id })
-    : subjectLabel({ subject_type: 'waypoint', subject_id: sub.id })) : '';
+  const label = sub ? subjectLabel({ subject_type: sub.type, subject_id: sub.id }) : '';
   fm.innerHTML = `
     <div class="fm-subj-pick">
       <div class="fm-type-toggle">
-        <button data-tp="waypoint" class="${(!sub || sub.type === 'waypoint') ? 'sel' : ''}">📍 Punto</button>
-        <button data-tp="species" class="${sub && sub.type === 'species' ? 'sel' : ''}">🦋 Especie</button>
+        <button data-tp="waypoint" class="${(!sub || baseSubjectType(sub.type) === 'waypoint') ? 'sel' : ''}">📍 Punto</button>
+        <button data-tp="species" class="${sub && baseSubjectType(sub.type) === 'species' ? 'sel' : ''}">🦋 Especie</button>
       </div>
+      <div id="fm-subj-chips"></div>
       <input class="admin-search" id="fm-subj-search" placeholder="🔎 Elegir punto/especie…" value="${sub ? esc(label.replace(/^[^ ]+ /, '')) : ''}">
       <div class="fm-assign-list ${sub ? 'hidden' : ''}" id="fm-subj-list"></div>
     </div>
     <div id="fm-subj-media"></div>`;
-  let pt = sub ? sub.type : 'waypoint';
+  let pt = sub ? baseSubjectType(sub.type) : 'waypoint';
+  let chip = 'all';
+  // Las subcategorías se redibujan al cambiar de Punto↔Especie porque los chips
+  // no son los mismos (tipos + recorridos vs. grupos del inventario).
+  const renderChips = () => {
+    const box = document.getElementById('fm-subj-chips');
+    box.innerHTML = subjectChipsHTML(subjectChips(pt), chip);
+    box.querySelectorAll('.fm-subchips button').forEach((b) => b.onclick = () => {
+      chip = b.dataset.chip;
+      renderChips();
+      document.getElementById('fm-subj-list').classList.remove('hidden');
+      renderList(document.getElementById('fm-subj-search').value);
+    });
+  };
   const renderList = (q) => {
     const box = document.getElementById('fm-subj-list');
-    const items = pt === 'species'
-      ? CTX.state.species.map((s) => ({ id: s.id, label: (CTX.L(s, 'common_name') && s.scientific_name) ? `${CTX.L(s, 'common_name')} (${s.scientific_name})` : (CTX.L(s, 'common_name') || s.scientific_name || s.id) }))
-      : CTX.state.waypoints.map((w) => ({ id: w.properties.id, label: CTX.L(w.properties, 'title') || w.properties.title || w.properties.id }));
+    const items = subjectList(pt, chip);
     const ql = (q || '').trim().toLowerCase();
-    box.innerHTML = items.filter((it) => !ql || it.label.toLowerCase().includes(ql)).slice(0, 60)
-      .map((it) => `<button class="fm-assign-item" data-id="${esc(it.id)}"><b>${esc(it.label)}</b></button>`).join('');
-    box.querySelectorAll('.fm-assign-item').forEach((b) => b.onclick = () => { mediaSubject = { type: pt, id: b.dataset.id }; renderFotos(); });
+    const hit = items.filter((it) => !ql || it.label.toLowerCase().includes(ql) || (it.sub || '').toLowerCase().includes(ql));
+    box.innerHTML = hit.slice(0, 60).map((it) => subjectItemHTML(it, pt)).join('')
+      || '<div class="admin-note">Nada en esta subcategoría.</div>';
+    if (hit.length > 60) box.innerHTML += `<div class="admin-note">…y ${hit.length - 60} más. Afina con un filtro o la búsqueda.</div>`;
+    box.querySelectorAll('.fm-assign-item').forEach((b) => b.onclick = () => { mediaSubject = { type: b.dataset.type, id: b.dataset.id }; renderFotos(); });
   };
-  fm.querySelectorAll('.fm-type-toggle button').forEach((b) => b.onclick = () => { pt = b.dataset.tp; mediaSubject = null; document.getElementById('fm-subj-list').classList.remove('hidden'); renderList(''); });
+  fm.querySelectorAll('.fm-type-toggle button').forEach((b) => b.onclick = () => { pt = b.dataset.tp; chip = 'all'; mediaSubject = null; renderChips(); document.getElementById('fm-subj-list').classList.remove('hidden'); renderList(''); });
   const search = document.getElementById('fm-subj-search');
   search.oninput = (e) => { document.getElementById('fm-subj-list').classList.remove('hidden'); renderList(e.target.value); };
   search.onfocus = () => { document.getElementById('fm-subj-list').classList.remove('hidden'); renderList(search.value); };
+  renderChips();
   if (!sub) renderList('');
   const mediaBox = document.getElementById('fm-subj-media');
   if (sub) {
@@ -2783,6 +2899,35 @@ function renderRecorridos() {
   wireList('recorrido');
   if (_selId) markSelectedRow(_selId);
 }
+// Reordenar la lista de senderos ARRASTRANDO (⠿). Con Pointer Events, no con el
+// drag&drop de HTML5: ese no existe en móvil y este panel se usa con el pulgar.
+// Mueve el <li> en el DOM mientras arrastras y, al soltar, devuelve el nuevo
+// orden como índices del array original (`onDrop([2,0,1])`).
+function wireSegDrag(ol, onDrop) {
+  if (!ol) return;
+  ol.querySelectorAll('.seg-grip').forEach((g) => g.onpointerdown = (ev) => {
+    const li = g.closest('li'); if (!li) return;
+    ev.preventDefault(); g.setPointerCapture(ev.pointerId);
+    li.classList.add('dragging');          // el CSS le quita pointer-events: si no,
+                                           // elementFromPoint devolvería el propio li
+    const move = (e) => {
+      const over = document.elementFromPoint(e.clientX, e.clientY);
+      const t = over && over.closest('li');
+      if (!t || t === li || t.parentElement !== ol) return;
+      const r = t.getBoundingClientRect();
+      ol.insertBefore(li, (e.clientY < r.top + r.height / 2) ? t : t.nextSibling);
+    };
+    const end = () => {
+      g.removeEventListener('pointermove', move);
+      g.removeEventListener('pointerup', end); g.removeEventListener('pointercancel', end);
+      li.classList.remove('dragging');
+      onDrop([...ol.children].map((n) => +n.dataset.i));
+    };
+    g.addEventListener('pointermove', move);
+    g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end);
+  });
+}
+
 function editRecorrido(id) {
   const body = document.getElementById('admin-body');
   let r;
@@ -2836,7 +2981,7 @@ function editRecorrido(id) {
       <div class="admin-group-h">🥾 Senderos del recorrido (en orden)</div>
       <button type="button" class="admin-pick map-pick" id="rt-pick">🗺️ Elegir senderos en el mapa</button>
       <div id="rt-segs"></div>
-      <div class="admin-note">El orden define la dirección: el primer sendero debe empezar en el punto de inicio y el último terminar en el de fin. Usa “🧭 Ordenar inicio → fin” para encadenarlos solos.</div>
+      <div class="admin-note">El orden define la dirección: el primer sendero debe empezar en el punto de inicio y el último terminar en el de fin. Usa “🧭 Ordenar inicio → fin” para encadenarlos solos, arrastra ⠿ para reordenar a mano, y ⧉ para repetir un sendero (volver por donde viniste).</div>
       <div class="admin-err" id="rt-err"></div>
       <div class="admin-actions">
         <button class="admin-save" id="rt-save">Guardar</button>
@@ -2854,7 +2999,7 @@ function editRecorrido(id) {
     el.innerHTML = `
       <ol class="admin-seglist">${segWork.map((tid, i) => { const tr = CTX.state.trails.find((t) => t.properties.id === tid);
         const warn = (i === 0 && badFirst) ? ' ⚠️' : (i === segWork.length - 1 && badLast) ? ' ⚠️' : '';
-        return `<li><span>${esc(tr ? tr.properties.name || tid : tid)}${warn}</span><span class="admin-seg-btns"><button type="button" data-up="${i}">↑</button><button type="button" data-down="${i}">↓</button><button type="button" data-rm="${i}">✕</button></span></li>`; }).join('')}</ol>
+        return `<li data-i="${i}"><span>${esc(tr ? tr.properties.name || tid : tid)}${warn}</span><span class="admin-seg-btns"><button type="button" class="seg-grip" title="Arrastrar para reordenar">⠿</button><button type="button" data-dup="${i}" title="Duplicar (p. ej. volver por el mismo sendero)">⧉</button><button type="button" data-rm="${i}">✕</button></span></li>`; }).join('')}</ol>
       <div class="admin-loc-btns" style="margin:2px 0 6px">
         <button type="button" class="admin-pick" id="rt-seg-order">🧭 Ordenar inicio → fin</button>
       </div>
@@ -2862,9 +3007,12 @@ function editRecorrido(id) {
     wirePicker(el, 'rt-segsel', CTX.state.trails.map((t) => ({ id: t.properties.id, label: t.properties.name || t.properties.id })),
       (tid) => { segWork.push(tid); renderSegs(); });
     el.querySelector('#rt-seg-order').onclick = () => { segWork = orderSegmentsStartToEnd(segWork, wpCoord(startId), wpCoord(endId)); renderSegs(); };
-    el.querySelectorAll('[data-up]').forEach((b) => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [segWork[i - 1], segWork[i]] = [segWork[i], segWork[i - 1]]; renderSegs(); } });
-    el.querySelectorAll('[data-down]').forEach((b) => b.onclick = () => { const i = +b.dataset.down; if (i < segWork.length - 1) { [segWork[i + 1], segWork[i]] = [segWork[i], segWork[i + 1]]; renderSegs(); } });
+    // ⧉ Duplicar: el MISMO sendero otra vez, justo detrás. Un recorrido de ida y
+    // vuelta pasa dos veces por el mismo tramo; al encadenar, el segundo se orienta
+    // solo en sentido contrario (ver orderedPathFromSegments en app.js).
+    el.querySelectorAll('[data-dup]').forEach((b) => b.onclick = () => { const i = +b.dataset.dup; segWork.splice(i + 1, 0, segWork[i]); renderSegs(); });
     el.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { segWork.splice(+b.dataset.rm, 1); renderSegs(); });
+    wireSegDrag(el.querySelector('.admin-seglist'), (order) => { segWork = order.map((i) => segWork[i]); renderSegs(); });
     highlightSegments(segWork, color);   // iluminar solo los elegidos, en el color del recorrido
     renderScriptsBlock();   // cambiar los senderos cambia el orden de los guiones
   };
@@ -2875,13 +3023,20 @@ function editRecorrido(id) {
     // En el ORDEN del recorrido (proyectando cada punto sobre el trazado), no en
     // el orden en que se fueron tocando en el mapa: escribir la audioguía es
     // seguir el camino, y saltar de un punto a otro sin orden es imposible.
+    // Se pasa TAMBIÉN el punto de fin: sin senderos elegidos no había trazado
+    // sobre el que proyectar y la lista salía en el orden en que se fueron
+    // tocando los puntos en el mapa. Con inicio + fin el orden se deduce por la
+    // red de senderos (ver orderPointsAlongSegments en app.js).
     const ids = CTX.orderPointsAlongSegments
-      ? CTX.orderPointsAlongSegments(segWork, [...memberWork], startId)
+      ? CTX.orderPointsAlongSegments(segWork, [...memberWork], startId, endId)
       : [...memberWork];
-    el.innerHTML = ids.length ? ids.map((pid) => {
+    // El número delante hace visible el orden: si sale mal, se ve aquí y no en
+    // el monte con la audioguía contando el punto 4 antes que el 2.
+    el.innerHTML = ids.length ? ids.map((pid, i) => {
       const sc = scriptWork[pid] || {};
+      const tag = pid === startId ? ' 🚩' : pid === endId ? ' 🏁' : '';
       return `<div class="admin-script" data-pid="${esc(pid)}">
-        <div class="admin-script-h">📍 ${esc(wpTitle(pid))}</div>
+        <div class="admin-script-h"><span class="sc-n">${i + 1}</span> 📍 ${esc(wpTitle(pid))}${tag}</div>
         <textarea class="sc-es" rows="2" placeholder="Guión en español (se lee al llegar)">${esc(sc.es)}</textarea>
         <textarea class="sc-en" rows="2" placeholder="Script in English (optional)">${esc(sc.en)}</textarea>
       </div>`; }).join('')

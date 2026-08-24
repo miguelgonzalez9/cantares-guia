@@ -58,7 +58,7 @@ body {
 /* ---------- Header ---------- */
 .app-header {
   height: var(--header-h);
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 9px;
   padding: 0 12px;
   background: linear-gradient(120deg, var(--navy), #10213b);
   color: #fff;
@@ -84,7 +84,7 @@ body {
   opacity: 0.72; margin-top: 2px;
 }
 
-.header-right { display: flex; align-items: center; gap: 7px; }
+.header-right { display: flex; align-items: center; gap: 7px; margin-left: auto; }
 .hdr-btn {
   width: 38px; height: 38px; border-radius: 50%;
   border: 1.5px solid rgba(255,255,255,0.28); background: rgba(255,255,255,0.10);
@@ -280,6 +280,7 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .guide-chip button { border: none; background: none; cursor: pointer; font-size: 13px; padding: 8px 12px; white-space: nowrap; }
 .guide-chip .gc-open { overflow: hidden; text-overflow: ellipsis; color: var(--forest); }
+.guide-chip .gc-mode { border-left: 1px solid var(--line); font-size: 15px; padding: 8px 11px; }
 .guide-chip .gc-stop { color: #e03131; font-weight: 800; border-left: 1px solid var(--line); padding: 8px 14px; }
 
 .route-info {
@@ -844,6 +845,10 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 /* editor de guiones de audioguía: un bloque por punto */
 .admin-script { margin: 6px 0; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
 .admin-script-h { font-size: 13px; font-weight: 700; color: var(--forest); margin-bottom: 4px; }
+/* Número de orden del punto en el recorrido: si la audioguía va a contar el
+   punto 4 antes que el 2, se ve aquí y no caminando. */
+.admin-script-h .sc-n { display: inline-block; min-width: 20px; padding: 1px 5px; margin-right: 4px;
+  border-radius: 999px; background: var(--moss); color: #fff; font-size: 11px; text-align: center; }
 .admin-script textarea { width: 100%; margin-bottom: 4px; }
 /* Encabezado de grupo dentro de un formulario (Puntos / Senderos del recorrido) */
 .admin-group-h { font-size: 13.5px; font-weight: 800; color: var(--forest); margin: 14px 0 2px;
@@ -860,6 +865,8 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-seg-btns { display: flex; gap: 3px; flex: 0 0 auto; }
 .admin-seg-btns button { border: none; background: var(--mist); color: var(--forest); width: 26px; height: 26px;
   border-radius: 7px; cursor: pointer; font-size: 13px; }
+.admin-seglist li.dragging { opacity: .55; pointer-events: none; }
+.seg-grip { cursor: grab; touch-action: none; }   /* touch-action: si no, el dedo hace scroll en vez de arrastrar */
 #rt-segs select, #rt-start, #rt-end { width: 100%; box-sizing: border-box; }
 /* HUD de dibujo de senderos (sobre el mapa) */
 .admin-draw-hud { position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 9;
@@ -1048,12 +1055,20 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .fm-type-toggle button { flex: 1; border: 1.5px solid var(--line); background: var(--card);
   border-radius: 999px; padding: 8px; font-weight: 700; font-size: 13px; cursor: pointer; color: var(--muted); }
 .fm-type-toggle button.sel { background: var(--sky); color: #fff; border-color: var(--sky); }
+/* Subcategorías (tipo de punto · recorrido · grupo de especie). A diferencia de
+   .fm-modes, aquí los chips NO se reparten el ancho: son muchos y de largos muy
+   distintos, así que envuelven y cada uno mide lo que dice. */
+.fm-subchips { flex-wrap: wrap; padding: 2px 0 8px; }
+.fm-subchips button { flex: 0 0 auto; font-size: 12px; padding: 5px 11px; }
 .fm-assign-list { max-height: 320px; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .fm-assign-list.hidden { display: none; }
 .fm-assign-item { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 9px;
   padding: 8px 10px; cursor: pointer; font-size: 13px; }
 .fm-assign-item:hover { background: var(--mist); }
 .fm-assign-item span { color: var(--muted); font-style: italic; font-size: 12px; }
+/* Sujeto GRUESO (todo el grupo / todo el tipo): va primero y se distingue del
+   resto para no confundir «un ave» con una especie concreta. */
+.fm-assign-item.fm-coarse { border-style: dashed; background: var(--mist); }
 .fm-subj-pick { margin: 8px 0 10px; }
 .fm-subj-pick .fm-assign-list { max-height: 240px; }
 
@@ -1277,14 +1292,31 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
    deslizador de satélite y el buscador: lo único que importa es el camino, los
    puntos del recorrido y qué hacer ahora. La barra de pestañas SE QUEDA — se
    puede consultar Especies a mitad de camino y volver. */
-body.guiding #legend,
-body.guiding #base-compare,
-body.guiding #search-btn,
-/* La barra de grabación también: durante la guía hay DOS botones de parar (el
+/* Caminando queda EL CAMINO y nada más. Se van la leyenda, el deslizador de
+   satélite, la búsqueda, la cuenta, el idioma, las pestañas, la lista de
+   recorridos y el botón de administrar: cada uno de ellos, tocado sin querer con
+   el teléfono en la mano, saca al visitante de la guía en mitad del monte.
+   La barra de grabación también: durante la guía había DOS botones de parar (el
    suyo y el ■ del chip) y el equivocado suelta el wakelock — la pantalla se
    apaga, el navegador corta el GPS y los avisos de los puntos mueren en
    silencio. Durante la guía se termina desde el chip, y punto. */
-body.guiding .rec-bar { display: none; }
+body.guiding #legend,
+body.guiding #base-compare,
+body.guiding #search-btn,
+body.guiding .header-right,
+body.guiding #route-bar,
+body.guiding .tabbar,
+body.guiding #admin-fab,
+body.guiding .rec-bar { display: none !important; }
+/* Sin pestañas abajo, lo anclado al borde inferior (las tarjetas de guía) sube
+   sin tocar ni una de sus reglas: la altura de la barra es una variable. */
+body.guiding { --tabbar-h: 0px; }
+/* El ◎ SE QUEDA: al arrastrar el mapa se corta el seguimiento (map 'dragstart'),
+   y sin este botón no habría forma de volver a centrarse — perderse por no poder
+   recentrar es peor que un botón de más. */
+/* El aviso flotante se solapaba con el chip del recorrido (top 60 vs 58): dos
+   mensajes en el mismo sitio, uno tapando al otro. Durante la guía baja. */
+body.guiding .proximity-toast { top: 106px; }
 /* Sin tirador no puede quedarse media pantalla en 2015: la imagen actual vuelve a
    cubrirlo todo. Se hace desde el CSS y no llamando a setCompare desde cada modo,
    así al salir se repone solo y no hay una llamada que se olvide. */
@@ -1323,7 +1355,27 @@ body.picking-points #img-now { clip-path: none !important; }
 .gs-cta { background: var(--moss); color: #fff; }
 .gs-ghost { background: var(--mist); color: var(--deep); }
 
-/* Elegir escuchar o leer, una sola vez al empezar el primer recorrido. */
+/* Elegir escuchar o leer al empezar CADA recorrido (la habitual va marcada). */
+.tour-box .tour-opt.sel { border-color: var(--moss); border-width: 2px; background: var(--mist); }
+/* Probar la voz antes de caminar: los fallos de TTS (volumen, silencio, sin voz
+   en español) son todos silenciosos y si no se comprueban aquí se descubren ya
+   en el monte, que es donde no tienen arreglo. */
+.tour-box .tour-test {
+  display: block; width: 100%; margin-top: 12px; min-height: 44px;
+  border: 1.5px dashed var(--moss); border-radius: 13px; background: var(--card);
+  color: var(--forest); font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer;
+}
+.tour-box .tour-test:active { background: var(--mist); }
+
+/* Hoja de ayuda del GPS: pasos concretos, porque una página web no puede
+   encender la ubicación de Android por su cuenta. */
+.gps-help-box .gh-why { margin: 6px 0 10px; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+.gps-help-box .gh-h { margin: 10px 0 4px; font-size: 14px; color: var(--forest); }
+.gps-help-box .gh-steps { margin: 0 0 10px; padding-left: 20px; font-size: 13.5px; line-height: 1.55; color: var(--ink); }
+.gps-help-box .gh-steps li { margin-bottom: 5px; }
+.gps-help-box .gh-note { margin: 0 0 12px; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.gps-help-box .gs-cta, .gps-help-box .gs-ghost { display: block; width: 100%; margin-top: 8px; }
+
 .tour-box .tour-opt {
   display: block; width: 100%; text-align: left; margin-top: 9px;
   border: 1.5px solid var(--line); border-radius: 13px; background: var(--card);
@@ -1372,3 +1424,41 @@ body.picking-points #route-info { display: none !important; }
 }
 .fm-selcount { flex: 1; font-size: 12.5px; font-weight: 700; }
 .fm-selbar button { margin: 0; flex: none; }
+
+/* ---------- Guía instructiva (js/guide.js) ---------- */
+/* Capa por encima de todo lo demás (el lightbox está en 120). Bloquea los toques
+   fuera de la burbuja: en un tour guiado eso es una defensa, no una limitación. */
+.gd-ov { position: fixed; inset: 0; z-index: 130; display: none; }
+.gd-ov.open { display: block; }
+/* El foco es UN solo elemento: la sombra gigante oscurece toda la pantalla menos
+   el hueco. Cuatro paneles alrededor del ancla harían lo mismo con más cuentas. */
+.gd-hole { position: absolute; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(6,9,18,.72);
+  border: 2px solid var(--gold, #fab814); transition: all .18s ease; pointer-events: none; }
+.gd-bubble { position: absolute; box-sizing: border-box; background: var(--card, #fff);
+  color: var(--forest, #17392a); border-radius: 14px; padding: 14px 15px 11px;
+  box-shadow: 0 10px 30px rgba(6,9,18,.45); max-width: 340px; }
+/* Sin ancla utilizable (elemento oculto, tapado o sin datos): tarjeta centrada. */
+.gd-bubble.gd-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  width: min(360px, calc(100vw - 32px)); max-height: 80vh; overflow-y: auto; }
+.gd-h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.gd-h b { font-size: 15.5px; }
+.gd-n { margin-left: auto; font-size: 11.5px; color: var(--muted, #6b7a72); font-variant-numeric: tabular-nums; }
+.gd-b { margin: 0; font-size: 13.5px; line-height: 1.45; }
+.gd-why { margin: 7px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--muted, #6b7a72);
+  border-left: 3px solid var(--gold, #fab814); padding-left: 8px; }
+.gd-act { margin-top: 10px; width: 100%; border: none; border-radius: 999px; padding: 9px 12px;
+  background: var(--forest, #17392a); color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; }
+.gd-act:disabled { opacity: .6; }
+.gd-btns { display: flex; align-items: center; gap: 6px; margin-top: 11px; }
+.gd-sp { flex: 1; }
+.gd-btns button { border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.gd-x { border: none; background: none; color: var(--muted, #6b7a72); padding-left: 0 !important; }
+.gd-prev { border: 1px solid var(--line, #dfe6e2); background: transparent; color: var(--forest, #17392a); }
+.gd-next { border: none; background: var(--gold, #fab814); color: var(--navy, #0a0e1d); }
+.gd-grp { margin-top: 10px; }
+.gd-grp-h { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--muted, #6b7a72); margin: 4px 0 6px; }
+.gd-item { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  border: 1px solid var(--line, #dfe6e2); background: var(--card, #fff); color: inherit;
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; font-size: 13.5px; cursor: pointer; }
+.gd-item:active { background: var(--mist, #eef4f0); }

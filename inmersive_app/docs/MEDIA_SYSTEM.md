@@ -73,6 +73,16 @@ Un arreglo `photos[]`; cada registro:
 Los campos manuales (`credit`, `license`, `caption*`, `is_primary`) **se conservan**
 al re-procesar: el script re-emplaza dimensiones pero respeta lo editado a mano.
 
+**Sujetos gruesos (solo desde el admin).** Al clasificar en la app, además de una
+especie o un punto concreto se puede asignar la **subcategoría entera**:
+`subject_type = 'species_group'` con el grupo del inventario (`ave`, `arbol`,
+`flor`, `planta`, `mamifero`, …) o `subject_type = 'point_type'` con el tipo de
+punto (`mirador`, `avistamiento`, `agua`, …). Es la salida para «esto es un ave,
+pero no sé cuál»: la foto queda en un cajón con sentido en vez de en «sin
+clasificar». Se listan como primer ítem del selector al filtrar por una
+subcategoría, y se navegan igual en «Por punto / especie». **No** se muestran en
+la ficha pública de ninguna especie ni punto (para eso hay que precisar el sujeto).
+
 ## Clasificación semántica
 
 - **Por sujeto**: especie (id) o punto (id). La carpeta lo determina.

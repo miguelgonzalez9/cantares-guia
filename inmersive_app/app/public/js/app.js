@@ -4,7 +4,8 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout } from './auth-ui.js';
-import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor } from './admin.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin } from './admin.js';
+import { initGuide, startVisitorTourOnce } from './guide.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps, saveRow, deleteRow, compressImage } from './sync.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
@@ -14,7 +15,10 @@ const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery
 const CONFIG = {
   center: [-75.4503, 5.0818], zoom: 15.6,
   maxBounds: [[-75.462, 5.072], [-75.439, 5.092]],
-  proximityMeters: 25, reTriggerMeters: 60,
+  // Llegada = estar EN el punto y verlo, no que el GPS diga «cerca». Bajo dosel
+  // el fijo salta decenas de metros; con 25 m la voz arrancaba con el punto aún
+  // invisible. 15 m + fijo preciso + dos fijos seguidos (ver checkProximity).
+  proximityMeters: 15, reTriggerMeters: 45,
   data: {
     boundary: 'data/boundary.geojson', zones: 'data/zones.geojson',
     trails: 'data/trails.geojson', waypoints: 'data/waypoints.geojson',
@@ -240,6 +244,19 @@ const I18N = {
     gps: 'GPS', gps_searching: 'Buscando…', gps_denied: 'Permiso denegado', gps_unavailable: 'Sin señal',
     gps_timeout: 'Sin respuesta', gps_unsupported: 'GPS no disponible', gps_insecure: 'El GPS requiere HTTPS',
     gps_hint_denied: 'Activa el permiso de ubicación para este sitio en el navegador.',
+    gps_help_title: '📍 La guía necesita tu ubicación',
+    gps_help_why: 'Sin ubicación no se puede seguir el recorrido ni avisarte cuando llegas a cada punto.',
+    gps_help_denied_h: 'El permiso está bloqueado para esta página',
+    gps_help_denied_1: 'Toca el candado 🔒 (o la ⓘ) junto a la dirección web, arriba.',
+    gps_help_denied_2: 'Entra en «Permisos» → «Ubicación» y elige «Permitir».',
+    gps_help_denied_3: 'Si instalaste la app y no ves la barra de direcciones: Ajustes de Android → Aplicaciones → Cantares → Permisos → Ubicación → Permitir.',
+    gps_help_off_h: 'La ubicación del teléfono parece apagada',
+    gps_help_off_1: 'Desliza desde arriba de la pantalla y enciende 📍 Ubicación.',
+    gps_help_off_2: 'O en Ajustes de Android → Ubicación → activar.',
+    gps_help_off_3: 'Bajo los árboles el GPS tarda: sal a un claro y espera unos segundos.',
+    gps_help_note: 'Android no deja que una página web encienda la ubicación por ti — el permiso hay que darlo desde el navegador o los ajustes.',
+    gps_help_retry: '🔄 Reintentar',
+    gps_help_close: 'Ahora no',
     approx_note: 'Posición aproximada — se reemplaza con el punto GPS real.',
     more_info: 'Más información', sample_photo: 'foto de muestra',
     legend: 'Leyenda', lg_trails: 'Senderos', lg_route: 'Recorrido activo', lg_start: 'Inicio', lg_end: 'Fin',
@@ -268,6 +285,7 @@ const I18N = {
     z_conservacion: 'Conservación', z_uso_intensivo: 'Uso intensivo', z_agroecosistema: 'Agrosistema', z_transicion: 'Transición',
     base_hd: 'Actual (HD)', base_ortho: 'Ortofoto',
     base_compare_a11y: 'Arrastra para comparar el bosque de antes con el de ahora',
+    help_a11y: 'Ayuda',
     ri_points: 'Puntos del recorrido', ri_start_walk: '▶ Comenzar recorrido', ri_stop_walk: '■ Terminar recorrido',
     guiding_on: 'Siguiendo tu ubicación en el sendero…', guiding_off: 'Recorrido terminado',
     no_points: 'No hay puntos visibles con los filtros activos.',
@@ -280,6 +298,11 @@ const I18N = {
     guiding_screen_warn: '⚠️ Mantén la pantalla encendida: si se apaga, se pierden los avisos de los puntos',
     tour_ask: '¿Cómo quieres la guía?', tour_listen: '🔊 Escuchar', tour_read: '📖 Leer',
     tour_listen_sub: 'El teléfono lee cada punto en voz alta', tour_read_sub: 'El texto aparece en pantalla',
+    tour_test: '🔈 Probar la voz ahora', tour_usual: 'lo que sueles elegir',
+    tour_test_line: 'Bienvenido a la Reserva Natural Cantares. Si escuchas esta frase, la voz de la audioguía funciona.',
+    tour_no_tts: 'Este teléfono no tiene ninguna voz instalada, así que la audioguía se leerá en pantalla. Para oírla: Ajustes → Accesibilidad → Texto a voz, e instala una voz en español.',
+    gc_to_read: 'Cambiar a leer en pantalla', gc_to_listen: 'Cambiar a escuchar en voz alta',
+    gc_now_read: '📖 Ahora la guía se lee en pantalla', gc_now_listen: '🔊 Ahora la guía se escucha en voz alta',
     th_title: 'Ve al inicio del recorrido', th_go: '🧭 Cómo llegar',
     th_close: 'Ya estoy aquí', th_arrived: '✓ Llegaste al inicio. ¡Buen camino!',
     nav_next: '➡️ Siguiente', nav_to_end: 'Final del recorrido',
@@ -339,6 +362,19 @@ const I18N = {
     gps: 'GPS', gps_searching: 'Locating…', gps_denied: 'Permission denied', gps_unavailable: 'No signal',
     gps_timeout: 'Timed out', gps_unsupported: 'GPS unavailable', gps_insecure: 'GPS needs HTTPS',
     gps_hint_denied: 'Enable location permission for this site in your browser.',
+    gps_help_title: '📍 The guide needs your location',
+    gps_help_why: 'Without location it cannot follow the route or tell you when you reach each point.',
+    gps_help_denied_h: 'Permission is blocked for this page',
+    gps_help_denied_1: 'Tap the padlock 🔒 (or the ⓘ) next to the web address at the top.',
+    gps_help_denied_2: 'Open “Permissions” → “Location” and choose “Allow”.',
+    gps_help_denied_3: 'If you installed the app and see no address bar: Android Settings → Apps → Cantares → Permissions → Location → Allow.',
+    gps_help_off_h: 'Your phone location seems to be off',
+    gps_help_off_1: 'Swipe down from the top of the screen and turn on 📍 Location.',
+    gps_help_off_2: 'Or Android Settings → Location → turn on.',
+    gps_help_off_3: 'Under the canopy GPS is slow: step into a clearing and wait a few seconds.',
+    gps_help_note: 'Android does not let a web page turn location on for you — the permission has to be granted from the browser or the settings.',
+    gps_help_retry: '🔄 Try again',
+    gps_help_close: 'Not now',
     approx_note: 'Approximate position — to be replaced by the real GPS point.',
     more_info: 'More info', sample_photo: 'sample photo',
     legend: 'Legend', lg_trails: 'Trails', lg_route: 'Active route', lg_start: 'Start', lg_end: 'End',
@@ -367,6 +403,7 @@ const I18N = {
     z_conservacion: 'Conservation', z_uso_intensivo: 'Intensive use', z_agroecosistema: 'Agrosystem', z_transicion: 'Transition',
     base_hd: 'Current (HD)', base_ortho: 'Orthophoto',
     base_compare_a11y: 'Drag to compare the forest then and now',
+    help_a11y: 'Help',
     ri_points: 'Route points', ri_start_walk: '▶ Start route', ri_stop_walk: '■ End route',
     guiding_on: 'Following your location on the trail…', guiding_off: 'Route ended',
     no_points: 'No points visible with the active filters.',
@@ -379,6 +416,11 @@ const I18N = {
     guiding_screen_warn: '⚠️ Keep the screen on: if it turns off, point alerts stop',
     tour_ask: 'How would you like the guide?', tour_listen: '🔊 Listen', tour_read: '📖 Read',
     tour_listen_sub: 'Your phone reads each point aloud', tour_read_sub: 'The text appears on screen',
+    tour_test: '🔈 Test the voice now', tour_usual: 'what you usually pick',
+    tour_test_line: 'Welcome to Cantares Nature Reserve. If you can hear this sentence, the audio guide works.',
+    tour_no_tts: 'This phone has no speech voice installed, so the guide will be shown on screen. To hear it: Settings → Accessibility → Text-to-speech, and install a voice.',
+    gc_to_read: 'Switch to reading on screen', gc_to_listen: 'Switch to listening aloud',
+    gc_now_read: '📖 The guide is now read on screen', gc_now_listen: '🔊 The guide is now spoken aloud',
     th_title: 'Head to the start of the route', th_go: '🧭 Directions',
     th_close: "I'm here", th_arrived: '✓ You reached the start. Enjoy the walk!',
     nav_next: '➡️ Next', nav_to_end: 'End of the route',
@@ -1004,14 +1046,33 @@ function buildRoutePath(id) {
 // la caja de información del recorrido; el editor la reutiliza para que los
 // guiones salgan en el orden en que el visitante llega a cada punto, no en el
 // orden en que el admin los fue tocando en el mapa.
-function orderPointsAlongSegments(segIds, ptIds, startId) {
+function orderPointsAlongSegments(segIds, ptIds, startId, endId) {
   const ids = (ptIds || []).slice();
-  let path = orderedPathFromSegments(segIds || []);
-  if (!path || path.length < 2) return ids;                 // sin trazado: se deja como está
   const sWp = startId ? wpById(startId) : null;
+  const eWp = endId ? wpById(endId) : null;
+  let path = orderedPathFromSegments(segIds || []);
+  // Sin senderos elegidos no había trazado sobre el que proyectar y los puntos
+  // se quedaban en el orden en que el admin los fue TOCANDO en el mapa — que no
+  // es el orden en que se caminan. Se deduce el camino por la red de senderos
+  // (inicio→fin), igual que hace buildRoutePath cuando falta `segments`.
+  if ((!path || path.length < 2) && sWp && eWp) {
+    const r = routeOnTrails(sWp.geometry.coordinates, eWp.geometry.coordinates);
+    if (r && r.coords.length >= 2) path = r.coords;
+  }
+  // Último recurso: distancia al punto de inicio. Con un solo extremo fijo no hay
+  // «sentido» del recorrido, pero sigue siendo mejor que el orden de los toques.
+  if (!path || path.length < 2) {
+    if (!sWp) return ids;
+    const sC = sWp.geometry.coordinates;
+    const dTo = (id) => { const w = wpById(id); return w ? haversine(sC, w.geometry.coordinates) : Infinity; };
+    return ids.sort((a, b) => dTo(a) - dTo(b));
+  }
   if (sWp) {                                                // orientar start→end
     const sC = sWp.geometry.coordinates;
     if (haversine(path[0], sC) > haversine(path[path.length - 1], sC)) path = path.slice().reverse();
+  } else if (eWp) {                                         // sin inicio: orientar por el fin
+    const eC = eWp.geometry.coordinates;
+    if (haversine(path[0], eC) < haversine(path[path.length - 1], eC)) path = path.slice().reverse();
   }
   const pos = new Map();
   ids.forEach((id) => { const w = wpById(id); pos.set(id, w ? pathPos(path, w.geometry.coordinates) : Infinity); });
@@ -1195,12 +1256,12 @@ function renderRouteInfo(route, built) {
   // La × solo cierra la caja. Durante la guía queda el chip flotante para
   // reabrirla o terminar — cerrar la caja ya no termina el recorrido.
   $('#ri-close').onclick = () => info.classList.add('hidden');
-  // La primera vez se pregunta escuchar/leer; después se recuerda la elección y
-  // el botón arranca directo (una pregunta repetida es fricción, no una opción).
+  // Siempre se pregunta escuchar/leer, con la elección habitual ya marcada. Es
+  // un toque más, pero hace la audioguía predecible y da un sitio fijo donde
+  // probar la voz — antes la pregunta aparecía o no y nadie sabía por qué.
   $('#ri-start').onclick = () => {
     if (state.guiding === id) return stopGuiding();
-    if (localStorage.getItem('cantares_tour_mode')) startGuiding(id);
-    else askTourMode(id);
+    askTourMode(id);
   };
   $$('#route-info .ri-points li').forEach((li) => li.onclick = () => {
     const w = wpById(li.dataset.wp);
@@ -1401,7 +1462,7 @@ function routePointsInOrder(id) {
   const r = state.routesById[id];
   if (!r) return [];
   const ids = state.waypoints.filter((w) => (w.properties.routes || []).includes(id)).map((w) => w.properties.id);
-  return orderPointsAlongSegments(r.segments || [], ids, r.start_id).map(wpById).filter(Boolean);
+  return orderPointsAlongSegments(r.segments || [], ids, r.start_id, r.end_id).map(wpById).filter(Boolean);
 }
 // ¿A dónde toca ir AHORA? Antes de llegar al inicio, al inicio; después, al
 // siguiente punto que no se haya visitado; al final, al punto de fin.
@@ -1452,6 +1513,15 @@ function renderTrailhead() {
     return renderTrailhead();              // ya en el inicio: la tarjeta pasa al primer punto
   }
   navDrawLeg(target);
+  // UNA sola tarjeta abajo. Las dos (navegación y llegada a un punto) están
+  // ancladas al mismo borde con el mismo z-index, así que aparecían encima una
+  // de otra y se tapaban. Mientras esté abierta la de llegada, la de navegación
+  // se retira; al cerrarla, hideGuideCard la repinta.
+  if (document.getElementById('guide-card')) {
+    const old = document.getElementById('trailhead-card');
+    if (old) old.remove();
+    return;
+  }
   let el = document.getElementById('trailhead-card');
   if (!el) {
     el = document.createElement('div');
@@ -1481,6 +1551,7 @@ function hideTrailhead() { const el = document.getElementById('trailhead-card');
 // una idea por tarjeta, y el visitante decide si quiere más.
 function showGuideCard(wp) {
   const p = wp.properties;
+  state.lastGuideWp = wp;   // para repintar la tarjeta al cambiar voz↔texto
   const sc = routeScript(state.guiding, p.id) || routeScript(state.activeRoute, p.id);
   const photo = realPhoto(wp);
   let el = document.getElementById('guide-card');
@@ -1513,23 +1584,40 @@ function showGuideCard(wp) {
 }
 // Cerrar la tarjeta CALLA la voz: seguir oyendo el guión de un punto que ya
 // cerraste es lo que hace que la gente le baje el volumen al teléfono y se
-// pierda el resto de la audioguía.
-function hideGuideCard() { const el = document.getElementById('guide-card'); if (el) { el.remove(); stopSpeech(); } }
+// pierda el resto de la audioguía. Al cerrarla vuelve la tarjeta de navegación
+// (las dos van ancladas abajo y sólo puede haber una — ver renderTrailhead).
+function hideGuideCard() {
+  const el = document.getElementById('guide-card');
+  if (!el) return;
+  el.remove(); stopSpeech();
+  if (state.guiding) renderTrailhead();
+}
 
-// Elegir entre escuchar y leer, una vez, al arrancar el recorrido. Se recuerda,
-// así que a partir del segundo recorrido el botón arranca directo.
+// Elegir entre escuchar y leer AL EMPEZAR CADA RECORRIDO. Antes se preguntaba
+// sólo la primera vez y luego se recordaba para siempre: quien eligiera «leer»
+// una vez no volvía a oír la voz nunca, y la pregunta aparecía o no sin que se
+// entendiera por qué. Ahora siempre se pregunta, con la elección habitual ya
+// marcada (un toque) y un botón para COMPROBAR la voz antes de echar a andar.
 function askTourMode(routeId) {
   const ov = document.createElement('div');
   ov.className = 'fm-assign'; ov.id = 'tour-mode';
   document.body.appendChild(ov);
-  const close = () => { popBack('tourmode'); ov.remove(); };
+  const close = () => { popBack('tourmode'); stopSpeech(); ov.remove(); };
+  const usual = state.tourMode || 'listen';
+  const hasTts = ttsReady();
   ov.innerHTML = `<div class="fm-assign-box tour-box">
       <h3>${t('tour_ask')}</h3>
-      <button class="tour-opt" data-m="listen"><b>${t('tour_listen')}</b><span>${t('tour_listen_sub')}</span></button>
-      <button class="tour-opt" data-m="read"><b>${t('tour_read')}</b><span>${t('tour_read_sub')}</span></button>
+      <button class="tour-opt ${usual === 'listen' ? 'sel' : ''}" data-m="listen"><b>${t('tour_listen')}</b><span>${t('tour_listen_sub')}${usual === 'listen' ? ` · ${t('tour_usual')}` : ''}</span></button>
+      <button class="tour-opt ${usual === 'read' ? 'sel' : ''}" data-m="read"><b>${t('tour_read')}</b><span>${t('tour_read_sub')}${usual === 'read' ? ` · ${t('tour_usual')}` : ''}</span></button>
+      ${hasTts ? `<button class="tour-test" id="tour-test">${t('tour_test')}</button>` : `<div class="admin-note">${escapeHtml(t('tour_no_tts'))}</div>`}
     </div>`;
   pushBack('tourmode', () => ov.remove());
   ov.onclick = (e) => { if (e.target === ov) close(); };
+  // Probar la voz AQUÍ, con el teléfono en la mano y antes de caminar, es la
+  // única forma de saber que funciona: el volumen, el silencio y la falta de
+  // voz en español fallan en silencio y sólo se descubren ya en el monte.
+  const test = document.getElementById('tour-test');
+  if (test) test.onclick = () => { primeSpeech(); speak(t('tour_test_line'), LANG === 'en' ? 'en-US' : 'es-CO'); };
   ov.querySelectorAll('.tour-opt').forEach((b) => b.onclick = () => {
     close();
     startGuiding(routeId, b.dataset.m);
@@ -1670,7 +1758,45 @@ function updateAccuracyCircle() {
 function onGeoError(err) {
   const msg = err.code === 1 ? t('gps_denied') : err.code === 2 ? t('gps_unavailable') : t('gps_timeout');
   setGps('error', msg);
-  if (err.code === 1) { stopTracking(); toast(t('gps_hint_denied')); } else toast(msg);
+  // PERMISSION_DENIED (1) → el permiso está bloqueado: hay que ir a tocarlo, y un
+  // toast de tres segundos no alcanza para explicar dónde. POSITION_UNAVAILABLE (2)
+  // suele ser la ubicación del teléfono apagada. Los dos casos son accionables y
+  // los dos dejaban al visitante mirando un mapa que no lo seguía.
+  if (err.code === 1) { stopTracking(); showGpsHelp('denied'); return; }
+  if (err.code === 2) { showGpsHelp('off'); return; }
+  toast(msg);   // timeout: suele resolverse solo con otro fijo
+}
+// Qué hacer para tener ubicación, dicho con los pasos exactos del teléfono.
+// Una página web NO puede encender la ubicación de Android ni abrir sus ajustes
+// (lo impide el navegador, no la app): lo único honesto es pedir el permiso —
+// que es lo que hace getCurrentPosition — y, si está bloqueado, explicar dónde
+// se desbloquea. `_gpsHelpOpen` evita que cada fijo fallido reabra la hoja.
+let _gpsHelpOpen = false;
+function showGpsHelp(kind) {
+  if (_gpsHelpOpen) return;
+  _gpsHelpOpen = true;
+  const ov = document.createElement('div');
+  ov.className = 'fm-assign'; ov.id = 'gps-help';
+  const close = () => { _gpsHelpOpen = false; popBack('gpshelp'); ov.remove(); };
+  const steps = kind === 'denied'
+    ? [t('gps_help_denied_1'), t('gps_help_denied_2'), t('gps_help_denied_3')]
+    : [t('gps_help_off_1'), t('gps_help_off_2'), t('gps_help_off_3')];
+  ov.innerHTML = `<div class="fm-assign-box gps-help-box">
+      <h3>${escapeHtml(t('gps_help_title'))}</h3>
+      <p class="gh-why">${escapeHtml(t('gps_help_why'))}</p>
+      <p class="gh-h"><b>${escapeHtml(kind === 'denied' ? t('gps_help_denied_h') : t('gps_help_off_h'))}</b></p>
+      <ol class="gh-steps">${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+      <p class="gh-note">${escapeHtml(t('gps_help_note'))}</p>
+      <button class="gs-cta" id="gh-retry">${escapeHtml(t('gps_help_retry'))}</button>
+      <button class="gs-ghost" id="gh-close">${escapeHtml(t('gps_help_close'))}</button>
+    </div>`;
+  document.body.appendChild(ov);
+  pushBack('gpshelp', () => { _gpsHelpOpen = false; ov.remove(); });
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelector('#gh-close').onclick = close;
+  // Reintentar dentro del gesto del toque: si el visitante acaba de conceder el
+  // permiso, esta llamada es la que vuelve a arrancar el seguimiento.
+  ov.querySelector('#gh-retry').onclick = () => { close(); if (state.watchId == null) locate(); };
 }
 // ----- guided mode: follow the visitor and surface points as they approach -----
 function startGuiding(id, mode) {
@@ -1678,6 +1804,7 @@ function startGuiding(id, mode) {
   state.guiding = id;
   state.atTrailhead = false;
   state.navDone = {};   // ningún punto visitado todavía en ESTE recorrido
+  state.nearFixes = {};   // contador de fijos dentro del radio (confirmación de llegada)
   // Modo enfocado: fuera leyenda, capas de satélite y buscador. Es la queja de
   // fondo — demasiadas cosas a la vez. Caminando sólo hacen falta el camino, los
   // puntos del recorrido y qué hacer ahora.
@@ -1695,7 +1822,9 @@ function startGuiding(id, mode) {
   if (!isRecording()) startWalk(id, rt ? L(rt, 'name') : null);
   // Pantalla encendida durante la guía: si se apaga, el navegador corta el GPS
   // y los avisos de llegada a los puntos mueren en silencio.
-  keepAwake().then((ok) => toast(ok ? t('guiding_screen') : t('guiding_screen_warn')));
+  // Sólo se avisa si el bloqueo de pantalla FALLA. Antes salían dos avisos
+  // seguidos en el mismo sitio y el segundo borraba al primero antes de leerlo.
+  keepAwake().then((ok) => { if (!ok) toast(t('guiding_screen_warn')); });
   toast(t('guiding_on'));
   // Mapa despejado durante la guía: la caja se cierra y queda solo el chip.
   closeWaypoint(); removePopup();
@@ -1737,12 +1866,28 @@ function guideChip(show) {
     (document.getElementById('view-recorridos') || document.body).appendChild(el);
   }
   el.style.borderColor = r.color || 'var(--moss)';
+  // El interruptor voz/texto vive AQUÍ, visible durante todo el recorrido: la
+  // elección del arranque ya no queda encerrada hasta el próximo recorrido, y
+  // se ve de un vistazo en qué modo está la guía (era la duda de fondo: «¿por
+  // qué a veces habla y a veces no?»).
+  const listening = state.tourMode !== 'read';
   el.innerHTML = `
     <button class="gc-open">${r.emoji || '🥾'} <b>${escapeHtml(L(r, 'name'))}</b></button>
+    <button class="gc-mode" aria-label="${escapeHtml(listening ? t('gc_to_read') : t('gc_to_listen'))}">${listening ? '🔊' : '📖'}</button>
     <button class="gc-stop" aria-label="${t('ri_stop_walk')}">■</button>`;
   el.querySelector('.gc-open').onclick = () => {
     renderRouteInfo(r, buildRoutePath(state.guiding));
     $('#route-info').classList.remove('hidden');
+  };
+  el.querySelector('.gc-mode').onclick = () => {
+    const next = listening ? 'read' : 'listen';
+    state.tourMode = next; localStorage.setItem('cantares_tour_mode', next);
+    if (next === 'read') stopSpeech(); else primeSpeech();
+    guideChip(true);                       // repintar el icono
+    toast(t(next === 'read' ? 'gc_now_read' : 'gc_now_listen'));
+    // La tarjeta abierta cambia de forma con el modo (texto completo vs. voz).
+    const open = document.getElementById('guide-card');
+    if (open && state.lastGuideWp) showGuideCard(state.lastGuideWp);
   };
   el.querySelector('.gc-stop').onclick = () => { if (confirm(t('guiding_confirm_end'))) stopGuiding(); };
 }
@@ -1757,47 +1902,119 @@ function routeScript(routeId, pointId) {
   const s = r && r.scripts && r.scripts[pointId];
   return (s && (s.es || s.en)) ? s : null;
 }
+// ----- TTS: por qué «a veces suena y a veces no» -----
+// Tres fallos del motor del navegador, los tres silenciosos, se sumaban:
+//   1. getVoices() llega VACÍO en el primer arranque (las voces cargan asíncronas);
+//      hablar antes de que exista una voz para el idioma no dice nada.
+//   2. speak() llamado INMEDIATAMENTE después de cancel() se descarta en Chrome.
+//   3. Chrome/Android corta la locución a los ~15 s si nadie hace pause()/resume().
+// Aquí se cubren los tres, y `ttsReady()` permite avisar en pantalla en vez de
+// dejar al visitante esperando una voz que no va a llegar.
+const TTS_OK = 'speechSynthesis' in window;
+let _voices = [];
+function loadVoices() {
+  if (!TTS_OK) return _voices;
+  try { const v = window.speechSynthesis.getVoices(); if (v && v.length) _voices = v; } catch (e) { /* sin TTS */ }
+  return _voices;
+}
+if (TTS_OK) { loadVoices(); try { window.speechSynthesis.onvoiceschanged = loadVoices; } catch (e) { /* sin TTS */ } }
+// ¿Hay motor y al menos una voz? (Antes de la primera carga `_voices` está vacío
+// pero el motor puede servir igual — sólo se declara «no hay» si nunca llegaron.)
+function ttsReady() { return TTS_OK && loadVoices().length > 0; }
+function pickVoice(lang) {
+  const want = lang.slice(0, 2).toLowerCase();
+  const vs = loadVoices();
+  const norm = (l) => String(l || '').replace('_', '-').toLowerCase();
+  return vs.find((v) => norm(v.lang) === lang.toLowerCase())
+      || vs.find((v) => norm(v.lang).startsWith(want))
+      || null;
+}
 // El TTS del navegador necesita un gesto del usuario para "despertar" (iOS).
 // Se ceba al iniciar el recorrido (que sí es un toque) con un enunciado mudo.
 let _speechPrimed = false;
 function primeSpeech() {
-  if (_speechPrimed || !('speechSynthesis' in window)) return;
+  if (!TTS_OK) return;
+  loadVoices();
+  if (_speechPrimed) return;
   try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); _speechPrimed = true; } catch (e) { /* sin TTS */ }
 }
-function stopSpeech() { if ('speechSynthesis' in window) try { window.speechSynthesis.cancel(); } catch (e) { /* sin TTS */ } }
-// Lee un guión. cancel()+speak garantiza UN solo guión a la vez: si se llega a
-// otro punto antes de terminar, reemplaza (nunca se solapan dos audios).
+let _speakTimer = null, _resumeTimer = null;
+function stopResumePing() { clearInterval(_resumeTimer); _resumeTimer = null; }
+// Chrome corta a los ~15 s: un pause()+resume() periódico mantiene viva la locución.
+function startResumePing() {
+  stopResumePing();
+  _resumeTimer = setInterval(() => {
+    if (!window.speechSynthesis.speaking) return stopResumePing();
+    try { window.speechSynthesis.pause(); window.speechSynthesis.resume(); } catch (e) { /* nada que reanudar */ }
+  }, 9000);
+}
+function stopSpeech() {
+  clearTimeout(_speakTimer); _speakTimer = null; stopResumePing();
+  if (TTS_OK) try { window.speechSynthesis.cancel(); } catch (e) { /* sin TTS */ }
+}
+// Habla un texto. cancel()+speak garantiza UN solo audio a la vez; el respiro de
+// 90 ms entre los dos es lo que impide que Chrome se trague el nuevo.
+function speak(text, lang) {
+  if (!text || !TTS_OK) return false;
+  clearTimeout(_speakTimer); stopResumePing();
+  try { window.speechSynthesis.cancel(); } catch (e) { /* sin TTS */ }
+  _speakTimer = setTimeout(() => {
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang; u.rate = 0.95;
+      const v = pickVoice(lang); if (v) u.voice = v;
+      u.onend = stopResumePing; u.onerror = stopResumePing;
+      window.speechSynthesis.speak(u);
+      startResumePing();
+    } catch (e) { /* TTS no disponible: el guión igual está en pantalla */ }
+  }, 90);
+  return true;
+}
+// Lee un guión. Si no llega a leerse, el texto sigue estando en la tarjeta.
 function speakScript(s) {
-  if (!s || !('speechSynthesis' in window)) return;
+  if (!s) return;
   // El idioma se elige JUNTO con el texto, no por separado: si falta el guión en
   // inglés se cae al español, y anunciar en-US sobre un texto español hace que
   // la voz lo lea con fonética inglesa — ininteligible para todo el mundo.
   const useEn = LANG === 'en' && !!s.en;
   const text = useEn ? s.en : (s.es || s.en);
   if (!text) return;
-  try {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = useEn ? 'en-US' : (s.es ? 'es-CO' : 'en-US');
-    u.rate = 0.95;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-  } catch (e) { /* TTS no disponible: el guión igual está en pantalla */ }
+  speak(text, useEn ? 'en-US' : (s.es ? 'es-CO' : 'en-US'));
 }
 
+// Tres guardas contra el aviso prematuro (la queja: «la voz arranca cuando
+// todavía estoy lejos»). (1) sólo puntos DE ESTE recorrido — uno de otro sendero
+// a 15 m del camino no es una llegada y su guión cuenta otro relato; (2) el fijo
+// tiene que ser preciso: con ±60 m el GPS te pone en el punto estando a media
+// ladera; (3) dos fijos seguidos dentro del radio, para que un salto aislado del
+// GPS —lo normal bajo dosel— no dispare la tarjeta ni la voz.
+const ARRIVE_ACC_MAX = 30;   // m de precisión máxima para dar una llegada por buena
+const ARRIVE_FIXES = 2;      // fijos consecutivos dentro del radio
 function checkProximity() {
   if (!state.userPos || !state.guiding) return;   // sólo durante un recorrido iniciado
+  // accuracy nula = el navegador no la reporta; no se puede exigir lo que no hay.
+  const trusted = state.userAccuracy == null || state.userAccuracy <= ARRIVE_ACC_MAX;
+  if (!state.nearFixes) state.nearFixes = {};
   state.waypoints.forEach((wp) => {
     const id = wp.properties.id;
+    if (!(wp.properties.routes || []).includes(state.guiding)) return;   // sólo puntos del recorrido en curso
     if (!waypointVisible(wp)) return;   // only trigger points currently shown
     const d = haversine(state.userPos, wp.geometry.coordinates);
-    if (d <= CONFIG.proximityMeters && !state.lastTriggered[id]) {
-      state.lastTriggered[id] = true;
-      state.navDone[id] = true;      // visitado: la guía ya no vuelve a mandarte aquí
-      // Una sola tarjeta, no un toast + un popup + una voz a la vez: cada
-      // llegada dice una cosa. El detalle completo sigue a un toque.
-      showGuideCard(wp);
-      renderTrailhead();             // y el destino pasa al punto siguiente
-    } else if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) state.lastTriggered[id] = false;
+    if (d > CONFIG.proximityMeters) {
+      state.nearFixes[id] = 0;          // salir del radio reinicia la confirmación
+      if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) state.lastTriggered[id] = false;
+      return;
+    }
+    if (state.lastTriggered[id]) return;
+    if (!trusted) return;               // fijo malo: esperar a uno mejor, no adivinar
+    state.nearFixes[id] = (state.nearFixes[id] || 0) + 1;
+    if (state.nearFixes[id] < ARRIVE_FIXES) return;   // aún sin confirmar
+    state.lastTriggered[id] = true;
+    state.navDone[id] = true;      // visitado: la guía ya no vuelve a mandarte aquí
+    // Una sola tarjeta, no un toast + un popup + una voz a la vez: cada
+    // llegada dice una cosa. El detalle completo sigue a un toque.
+    showGuideCard(wp);
+    renderTrailhead();             // y el destino pasa al punto siguiente
   });
 }
 let toastTimer = null;
@@ -2152,6 +2369,7 @@ function showOnboarding() {
     localStorage.setItem('cantares_onboarded', '1');
     ob.classList.add('hidden');
     switchView('recorridos');
+    startVisitorTourOnce();   // una sola vez; después queda el ? del header
   };
 }
 
@@ -2837,6 +3055,7 @@ function applyStaticI18n() {
   $$('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
   $('#lang-toggle').textContent = LANG === 'es' ? 'EN' : 'ES';
   const h = $('#bc-handle'); if (h) h.setAttribute('aria-label', t('base_compare_a11y'));
+  const hb = $('#help-btn'); if (hb) { hb.title = t('help_a11y'); hb.setAttribute('aria-label', t('help_a11y')); }
 }
 function setLang(lang) {
   LANG = lang; localStorage.setItem('cantares_lang', lang);
@@ -2958,6 +3177,10 @@ async function main() {
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
       initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); } });
     }
+    // Fuera del bloque del mapa: con ?nomap el ? seguiria existiendo en el header
+    // y no haria nada. Los pasos que senalan el mapa caen a tarjeta solos.
+    initGuide({ state, switchView, currentView, pushBack, popBack, selectRoute, openAdminAt, closeAdmin,
+      ensureGps: () => { if (state.watchId == null) locate(); } });
     // Cola offline: reflejar cambios pendientes de sesiones sin señal y
     // subirlos automáticamente cuando vuelva el internet.
     await applyPendingLocally();

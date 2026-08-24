@@ -1,5 +1,5 @@
 // Cantares service worker — offline app shell + data, runtime-cache map tiles + fotos.
-const VERSION = 'cantares-v73';
+const VERSION = 'cantares-v77';
 const SHELL = `${VERSION}-shell`;
 const TILES = `${VERSION}-tiles`;
 const IMAGES = `${VERSION}-img`;
@@ -28,6 +28,7 @@ const SHELL_ASSETS = [
   'data/carbon.json',
   'js/auth-ui.js',
   'js/admin.js',
+  'js/guide.js',
   'js/recorder.js',
   'js/sync.js',
   'js/idengine.js',

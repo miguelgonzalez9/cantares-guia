@@ -45,7 +45,9 @@ assert.ok(/queued/.test(many), 'lo que quede en cola debe decirse');
 //    que se separan con el tiempo.
 const pick = admin.slice(admin.indexOf('function assignPicker('), admin.indexOf('// Abre el clasificador directamente'));
 assert.ok(/const many = Array\.isArray\(m\);/.test(pick));
-assert.ok(/if \(many\) await classifyMany\(ids, pt, it\.dataset\.id\);/.test(pick));
+// El tipo lo pone el ITEM, no el selector: un sujeto grueso (todo el grupo /
+// todo el tipo) sale bajo «Especie» pero se guarda como 'species_group'.
+assert.ok(/if \(many\) await classifyMany\(ids, it\.dataset\.type, it\.dataset\.id\);/.test(pick));
 assert.ok(/\$\{!many && m\.subject_id \?/.test(pick), '«dejar sin clasificar» no aplica a un lote');
 
 // 6. Borrado en lote: las curadas viven en el catálogo del build y no se pueden

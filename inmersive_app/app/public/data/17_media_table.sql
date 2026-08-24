@@ -8,8 +8,8 @@
 create table if not exists public.media (
   id           text primary key,                 -- id local del teléfono (cola offline idempotente)
   kind         text not null default 'photo',    -- 'photo' | 'video'
-  subject_type text,                              -- 'species' | 'waypoint' | null (sin clasificar)
-  subject_id   text,                              -- id en species/waypoints; null si sin clasificar
+  subject_type text,                              -- 'species' | 'waypoint' | 'species_group' | 'point_type' | null
+  subject_id   text,                              -- id en species/waypoints, o el grupo ('ave') / tipo ('mirador'); null si sin clasificar
   url          text not null,                     -- URL web (Supabase Storage, bucket 'media')
   thumb        text,                              -- miniatura opcional
   poster       text,                              -- fotograma de portada del video (opcional)
