@@ -55,16 +55,18 @@ assert.strictEqual(Number(/const TRAILHEAD_M = (\d+)/.exec(app)[1]), TRAILHEAD_M
 assert.ok(/localStorage\.getItem\('cantares_tour_mode'\) \|\| 'listen'/.test(app),
   'el modo por defecto debe ser listen');
 
-// 5. Sólo se pregunta la primera vez; después se recuerda.
-assert.ok(/if \(localStorage\.getItem\('cantares_tour_mode'\)\) startGuiding\(id\);/.test(app),
-  'con el modo ya elegido, el botón debe arrancar directo');
+// 5. Se pregunta SIEMPRE escuchar/leer, con la eleccion habitual marcada: la
+//    audioguia se vuelve predecible y hay un sitio fijo para probar la voz.
+assert.ok(/askTourMode\(id\);/.test(app), 'el boton de empezar debe preguntar el modo');
+assert.ok(/tour_usual|tour_test/.test(app), 'la pregunta marca lo habitual y deja probar la voz');
 
-// 6. Modo enfocado: se ocultan leyenda, satélite y buscador, pero NO la barra de
-//    pestañas — se puede consultar Especies a mitad de camino y volver.
-const hide = /body\.guiding #legend,[\s\S]*?\{ display: none; \}/.exec(css);
+// 6. Modo enfocado: se oculta TODO el cromo, pestanas incluidas. Ojo: hasta
+//    2026-08 la barra de pestanas se dejaba a proposito (consultar Especies a
+//    mitad de camino); el cambio a ocultarla es deliberado y esta prueba lo fija.
+const hide = /body[.]guiding #legend,[\s\S]*?display: none !important; }/.exec(css);
 assert.ok(hide, 'falta la regla que oculta el cromo en modo guiado');
 assert.ok(/#legend/.test(hide[0]) && /#base-compare/.test(hide[0]) && /#search-btn/.test(hide[0]));
-assert.ok(!/body\.guiding[^{]*\.tabbar/.test(css), 'la barra de pestañas NO debe ocultarse');
+assert.ok(/[.]tabbar/.test(hide[0]), 'en modo guiado la barra de pestanas tambien se oculta');
 
 // 7. Entrar y salir del recorrido deben ser simétricos: lo que se añade se quita.
 assert.ok(/document\.body\.classList\.add\('guiding'\)/.test(app));
@@ -73,7 +75,10 @@ assert.ok(/pushBack\('guiding'/.test(app) && /popBack\('guiding'\)/.test(app),
   'el botón atrás debe salir del recorrido antes que de la app');
 
 // 8. La llegada a un punto ya no dispara toast + popup + voz a la vez.
-const prox = app.slice(app.indexOf('function checkProximity'), app.indexOf('function checkProximity') + 900);
+const _cp = app.indexOf('function checkProximity');
+// Hasta el final de la funcion, no 900 caracteres: la funcion crecio y la
+// asercion empezo a fallar por la ventana, no por el codigo.
+const prox = app.slice(_cp, app.indexOf('\nfunction ', _cp));
 assert.ok(/showGuideCard\(wp\)/.test(prox), 'la llegada debe mostrar UNA tarjeta');
 assert.ok(!/miniPopup\(wp\)/.test(prox), 'ya no debe abrir además el mini-popup');
 

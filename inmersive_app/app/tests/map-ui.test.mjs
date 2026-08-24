@@ -85,8 +85,9 @@ assert.ok(/yBefore - yAfter/.test(tl), 'debe compensar para que el botón no se 
 assert.ok(/\.legend\.up \{ flex-direction: column-reverse; \}/.test(css));
 
 // 10. Pellizco sobre el header: Chrome en Android ignora user-scalable=no, así
-//     que el meta no basta y hace falta touch-action.
-assert.ok(/\.app-header \{[\s\S]*?touch-action: none;[\s\S]*?\}/.test(css));
-assert.ok(/user-scalable=no/.test(html), 'el meta se queda: cubre iOS y escritorio');
+// 10. Pellizco sobre el header: se defiende con touch-action, NO quitandole el
+//     zoom a toda la pagina (Chrome en Android ignora user-scalable de todas formas).
+const vp = /<meta name="viewport"[^>]*>/.exec(html)[0];
+assert.ok(!/user-scalable=no|maximum-scale/.test(vp), 'el zoom se deja abierto: agrandar la letra es accesibilidad');
 
 console.log('map-ui: 10/10 OK');

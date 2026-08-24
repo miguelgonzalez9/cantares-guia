@@ -11,7 +11,9 @@ const guide = read('js/guide.js');
 const haystack = ['index.html', 'js/app.js', 'js/admin.js'].map(read).join('\n');
 
 // Selectores declarados en la guía: anchor: '…' / wait: '…'
-const sels = [...guide.matchAll(/\b(?:anchor|wait):\s*'([^']+)'/g)].map((m) => m[1]);
+const sels = [...guide.matchAll(/\b(?:anchor|wait):\s*'([^']+)'/g)].map((m) => m[1])
+  // click('#pt-add') abre una rama: si ese id cambia, el sub-tutorial sale vacio.
+  .concat([...guide.matchAll(/click\('([^']+)'\)/g)].map((m) => m[1]));
 assert.ok(sels.length >= 20, `pocos selectores encontrados (${sels.length}) — ¿cambió el formato?`);
 
 // De un selector a los trozos que TIENEN que aparecer en el código de la app:

@@ -7,7 +7,6 @@ import { coverageGaps, readCatalog, buildEntries, fromFiles, fromDropbox, planBy
   countByFolder, uploadSample, dropAlreadyThere } from './archive-intake.js';
 import * as Dbx from './dropbox.js';
 import { keepAwake, releaseAwake } from './wakelock.js';
-import { doLogout } from './auth-ui.js';
 import { maybeStartAdminGuide } from './guide.js';
 
 let CTX = null;
@@ -170,16 +169,9 @@ function renderPanel() {
       <strong>🛠️ Administración</strong>
       <div class="admin-head-r">
         <button class="admin-edit-toggle ${editMode ? 'on' : ''}" id="admin-edit">${editMode ? '✏️ Editando' : '✏️ Editar mapa'}</button>
-        <button class="admin-logout" id="admin-logout">Salir</button>
         <button class="admin-x" id="admin-x" aria-label="Cerrar">×</button>
       </div>
     </div>
-    ${editMode ? `<div class="edit-toolbar">
-      <span class="edit-hint">Toca en el mapa para seleccionar y editar. O crea:</span>
-      <button class="edit-new" data-new="punto">📍＋ Punto</button>
-      <button class="edit-new" data-new="sendero">✎＋ Sendero</button>
-      <button class="edit-new" data-new="recorrido">🧭＋ Recorrido</button>
-    </div>` : ''}
     <div class="admin-tabs">
       <button class="admin-tab ${tab === 'puntos' ? 'sel' : ''}" data-t="puntos">Puntos</button>
       <button class="admin-tab ${tab === 'senderos' ? 'sel' : ''}" data-t="senderos">Senderos</button>
@@ -190,14 +182,7 @@ function renderPanel() {
     <div class="admin-body" id="admin-body"></div>`;
   if (tab === 'especies') tab = 'puntos';   // las especies ya no viven en el panel
   el.querySelector('#admin-x').onclick = () => { if (editMode) toggleEditMode(false); closePanel(); };
-  el.querySelector('#admin-logout').onclick = doLogout;
   el.querySelector('#admin-edit').onclick = () => toggleEditMode();
-  el.querySelectorAll('.edit-new').forEach((b) => b.onclick = () => {
-    const kind = b.dataset.new;
-    if (kind === 'punto') { editAddMode = 'punto'; CTX.toast('📍 Toca el mapa donde va el punto.'); }
-    else if (kind === 'sendero') editSendero(null);
-    else editRecorrido(null);
-  });
   el.querySelectorAll('.admin-tab').forEach((b) => b.onclick = () => { tab = b.dataset.t; renderPanel(); });
   ({ puntos: renderPuntos, senderos: renderSenderos, recorridos: renderRecorridos, fotos: renderFotos }[tab] || renderPuntos)();
   if (editMode && editSel) { markSelectedRow(editSel.id); updateEditBar(); }

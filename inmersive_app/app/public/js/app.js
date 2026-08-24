@@ -1240,7 +1240,7 @@ function renderRouteInfo(route, built) {
     <div class="ri-scroll">
       <h3>${route.emoji} ${L(route, 'name')}</h3>
       <p>${L(route, 'summary')}</p>
-      ${built ? `<div class="ri-stats"><span class="ri-stat">📏 ${fmtDist(pathLengthM(built.path))}</span><span class="ri-stat" id="ri-ele">⛰️ …</span></div>` : ''}
+      ${built ? `<div class="ri-stats"><span class="ri-stat">📏 ${fmtDist(pathLengthM(built.path))}</span><span class="ri-stat" id="ri-ele">⛰️ …</span><span class="ri-stat" id="ri-time">⏱️ …</span></div>` : ''}
       ${(sLbl || eLbl) ? `<div class="ri-ends">
         ${sLbl ? `<span class="ri-end-item"><span class="ri-dot start"></span>${t('lg_start')}: ${escapeHtml(sLbl)}</span>` : ''}
         ${eLbl ? `<span class="ri-end-item"><span class="ri-dot end"></span>${t('lg_end')}: ${escapeHtml(eLbl)}</span>` : ''}
@@ -1274,6 +1274,15 @@ function renderRouteInfo(route, built) {
 
 // ---------- elevación / desnivel (API gratis Open-Meteo) ----------
 function eleText(r) { return `⛰️ +${Math.round(r.gainM)} m`; }
+// Tiempo a pie: regla de Naismith ajustada a ritmo de paseo — 4 km/h en llano
+// más 1 h por cada 600 m de subida. Es una estimacion, y se muestra con ~.
+// ponytail: ritmo unico; si alguna vez hay perfiles (familia, deportista), aqui
+// se parametriza.
+function walkText(distM, gainM) {
+  const min = Math.round((distM / 4000 + gainM / 600) * 60);
+  if (!isFinite(min) || min <= 0) return '⏱️ —';
+  return min < 60 ? `⏱️ ~${min} min` : `⏱️ ~${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
+}
 async function fetchElevation(coords) {
   const N = Math.min(coords.length, 90);
   const step = coords.length / N, samp = [];
@@ -1289,10 +1298,12 @@ async function fetchElevation(coords) {
   return { gainM: gain, minEle: min, maxEle: max };
 }
 async function applyElevation(id, path) {
-  const set = (txt) => { const el = $('#ri-ele'); if (el && state.activeRoute === id) el.textContent = txt; };
-  if (state.eleCache[id]) { set(eleText(state.eleCache[id])); return; }
-  try { const r = await fetchElevation(path); state.eleCache[id] = r; set(eleText(r)); }
-  catch (e) { set('⛰️ —'); }
+  const set = (sel, txt) => { const el = $(sel); if (el && state.activeRoute === id) el.textContent = txt; };
+  // El tiempo depende del desnivel, asi que se pinta con el, no antes.
+  const paint = (r) => { set('#ri-ele', eleText(r)); set('#ri-time', walkText(pathLengthM(path), r.gainM)); };
+  if (state.eleCache[id]) { paint(state.eleCache[id]); return; }
+  try { const r = await fetchElevation(path); state.eleCache[id] = r; paint(r); }
+  catch (e) { set('#ri-ele', '⛰️ —'); set('#ri-time', walkText(pathLengthM(path), 0)); }
 }
 
 // ---------- waypoint card ----------
@@ -3180,7 +3191,18 @@ async function main() {
     // Fuera del bloque del mapa: con ?nomap el ? seguiria existiendo en el header
     // y no haria nada. Los pasos que senalan el mapa caen a tarjeta solos.
     initGuide({ state, switchView, currentView, pushBack, popBack, selectRoute, openAdminAt, closeAdmin,
-      ensureGps: () => { if (state.watchId == null) locate(); } });
+      ensureGps: () => { if (state.watchId == null) locate(); },
+      // La guia manda en la pantalla mientras enseña: cualquier caja de la app
+      // (ficha del recorrido, aviso del GPS, popup de un punto) tapaba el paso
+      // siguiente. Se despeja antes de cada paso; el que necesite una caja
+      // abierta la abre en su propio `go`.
+      clearBoxes: () => {
+        const ri = $('#route-info'); if (ri) ri.classList.add('hidden');
+        const pt = $('#proximity-toast'); if (pt) pt.classList.add('hidden');
+        closeWaypoint(); removePopup();
+      },
+      openLegend: () => { const l = $('#legend'); if (l) l.classList.remove('collapsed'); },
+      routeInfoOpen: () => { const ri = $('#route-info'); return !!ri && !ri.classList.contains('hidden'); } });
     // Cola offline: reflejar cambios pendientes de sesiones sin señal y
     // subirlos automáticamente cuando vuelva el internet.
     await applyPendingLocally();

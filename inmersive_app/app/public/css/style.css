@@ -753,8 +753,6 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-head { display: flex; align-items: center; justify-content: space-between;
   background: var(--forest); color: #fff; padding: 12px 14px; }
 .admin-head-r { display: flex; align-items: center; gap: 8px; }
-.admin-logout { border: 1px solid rgba(255,255,255,.5); background: transparent; color: #fff;
-  font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; cursor: pointer; }
 .admin-x { border: none; background: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
 .admin-tabs { display: flex; gap: 4px; padding: 8px 12px 0; background: var(--card);
   overflow-x: auto; flex-wrap: nowrap; }
@@ -898,11 +896,6 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-edit-toggle { border: 1px solid rgba(255,255,255,.5); background: transparent; color: #fff;
   border-radius: 999px; padding: 5px 12px; font-weight: 800; font-size: 12.5px; cursor: pointer; }
 .admin-edit-toggle.on { background: var(--sun, #fab814); color: var(--navy, #0a0e1d); border-color: var(--sun, #fab814); }
-.edit-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px;
-  background: var(--mist); border-bottom: 1px solid var(--line); }
-.edit-toolbar .edit-hint { font-size: 11.5px; color: var(--muted); flex: 1 1 100%; }
-.edit-new { border: 1.5px solid var(--leaf); background: #fff; color: var(--forest); border-radius: 999px;
-  padding: 6px 10px; font-size: 12.5px; font-weight: 800; cursor: pointer; }
 /* Panel como hoja inferior en móvil (deja ver el mapa mientras editas) */
 @media (max-width: 560px) {
   .admin-panel.as-sheet { top: auto; bottom: 0; height: 46vh; width: 100%;
@@ -1449,6 +1442,11 @@ body.picking-points #route-info { display: none !important; }
 .gd-act { margin-top: 10px; width: 100%; border: none; border-radius: 999px; padding: 9px 12px;
   background: var(--forest, #17392a); color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; }
 .gd-act:disabled { opacity: .6; }
+/* Rama: entra a un sub-tutorial y vuelve a este mismo paso al terminar. */
+.gd-branch { display: block; width: 100%; margin-top: 8px; border: 1.5px dashed var(--leaf, #3f7d5c);
+  background: var(--mist, #eef4f0); color: var(--forest, #17392a); border-radius: 10px;
+  padding: 9px 12px; font-size: 13px; font-weight: 800; cursor: pointer; text-align: left; }
+.gd-branch:active { background: #e2ece6; }
 .gd-btns { display: flex; align-items: center; gap: 6px; margin-top: 11px; }
 .gd-sp { flex: 1; }
 .gd-btns button { border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 800; cursor: pointer; }
