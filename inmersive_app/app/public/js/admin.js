@@ -314,8 +314,6 @@ function editPunto(id) {
   const draftBlob = restore ? _pointDraft.photoBlob : null;
   const draftLeafBlob = restore ? _pointDraft.leafBlob : null;
   _pointDraft = null;
-  const routeChecks = CTX.state.routes.map((r) => `
-    <label class="admin-chk"><input type="checkbox" value="${r.id}" ${(p.routes || []).includes(r.id) ? 'checked' : ''}> ${esc(CTX.L(r, 'name'))}</label>`).join('');
   body.innerHTML = `
     <div class="admin-form">
       <label>Título (ES)</label><input id="f-title" value="${esc(p.title)}">
@@ -331,7 +329,6 @@ function editPunto(id) {
         <input id="nt-color" type="color" value="#2b8cbe" title="Color del pin">
         <button type="button" class="admin-pick" id="nt-create">Crear</button>
       </div>
-      <label>Recorridos</label><div class="admin-checks" id="f-routes">${routeChecks}</div>
       <label>Especies en este punto (opcional)</label>
       <input id="f-sp-search" placeholder="🔎 Buscar especie…">
       <div class="admin-checks admin-sp-list" id="f-sp-list">${speciesChecks(p.species_ids)}</div>
@@ -448,7 +445,7 @@ function editPunto(id) {
       lb.style.display = !q || (lb.dataset.n || '').includes(q) || lb.querySelector('input').checked ? '' : 'none';
     });
   };
-  const pickedRoutes = () => [...body.querySelectorAll('#f-routes input:checked')].map((c) => c.value);
+  const pickedRoutes = () => (p.routes || []).slice();   // se conservan: ya no se editan aqui
   const pickedSpecies = () => [...body.querySelectorAll('#f-sp-list input:checked')].map((c) => c.value);
   const saveDraftPoint = () => { _pointDraft = { id: p.id, _new: !id, loc, photoBlob, leafBlob: photoLeafBlob,
     props: { ...p, title: v('#f-title'), title_en: v('#f-title-en'), description: v('#f-desc'), description_en: v('#f-desc-en'),
@@ -2806,13 +2803,9 @@ function editSendero(id) {
   if (draft) { p.name = draft.name; p.routes = draft.routes; }
   let coords = CTX._draftLine ? CTX._draftLine : (existing ? existing.geometry.coordinates.slice() : null);
   CTX._draftLine = null;
-  const routeChecks = CTX.state.routes.slice()
-    .sort((a, b) => String(CTX.L(a, 'name') || a.id).localeCompare(String(CTX.L(b, 'name') || b.id), 'es'))
-    .map((r) => `<label class="admin-chk"><input type="checkbox" value="${r.id}" ${(p.routes || []).includes(r.id) ? 'checked' : ''}> ${esc(CTX.L(r, 'name'))}</label>`).join('');
   body.innerHTML = `
     <div class="admin-form">
       <label>Nombre</label><input id="tr-name" value="${esc(p.name)}">
-      <label>Recorridos a los que pertenece</label><div class="admin-checks">${routeChecks}</div>
       <label>Trazado</label>
       <div class="admin-loc">
         <span id="tr-geo">${coords ? `${coords.length} puntos · ${fmtLen(coords)}` : 'sin trazar'}</span>
@@ -2830,7 +2823,7 @@ function editSendero(id) {
         <button class="admin-cancel" id="tr-cancel">Cancelar</button>
       </div>
     </div>`;
-  const saveDraft = () => { CTX._draftTrail = { id: p.id, name: body.querySelector('#tr-name').value, routes: [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value) }; };
+  const saveDraft = () => { CTX._draftTrail = { id: p.id, name: body.querySelector('#tr-name').value, routes: (p.routes || []).slice() }; };
   body.querySelector('#tr-draw').onclick = () => { saveDraft(); startVertexDraw((c) => { if (c) CTX._draftLine = c; editSendero(id); }); };
   body.querySelector('#tr-gps').onclick = () => { saveDraft(); startGpsDraw((c) => { if (c) CTX._draftLine = c; editSendero(id); }); };
   const tve = body.querySelector('#tr-vedit');
@@ -2851,7 +2844,7 @@ function editSendero(id) {
   };
   body.querySelector('#tr-save').onclick = async () => {
     if (!coords || coords.length < 2) { body.querySelector('#tr-err').textContent = 'Traza el sendero primero.'; return; }
-    const routes = [...body.querySelectorAll('.admin-checks input:checked')].map((c) => c.value);
+    const routes = (p.routes || []).slice();   // se conservan: el recorrido manda, no el sendero
     const row = { id: p.id, name: body.querySelector('#tr-name').value.trim() || null, routes, geometry: coords };
     body.querySelector('#tr-err').textContent = 'Guardando…';
     try {

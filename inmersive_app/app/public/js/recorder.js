@@ -196,11 +196,12 @@ async function keepWalk(walk) {
     catch (e) { console.warn('[cloud] walk', e && e.message); }   // queda local igual
   }
 }
-function askKeepWalk(walk) {
+async function askKeepWalk(walk) {
   const el = overlay();
+  const card = await summaryCardHTML(walk, false);
   el.innerHTML = `<div class="rec-sheet">
     <h2>${RT('keep_q')}</h2>
-    ${summaryCardHTML(walk, false)}
+    ${card}
     <p class="rec-empty">${RT('keep_sub')}</p>
     <div class="rec-hactions">
       <button class="rec-dl" id="rec-keep">${RT('keep_yes')}</button>
@@ -213,7 +214,71 @@ function askKeepWalk(walk) {
 }
 
 // ---------- imagen descargable (PNG) ----------
-function drawWalk(walk, size = 720) {
+// La traza se dibuja SOBRE la imagen de satélite de la reserva y su límite. La
+// imagen es la misma que usa el mapa (Esri Wayback), a baja resolución a
+// propósito: esto es una estampa para compartir, no una carta náutica. Si no hay
+// señal, si el tile no llega o si el navegador ensucia el canvas, se cae al
+// fondo liso de siempre — la traza es lo que importa y nunca se pierde.
+
+// Web Mercator: la MISMA proyección que los tiles, o la traza quedaría corrida
+// respecto a la foto (a esta latitud poco, pero corrida).
+const lon2px = (lon, z) => (lon + 180) / 360 * 256 * Math.pow(2, z);
+const lat2px = (lat, z) => {
+  const r = lat * Math.PI / 180;
+  return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 256 * Math.pow(2, z);
+};
+
+function loadImg(src, { cors = false, ms = 4000 } = {}) {
+  return new Promise((resolve) => {
+    const im = new Image();
+    if (cors) im.crossOrigin = 'anonymous';
+    const done = (v) => { clearTimeout(tm); resolve(v); };
+    const tm = setTimeout(() => done(null), ms);
+    im.onload = () => done(im);
+    im.onerror = () => done(null);
+    im.src = src;
+  });
+}
+
+// Zoom más alto en el que el recuadro cabe en unos pocos tiles: más que eso son
+// muchas descargas para una estampa que se ve a 720 px.
+function pickZoom(minX, minY, maxX, maxY, maxTiles = 3) {
+  for (let z = 18; z >= 12; z--) {
+    const w = (lon2px(maxX, z) - lon2px(minX, z)) / 256;
+    const h = (lat2px(minY, z) - lat2px(maxY, z)) / 256;
+    if (w <= maxTiles && h <= maxTiles) return z;
+  }
+  return 12;
+}
+
+async function paintBasemap(g, box, area, z) {
+  const tpl = CTX.tileUrl && CTX.tileUrl();
+  if (!tpl) return false;
+  const x0 = lon2px(box.minX, z), x1 = lon2px(box.maxX, z);
+  const y0 = lat2px(box.maxY, z), y1 = lat2px(box.minY, z);
+  const k = Math.min(area.w / (x1 - x0), area.h / (y1 - y0));
+  const t0x = Math.floor(x0 / 256), t1x = Math.floor(x1 / 256);
+  const t0y = Math.floor(y0 / 256), t1y = Math.floor(y1 / 256);
+  const jobs = [];
+  for (let tx = t0x; tx <= t1x; tx++) {
+    for (let ty = t0y; ty <= t1y; ty++) {
+      const url = tpl.replace('{z}', z).replace('{x}', tx).replace('{y}', ty);
+      jobs.push(loadImg(url, { cors: true }).then((im) => ({ im, tx, ty })));
+    }
+  }
+  const tiles = await Promise.all(jobs);
+  const ok = tiles.filter((t) => t.im);
+  if (!ok.length) return false;                 // sin señal: fondo liso
+  g.save();
+  g.beginPath(); g.rect(area.x, area.y, area.w, area.h); g.clip();
+  ok.forEach(({ im, tx, ty }) => {
+    g.drawImage(im, area.x + (tx * 256 - x0) * k, area.y + (ty * 256 - y0) * k, 256 * k, 256 * k);
+  });
+  g.restore();
+  return true;
+}
+
+async function drawWalk(walk, size = 720, withBase = true) {
   const cv = document.createElement('canvas'); cv.width = size; cv.height = size;
   const g = cv.getContext('2d');
   g.fillStyle = '#eef3ec'; g.fillRect(0, 0, size, size);
@@ -224,18 +289,35 @@ function drawWalk(walk, size = 720) {
   const padGeo = Math.max((maxX - minX), (maxY - minY), 0.001) * 0.25;
   minX -= padGeo; maxX += padGeo; minY -= padGeo; maxY += padGeo;
   const footer = 92, pad = 24, W = size - pad * 2, H = size - footer - pad * 2;
-  const sx = W / (maxX - minX || 1), sy = H / (maxY - minY || 1), s = Math.min(sx, sy);
-  const offX = pad + (W - s * (maxX - minX)) / 2, offY = pad + (H - s * (maxY - minY)) / 2;
-  const X = (lng) => offX + (lng - minX) * s;
-  const Y = (lat) => offY + (maxY - lat) * s;   // invertir Y
+  // Proyección Mercator encajada en el área de dibujo (la misma para foto y traza).
+  const z = pickZoom(minX, minY, maxX, maxY);
+  const px0 = lon2px(minX, z), px1 = lon2px(maxX, z);
+  const py0 = lat2px(maxY, z), py1 = lat2px(minY, z);
+  const s = Math.min(W / (px1 - px0), H / (py1 - py0));
+  const offX = pad + (W - s * (px1 - px0)) / 2, offY = pad + (H - s * (py1 - py0)) / 2;
+  const X = (lng) => offX + (lon2px(lng, z) - px0) * s;
+  const Y = (lat) => offY + (lat2px(lat, z) - py0) * s;
+  const area = { x: offX, y: offY, w: s * (px1 - px0), h: s * (py1 - py0) };
+
+  let base = false;
+  if (withBase) {
+    try { base = await paintBasemap(g, { minX, minY, maxX, maxY }, area, z); }
+    catch (e) { console.warn('[recorder] basemap', e && e.message); }
+  }
+
   const drawLine = (coords, style, width) => {
     g.strokeStyle = style; g.lineWidth = width; g.lineJoin = 'round'; g.lineCap = 'round';
     g.beginPath(); coords.forEach((c, i) => { const px = X(c[0]), py = Y(c[1]); i ? g.lineTo(px, py) : g.moveTo(px, py); }); g.stroke();
   };
-  // contorno de la reserva + senderos (contexto tenue)
+  // Sobre la foto, el contorno y los senderos necesitan contraste; sobre el fondo
+  // liso, lo contrario: que no le quiten protagonismo a la traza.
   const b = CTX.state.boundary;
-  if (b) (b.features || [b]).forEach((f) => { const gm = f.geometry || f; const polys = gm.type === 'Polygon' ? [gm.coordinates] : gm.type === 'MultiPolygon' ? gm.coordinates : []; polys.forEach((poly) => drawLine(poly[0], '#b9c9b4', 2)); });
-  (CTX.state.trails || []).forEach((tr) => drawLine(tr.geometry.coordinates, '#cdd8c8', 3));
+  if (b) (b.features || [b]).forEach((f) => {
+    const gm = f.geometry || f;
+    const polys = gm.type === 'Polygon' ? [gm.coordinates] : gm.type === 'MultiPolygon' ? gm.coordinates : [];
+    polys.forEach((poly) => drawLine(poly[0], base ? '#ffffff' : '#b9c9b4', base ? 3 : 2));
+  });
+  (CTX.state.trails || []).forEach((tr) => drawLine(tr.geometry.coordinates, base ? 'rgba(255,255,255,.55)' : '#cdd8c8', 3));
   // la traza grabada
   drawLine(pts, '#e07a1f', 5);
   // inicio / fin
@@ -247,23 +329,39 @@ function drawWalk(walk, size = 720) {
   g.fillStyle = '#1b4332'; g.fillRect(0, size - footer, size, footer);
   g.fillStyle = '#fff'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
   g.font = 'bold 22px system-ui, sans-serif';
-  g.fillText('🌲 ' + RT('title'), pad, size - footer + 34);
+  // La marca de la reserva, no un arbolito generico.
+  const logo = await loadImg('img/brand/cantares-icon.png');
+  let tx = pad;
+  if (logo) { const h = 30; g.drawImage(logo, pad, size - footer + 12, h, h); tx = pad + h + 10; }
+  g.fillText(RT('title'), tx, size - footer + 34);
   g.font = '16px system-ui, sans-serif'; g.fillStyle = '#d8f3dc';
   const d = new Date(walk.startedAt).toLocaleDateString();
   const line = `${d}   ·   📏 ${fmtDist(walk.distanceM)}   ·   ⏱ ${fmtDur(walk.durationMs)}` + (walk.photos && walk.photos.length ? `   ·   📷 ${walk.photos.length}` : '');
   g.fillText(line, pad, size - footer + 64);
   return cv;
 }
-function downloadWalk(walk) {
-  const cv = drawWalk(walk);
+
+// Un canvas con tiles de otro dominio se puede «ensuciar» y entonces toDataURL
+// lanza. Si pasa, se rehace sin foto: mejor una estampa sobria que ninguna.
+async function walkPNG(walk, size) {
+  const cv = await drawWalk(walk, size);
+  try { return cv.toDataURL('image/png'); }
+  catch (e) {
+    console.warn('[recorder] canvas sucio, sin fondo', e && e.message);
+    return (await drawWalk(walk, size, false)).toDataURL('image/png');
+  }
+}
+
+async function downloadWalk(walk) {
   const a = document.createElement('a');
   a.download = `recorrido-cantares-${new Date(walk.startedAt).toISOString().slice(0, 10)}.png`;
-  a.href = cv.toDataURL('image/png'); a.click();
+  a.href = await walkPNG(walk);
+  a.click();
 }
 
 // ---------- API para el dashboard de cuenta ----------
 export async function listWalks() { return (await walksAll()).sort((a, b) => b.startedAt - a.startedAt); }
-export function walkCardHTML(walk) { return summaryCardHTML(walk, true); }
+export function walkCardHTML(walk) { return summaryCardHTML(walk, true); }   // devuelve una promesa
 export { downloadWalk, openHistory };
 
 // ---------- overlays (resumen + historial) ----------
@@ -273,8 +371,8 @@ function overlay() {
   return el;
 }
 function closeOverlay() { overlay().classList.add('hidden'); }
-function summaryCardHTML(walk, withActions) {
-  const img = drawWalk(walk).toDataURL('image/png');
+async function summaryCardHTML(walk, withActions) {
+  const img = await walkPNG(walk);
   return `<div class="rec-card">
     <img class="rec-img" src="${img}" alt="">
     <div class="rec-meta">
@@ -289,12 +387,12 @@ function summaryCardHTML(walk, withActions) {
     ${withActions ? `<button class="rec-dl" data-id="${walk.id}">${RT('download')}</button>` : ''}
   </div>`;
 }
-function showSummary(walk) {
+async function showSummary(walk) {
   const el = overlay();
   el.innerHTML = `<div class="rec-sheet">
     <button class="rec-x" id="rec-x" aria-label="${RT('close')}">×</button>
     <h2>${RT('saved')} ✓</h2>
-    ${summaryCardHTML(walk, true)}
+    ${await summaryCardHTML(walk, true)}
   </div>`;
   el.classList.remove('hidden');
   el.querySelector('#rec-x').onclick = closeOverlay;
@@ -302,13 +400,16 @@ function showSummary(walk) {
 }
 async function openHistory() {
   const walks = (await walksAll()).sort((a, b) => b.startedAt - a.startedAt);
+  // Las estampas se pintan en paralelo: en serie, diez recorridos con foto de
+  // fondo dejarian la hoja en blanco un buen rato.
+  const cards = await Promise.all(walks.map((w) => summaryCardHTML(w, false)));
   const el = overlay();
   el.innerHTML = `<div class="rec-sheet">
     <button class="rec-x" id="rec-x" aria-label="${RT('close')}">×</button>
     <h2>${RT('hist_h')}</h2>
-    ${walks.length ? `<div class="rec-list">${walks.map((w) => `
+    ${walks.length ? `<div class="rec-list">${walks.map((w, i) => `
       <div class="rec-hitem" data-id="${w.id}">
-        ${summaryCardHTML(w, false)}
+        ${cards[i]}
         <div class="rec-hactions">
           <button class="rec-dl" data-id="${w.id}">${RT('download')}</button>
           <button class="rec-del" data-id="${w.id}">${RT('del')}</button>

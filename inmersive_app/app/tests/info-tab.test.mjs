@@ -15,14 +15,15 @@ const app = readFileSync(join(PUB, 'js', 'app.js'), 'utf8');
 const admin = readFileSync(join(PUB, 'js', 'admin.js'), 'utf8');
 const css = readFileSync(join(PUB, 'css', 'style.css'), 'utf8');
 
-// 1. Orden en la pestaña Info: datos → comercial → planea tu visita.
+// 1. Orden en la pestana Info: datos -> comercial. El bloque «Planea tu visita»
+//    se retiro (2026-08): sus datos vivian en reserve_info.json y duplicaban lo
+//    que ya cuenta la ficha comercial.
 const info = html.slice(html.indexOf('<section id="view-info"'), html.indexOf('<!-- Ficha'));
 const iFacts = info.indexOf('class="facts"');
 const iCom = info.indexOf('id="comercial"');
-const iVisit = info.indexOf('id="visit-info"');
-assert.ok(iFacts > 0 && iCom > 0 && iVisit > 0, 'los tres bloques deben existir');
+assert.ok(!/id="visit-info"/.test(info), 'el bloque «Planea tu visita» ya no va en Info');
+assert.ok(iFacts > 0 && iCom > 0, 'los dos bloques deben existir');
 assert.ok(iFacts < iCom, 'la información comercial va DEBAJO de los primeros datos');
-assert.ok(iCom < iVisit, 'la comercial va ANTES de «Planea tu visita»');
 
 // 2. El mapa ilustrado de senderos ya no está en Info (sí sigue en Historia, que
 //    es otro panel: el «antes/después» de la ortofoto).

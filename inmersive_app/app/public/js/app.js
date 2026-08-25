@@ -288,6 +288,7 @@ const I18N = {
     help_a11y: 'Ayuda',
     ri_points: 'Puntos del recorrido', ri_start_walk: '▶ Comenzar recorrido', ri_stop_walk: '■ Terminar recorrido',
     guiding_on: 'Siguiendo tu ubicación en el sendero…', guiding_off: 'Recorrido terminado',
+    guiding_on_site: '🔒 Para hacer el recorrido guiado tienes que estar en la reserva.',
     no_points: 'No hay puntos visibles con los filtros activos.',
     rest_title: 'Restauración',
     rest_lead: 'De potrero de kikuyo a bosque. La reserva tiene <strong>16,4 ha en restauración</strong>, donde el ganado salió hacia ~2019 y hoy crecen especies nativas.',
@@ -406,6 +407,7 @@ const I18N = {
     help_a11y: 'Help',
     ri_points: 'Route points', ri_start_walk: '▶ Start route', ri_stop_walk: '■ End route',
     guiding_on: 'Following your location on the trail…', guiding_off: 'Route ended',
+    guiding_on_site: '🔒 To take the guided route you need to be at the reserve.',
     no_points: 'No points visible with the active filters.',
     rest_title: 'Restoration',
     rest_lead: 'From kikuyu pasture to forest. The reserve has <strong>16.4 ha under restoration</strong>, where cattle left around 2019 and native species now grow.',
@@ -885,7 +887,7 @@ function renderRouteBar() {
   // Historial rápido de mis recorridos.
   const hist = document.createElement('button');
   hist.className = 'route-chip hist'; hist.title = t('my_walks');
-  hist.innerHTML = '<span class="emoji">📖</span>';
+  hist.innerHTML = `<span class="emoji">📖</span>${t('my_walks')}`;
   hist.onclick = () => openHistory();
   bar.appendChild(hist);
 }
@@ -1213,6 +1215,7 @@ function selectRoute(id) {
 }
 
 // Right-side vertical panel: summary, start/end, key-point list, start button.
+const isGuestVisitor = () => localStorage.getItem('cantares_guest') === '1';
 function renderRouteInfo(route, built) {
   const info = $('#route-info');
   if (!route) { info.classList.add('hidden'); return; }
@@ -1245,8 +1248,8 @@ function renderRouteInfo(route, built) {
         ${sLbl ? `<span class="ri-end-item"><span class="ri-dot start"></span>${t('lg_start')}: ${escapeHtml(sLbl)}</span>` : ''}
         ${eLbl ? `<span class="ri-end-item"><span class="ri-dot end"></span>${t('lg_end')}: ${escapeHtml(eLbl)}</span>` : ''}
       </div>` : ''}
-      <button class="ri-start ${guiding ? 'active' : ''}" id="ri-start" style="${guiding ? '' : `background:${route.color}`}">
-        ${guiding ? t('ri_stop_walk') : t('ri_start_walk')}</button>
+      <button class="ri-start ${guiding ? 'active' : ''}${isGuestVisitor() ? ' locked' : ''}" id="ri-start" style="${guiding ? '' : `background:${route.color}`}">
+        ${guiding ? t('ri_stop_walk') : (isGuestVisitor() ? '🔒 ' : '') + t('ri_start_walk')}</button>
       <div class="ri-points-head">${t('ri_points')} <span class="ri-count">${pts.length}</span></div>
       ${pts.length ? `<ul class="ri-points">${pts.map((w) => {
         const m = typeMeta(w.properties.tipo);
@@ -1260,6 +1263,7 @@ function renderRouteInfo(route, built) {
   // un toque más, pero hace la audioguía predecible y da un sitio fijo donde
   // probar la voz — antes la pregunta aparecía o no y nadie sabía por qué.
   $('#ri-start').onclick = () => {
+    if (isGuestVisitor()) { toast(t('guiding_on_site')); return; }
     if (state.guiding === id) return stopGuiding();
     askTourMode(id);
   };
@@ -2538,6 +2542,8 @@ async function renderDashboard() {
   const el = $('#dashboard'); if (!el) return;
   const user = Cloud.currentUser();
   const walks = await listWalks();
+  // Cada estampa espera a su foto de fondo; en paralelo, no una tras otra.
+  const walkCards = await Promise.all(walks.map((w) => walkCardHTML(w)));
   const totalDist = walks.reduce((s, w) => s + (w.distanceM || 0), 0);
   const sum = accountSummary();
   const photos = capturedPhotos(24);
@@ -2558,7 +2564,7 @@ async function renderDashboard() {
       <div class="dash-stat"><b>${sum.points}</b><span>${t('dash_points')}</span></div>
     </div>
     <h2 class="dash-h2">${t('dash_walks_h')}</h2>
-    ${walks.length ? `<div class="dash-walks">${walks.map((w) => walkCardHTML(w)).join('')}</div>` : `<p class="muted">${t('dash_no_walks')}</p>`}
+    ${walks.length ? `<div class="dash-walks">${walkCards.join('')}</div>` : `<p class="muted">${t('dash_no_walks')}</p>`}
     <h2 class="dash-h2">${t('dash_photos_h')}</h2>
     ${photos.length ? `<div class="dash-photos">${photos.map((ph) => `<figure><img src="${ph.url}" alt="" loading="lazy"><figcaption>${escapeHtml(ph.common)}</figcaption></figure>`).join('')}</div>` : `<p class="muted">${t('dash_no_photos')}</p>`}
     <h2 class="dash-h2">${t('up_h')}</h2>
@@ -3186,7 +3192,8 @@ async function main() {
         freeRoam: () => state.freeroam,
         setFreeRoam: (doc) => { state.freeroam = doc; if (state.activeRoute) selectRoute(state.activeRoute); },
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
-      initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); } });
+      initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); },
+      tileUrl: () => { const s = CONFIG.baseStops.filter((x) => x.tiles).pop(); return s ? s.tiles : null; } });
     }
     // Fuera del bloque del mapa: con ?nomap el ? seguiria existiendo en el header
     // y no haria nada. Los pasos que senalan el mapa caen a tarjeta solos.

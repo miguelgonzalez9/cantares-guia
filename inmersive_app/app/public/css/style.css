@@ -58,7 +58,7 @@ body {
 /* ---------- Header ---------- */
 .app-header {
   height: var(--header-h);
-  display: flex; align-items: center; gap: 9px;
+  display: flex; align-items: center; justify-content: space-between;
   padding: 0 12px;
   background: linear-gradient(120deg, var(--navy), #10213b);
   color: #fff;
@@ -84,7 +84,7 @@ body {
   opacity: 0.72; margin-top: 2px;
 }
 
-.header-right { display: flex; align-items: center; gap: 7px; margin-left: auto; }
+.header-right { display: flex; align-items: center; gap: 7px; }
 .hdr-btn {
   width: 38px; height: 38px; border-radius: 50%;
   border: 1.5px solid rgba(255,255,255,0.28); background: rgba(255,255,255,0.10);
@@ -1460,3 +1460,7 @@ body.picking-points #route-info { display: none !important; }
   border: 1px solid var(--line, #dfe6e2); background: var(--card, #fff); color: inherit;
   border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; font-size: 13.5px; cursor: pointer; }
 .gd-item:active { background: var(--mist, #eef4f0); }
+
+/* Recorrido guiado bloqueado (visitante sin cuenta = no esta en la reserva).
+   El boton se deja a la vista a proposito: que se sepa que el servicio existe. */
+.ri-start.locked { opacity: .62; filter: saturate(.5); }
