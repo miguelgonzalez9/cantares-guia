@@ -3,13 +3,15 @@
 // (al volver el internet, al volver a la app, o cada minuto). Así se puede crear
 // senderos y puntos en plena montaña sin cobertura.
 import { cloudConfigured, uploadImage, upsertWaypoint, deleteWaypoint, upsertSpecies, deleteSpecies,
-  upsertTrail, deleteTrail, upsertRoute, deleteRoute, upsertSighting, upsertWalk, deleteWalkCloud,
+  upsertTrail, deleteTrail, upsertRoute, deleteRoute, upsertSighting, deleteSighting, upsertWalk, deleteWalkCloud,
   upsertMedia, deleteMedia, upsertPointType, deletePointType, upsertContent } from './cloud.js';
 
 const UPSERT = { waypoints: upsertWaypoint, trails: upsertTrail, routes: upsertRoute, species: upsertSpecies,
   sightings: upsertSighting, walks: upsertWalk, media: upsertMedia, point_types: upsertPointType, content: upsertContent };
+// `sightings` estaba en UPSERT y no en REMOVE, asi que borrar una captura del
+// juego dejaba la fila en la nube y su foto en Storage para siempre.
 const REMOVE = { waypoints: deleteWaypoint, trails: deleteTrail, routes: deleteRoute, species: deleteSpecies,
-  walks: deleteWalkCloud, media: deleteMedia, point_types: deletePointType };
+  walks: deleteWalkCloud, media: deleteMedia, point_types: deletePointType, sightings: deleteSighting };
 // La clave de cada fila: id normal, o client_id (avistamientos: el id del
 // servidor lo genera la base; el cliente identifica por client_id).
 const rowKey = (row) => row.id != null ? row.id : row.client_id;

@@ -113,19 +113,37 @@ function getPosition() {
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
   });
 }
+/** ¿Cae esta posición dentro de la reserva? Dentro del polígono O a menos de
+ *  GEOFENCE_BUFFER_M del borde, más la imprecisión que reporte el GPS acotada
+ *  a 50 m (sin tope, un fix malo abre el geocerco a kilómetros).
+ *
+ *  Se exporta porque el geocerco es de la APP, no del login: el juego lo
+ *  consulta con el fix que YA tomó al capturar, sin pedir uno nuevo. Un fix de
+ *  alta precisión cuesta ~12 s de radio a plena potencia bajo dosel; hacerlo
+ *  otra vez al entrar en la pestaña sería pagarlo dos veces por la misma
+ *  respuesta.
+ *
+ *  Sin polígono devuelve `true`: quedarse sin `boundary.geojson` no puede
+ *  significar que nadie pueda registrar nada (sync.js: nunca se descarta
+ *  trabajo de campo). El geocerco filtra coordenadas, no protege un secreto. */
+export async function inReserve(coords, accuracy = 0) {   // coords = [lng, lat]
+  if (!REQUIRE_IN_RESERVE) return true;
+  try {
+    const gj = await loadBoundary();
+    return inGeoJSON(coords, gj)
+      || distToBoundaryM(coords, gj) <= GEOFENCE_BUFFER_M + Math.min(accuracy || 0, 50);
+  } catch (e) { return true; }
+}
+
 // { ok, reason: 'ok' | 'denied' | 'unavailable' | 'outside' }
-// Dentro del polígono O a menos de GEOFENCE_BUFFER_M del borde (+ tolerancia
-// por la imprecisión que reporte el GPS, acotada a 50 m).
-async function checkInReserve() {
+// Toma un fix nuevo y lo evalúa. Lo usa el alta de cuenta, que es el único
+// sitio donde vale la pena pagar el fix: sólo ocurre una vez.
+export async function checkInReserve() {
   if (!REQUIRE_IN_RESERVE) return { ok: true, reason: 'ok' };
   const pos = await getPosition();
   if (pos.reason) return { ok: false, reason: pos.reason };
-  try {
-    const gj = await loadBoundary();
-    const inside = inGeoJSON(pos.coords, gj)
-      || distToBoundaryM(pos.coords, gj) <= GEOFENCE_BUFFER_M + Math.min(pos.accuracy || 0, 50);
-    return { ok: inside, reason: inside ? 'ok' : 'outside' };
-  } catch (e) { return { ok: false, reason: 'unavailable' }; }
+  const inside = await inReserve(pos.coords, pos.accuracy);
+  return { ok: inside, reason: inside ? 'ok' : 'outside' };
 }
 const geoMsg = (reason) => t(reason === 'denied' ? 'geo_denied' : reason === 'outside' ? 'geo_outside' : 'geo_unavailable');
 
@@ -212,6 +230,12 @@ function renderGate({ onEnter, onAuthChange }) {
 export async function doLogout() {
   try { await signOut(); } catch (e) { /* ignore */ }
   localStorage.removeItem('cantares_guest');
+  // El jugador del juego se ata a la cuenta (initGame lo fija al uid). Si
+  // sobrevive al cierre de sesión, en el teléfono compartido de la portería el
+  // siguiente visitante abre el juego y ve las capturas y los puntos del
+  // anterior. Con el juego en su propia pestaña eso ya no es un panel: es la
+  // portada.
+  localStorage.removeItem('cantares_player');
   location.reload();
 }
 export { isAdmin, currentUser };

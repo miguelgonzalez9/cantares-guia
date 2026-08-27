@@ -224,8 +224,8 @@ function mediaFullTag(m, cls, alt) {
 // ---------- i18n ----------
 const I18N = {
   es: {
-    subtitle: 'Reserva Natural', tab_recorridos: 'Recorridos', tab_restauracion: 'Historia',
-    tab_especies: 'Especies', tab_info: 'Info', tab_cuenta: 'Cuenta', all_routes: 'Todos',
+    subtitle: 'Reserva Natural', tab_recorridos: 'Rutas', tab_restauracion: 'Historia',
+    tab_especies: 'Especies', tab_juego: 'Juego', tab_info: 'Info', tab_cuenta: 'Cuenta', all_routes: 'Todos',
     dash_guest: 'Invitado', dash_guest_sub: 'Sin cuenta — tu progreso solo vive en este dispositivo',
     dash_visitor: 'Visitante', dash_admin: 'Administrador', dash_logout: 'Cerrar sesión',
     dash_create: 'Crear cuenta / entrar', dash_walks: 'recorridos', dash_dist: 'distancia',
@@ -344,7 +344,7 @@ const I18N = {
   },
   en: {
     subtitle: 'Nature Reserve', tab_recorridos: 'Trails', tab_restauracion: 'Story',
-    tab_especies: 'Species', tab_info: 'Info', tab_cuenta: 'Account', all_routes: 'All',
+    tab_especies: 'Species', tab_juego: 'Game', tab_info: 'Info', tab_cuenta: 'Account', all_routes: 'All',
     dash_guest: 'Guest', dash_guest_sub: 'No account — your progress stays only on this device',
     dash_visitor: 'Visitor', dash_admin: 'Administrator', dash_logout: 'Log out',
     dash_create: 'Sign up / log in', dash_walks: 'walks', dash_dist: 'distance',
@@ -1215,7 +1215,11 @@ function selectRoute(id) {
 }
 
 // Right-side vertical panel: summary, start/end, key-point list, start button.
-const isGuestVisitor = () => localStorage.getItem('cantares_guest') === '1';
+// Un unico predicado de permiso en toda la app. El flag `cantares_guest` dice
+// que ELIGIO en la puerta; la sesion dice a que tiene DERECHO. Solo lo segundo
+// es una entitlement, y los dos discrepaban al caducar la sesion: sin flag de
+// invitado el recorrido guiado se abria, y sin `cloud.user` el juego se cerraba.
+const hasAccount = () => !!Cloud.currentUser();
 function renderRouteInfo(route, built) {
   const info = $('#route-info');
   if (!route) { info.classList.add('hidden'); return; }
@@ -1248,8 +1252,8 @@ function renderRouteInfo(route, built) {
         ${sLbl ? `<span class="ri-end-item"><span class="ri-dot start"></span>${t('lg_start')}: ${escapeHtml(sLbl)}</span>` : ''}
         ${eLbl ? `<span class="ri-end-item"><span class="ri-dot end"></span>${t('lg_end')}: ${escapeHtml(eLbl)}</span>` : ''}
       </div>` : ''}
-      <button class="ri-start ${guiding ? 'active' : ''}${isGuestVisitor() ? ' locked' : ''}" id="ri-start" style="${guiding ? '' : `background:${route.color}`}">
-        ${guiding ? t('ri_stop_walk') : (isGuestVisitor() ? '🔒 ' : '') + t('ri_start_walk')}</button>
+      <button class="ri-start ${guiding ? 'active' : ''}${hasAccount() ? '' : ' locked'}" id="ri-start" style="${guiding ? '' : `background:${route.color}`}">
+        ${guiding ? t('ri_stop_walk') : (hasAccount() ? '' : '🔒 ') + t('ri_start_walk')}</button>
       <div class="ri-points-head">${t('ri_points')} <span class="ri-count">${pts.length}</span></div>
       ${pts.length ? `<ul class="ri-points">${pts.map((w) => {
         const m = typeMeta(w.properties.tipo);
@@ -1263,7 +1267,7 @@ function renderRouteInfo(route, built) {
   // un toque más, pero hace la audioguía predecible y da un sitio fijo donde
   // probar la voz — antes la pregunta aparecía o no y nadie sabía por qué.
   $('#ri-start').onclick = () => {
-    if (isGuestVisitor()) { toast(t('guiding_on_site')); return; }
+    if (!hasAccount()) { toast(t('guiding_on_site')); return; }
     if (state.guiding === id) return stopGuiding();
     askTourMode(id);
   };
@@ -2758,6 +2762,7 @@ function switchView(name) {
   const acc = $('#account-btn'); if (acc) acc.classList.toggle('active', name === 'cuenta');
   if (name === 'recorridos' && state.map) setTimeout(() => state.map.resize(), 60);
   if (name === 'cuenta') renderDashboard();
+  if (name === 'juego') refreshGameUI();
   // Atrás vuelve a la pestaña anterior. Volver a Recorridos (la de inicio) no
   // apila nada: desde ahí atrás debe salir de la app.
   if (prev === name) return;
@@ -3173,7 +3178,10 @@ async function main() {
     renderSpeciesFilters(); renderSpeciesGrid(); renderLegend();
     if (!localStorage.getItem('cantares_onboarded')) showOnboarding();
     await initGame({ state, t, L, toast, rerenderSpecies: () => renderSpeciesGrid(), pushBack, popBack,
+      hasAccount,   // funcion, no valor: `user` era una foto fija del init y se
+                    // quedaba obsoleta si la sesion caducaba a media caminata
       cloud: { enabled: Cloud.cloudConfigured() && Cloud.isLoggedIn(), user: Cloud.currentUser(),
+        currentUser: Cloud.currentUser, rankingRows: Cloud.rankingRows,
         addSighting: Cloud.addSighting, mySightings: Cloud.mySightings, uploadImage: Cloud.uploadImage } });
     if (!new URLSearchParams(location.search).has('nomap')) {
       await initMap();

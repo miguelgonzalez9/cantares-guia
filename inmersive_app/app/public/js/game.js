@@ -1,23 +1,31 @@
 // Cantares — «Expedición Cantares»: juego de registro de especies con fotos.
 //
-// Sin backend: todo vive en el dispositivo (IndexedDB, fotos incluidas) y se
-// exporta a CSV/JSON para que la reserva mantenga el inventario vivo. La
-// identificación automática de flora usa la API de Pl@ntNet (clave opcional,
-// abajo); siempre hay un identificador manual asistido que funciona offline.
+// GUARDA PRIMERO, IDENTIFICA DESPUÉS. La captura se escribe en cuanto existe la
+// foto —sin clasificar, 0 puntos— y la identificación llega después y parchea la
+// fila. Así el juego funciona igual con un identificador de 200 ms, con un
+// contenedor frío de 3 minutos o sin ninguno, y en el bosque sin señal no se
+// pierde nada. El identificador vive detrás del enrutador de idengine.js: el
+// juego no sabe qué backend contesta.
+//
+// Todo vive además en el dispositivo (IndexedDB, fotos incluidas) y se exporta a
+// CSV/JSON en Darwin Core para que la reserva mantenga el inventario vivo.
 //
 // Cada registro guarda: hora exacta, especie, coordenadas GPS + precisión,
 // foto (comprimida), jugador y desglose de puntos.
 
-import { saveRow } from './sync.js';
+import { saveRow, patchRow, deleteRow, compressImage } from './sync.js';
 import { currentWalkId } from './recorder.js';
-import { identifyPlant, idAvailable, verdictText } from './idengine.js';
+import { identify, idAvailableFor, verdictText } from './idengine.js';
+// Misma identidad de foto que usa la ingesta masiva del admin y 26_sync_media.py.
+import { sha256Hex } from './archive-intake.js';
+// El geocerco vive en auth-ui.js (ya en el shell); aqui se consulta con el fix
+// que la captura YA toma, sin pedir uno nuevo.
+import { inReserve } from './auth-ui.js';
 
 // ---------- configuración del juego ----------
 const GAME_CFG = {
-  // La identificación automática vive en js/idengine.js → Edge Function
-  // `identify`, que guarda la clave de Pl@ntNet del lado del SERVIDOR. Antes
-  // había aquí un `plantnetApiKey` que se llamaba desde el navegador: este repo
-  // es público, así que rellenarlo habría publicado la clave. Ver docs/ID_COMUNIDAD.md.
+  // La identificación vive detrás del enrutador de idengine.js: el juego no
+  // sabe (ni nombra) qué backend contesta, así que añadir aves no se nota aquí.
   photoMaxPx: 1280, photoQuality: 0.82,
   // Puntos base por grupo. La fauna vale más: es más difícil de fotografiar
   // y en Cantares toda la fauna está aún SIN confirmar en campo.
@@ -27,16 +35,15 @@ const GAME_CFG = {
   flagshipBonus: 10,     // especie bandera ★
   confirmMultiplier: 3,  // especie con status 'possible' → ¡primera confirmación!
   firstEverBonus: 15,    // primer registro histórico de esa especie en este dispositivo
-  repeatFactor: 0.2,     // recapturas de la misma especie por el mismo jugador
+  repeatPoints: 0,       // recapturar la MISMA especie no suma (pero se registra:
+                         //   la foto puede servirle al archivo aunque no puntúe)
+  unknownPoints: 5,      // «no sé qué es»: plano a propósito. Por grupo, «di ave
+                         //   y llévate 25» sería la estrategia dominante.
   newFindingPoints: 50,  // hallazgo: especie que NO está en el inventario
   dailyMultiplier: 2,    // especie del día
-  // Premios por puesto en el ranking histórico — edítalos según lo que ofrezca
-  // la reserva (se muestran tal cual en el ranking).
-  prizes: [
-    { rank: 1, emoji: '🥇', es: 'Bebida caliente de cortesía en la próxima visita', en: 'Free hot drink on your next visit' },
-    { rank: 2, emoji: '🥈', es: 'Postal ilustrada de la reserva', en: 'Illustrated postcard of the reserve' },
-    { rank: 3, emoji: '🥉', es: 'Sticker de la Reserva Cantares', en: 'Cantares Reserve sticker' },
-  ],
+  // Sin premios. Los puntos los escribe el cliente y `sightings_insert` no puede
+  // comprobarlos, así que un premio físico convertía el ranking en algo que vale
+  // la pena falsear. Sin premio, falsear te da un número en una lista.
 };
 
 // ---------- i18n (se fusiona con el I18N de app.js) ----------
@@ -48,16 +55,31 @@ export const GAME_I18N = {
     g_start: '¡Empezar!', g_points: 'puntos', g_rank: 'Puesto', g_species_n: 'especies',
     g_capture: '📸 Registrar avistamiento', g_ranking: '🏆 Ranking', g_badges: '🎖 Logros', g_records: '📒 Mis registros',
     g_daily: 'Especie del día', g_daily_x: 'puntos ×2 hoy',
-    g_step_photo: 'Paso 1 · La foto', g_take_photo: '📷 Tomar foto', g_upload_photo: '🖼️ Subir foto',
+    g_step_photo: 'La foto', g_take_photo: '📷 Tomar foto', g_upload_photo: '🖼️ Subir foto',
     g_photo_hint: 'Al TOMAR la foto se guarda la hora y tu ubicación GPS. Al SUBIR una del carrete no se registra ubicación.',
     g_cam_need_account: 'Entra con tu cuenta para tomar fotos en la reserva. Sin cuenta puedes subir fotos del carrete.',
     g_locating: 'Obteniendo ubicación…', g_loc_ok: 'Ubicación registrada', g_loc_none: 'Sin ubicación (puedes guardar igual)',
     g_loc_upload: 'Foto subida — sin ubicación',
-    g_step_id: 'Paso 2 · ¿Qué es?', g_auto_id: '🔮 Identificar automáticamente (Pl@ntNet)',
-    g_auto_wait: 'Consultando Pl@ntNet…', g_auto_fail: 'No se pudo identificar automáticamente. Usa el buscador.',
+    g_step_id: '¿Qué es?',
+    g_auto_fail: 'No se pudo identificar automáticamente. Elígela a mano.',
     g_auto_pick: 'Sugerencias — toca la correcta:', g_auto_outside: 'fuera del inventario',
-    g_auto_lowconf: 'Ninguna sugerencia llegó al 70% de confianza. Elígela a mano.',
-    g_auto_only_plants: 'La identificación automática sólo funciona con plantas.',
+    g_auto_only_plants: 'La identificación automática todavía sólo funciona con plantas.',
+    g_identifying: 'Identificando…',
+    g_unknown: '❓ No sé qué es',
+    g_unknown_note: 'Se guarda sin clasificar. La reserva la identificará.',
+    g_pending_id: 'sin identificar',
+    g_dup_photo: 'Esa misma foto ya está registrada.',
+    g_need_reserve: '🔒 Los registros se hacen dentro de la reserva.',
+    g_locked_account: 'Crea tu cuenta en la reserva para jugar.',
+    g_locked_outside: '🔒 Estás fuera de la reserva. Puedes ver tus registros, pero no añadir nuevos.',
+    g_saved_pending: 'Foto guardada. Ahora dinos qué es.',
+    g_new_record: '🔭 Posible especie nueva para la reserva',
+    g_new_record_go: 'Registrar como hallazgo',
+    g_not_in_inv: 'No está en el inventario de Cantares.',
+    g_conflict: 'El identificador propone otra cosa. Elige tú — lo revisará la reserva.',
+    g_engine_says: 'El identificador dice',
+    g_you_said: 'Tú dijiste',
+    g_corrected: 'corregido por la reserva',
     g_search_ph: 'Busca por nombre común o científico…',
     g_group_q: 'Tipo de ser vivo:', g_g_flora: '🌳 Planta', g_g_ave: '🐦 Ave', g_g_mamifero: '🐾 Mamífero', g_g_anfibio: '🐸 Anfibio', g_g_otro: '🦋 Otro',
     g_not_listed: '➕ No está en la lista — registrar hallazgo nuevo',
@@ -97,16 +119,31 @@ export const GAME_I18N = {
     g_start: 'Start!', g_points: 'points', g_rank: 'Rank', g_species_n: 'species',
     g_capture: '📸 Log a sighting', g_ranking: '🏆 Leaderboard', g_badges: '🎖 Badges', g_records: '📒 My records',
     g_daily: 'Species of the day', g_daily_x: 'points ×2 today',
-    g_step_photo: 'Step 1 · The photo', g_take_photo: '📷 Take photo', g_upload_photo: '🖼️ Upload photo',
+    g_step_photo: 'The photo', g_take_photo: '📷 Take photo', g_upload_photo: '🖼️ Upload photo',
     g_photo_hint: 'TAKING a photo stores the time and your GPS location. UPLOADING one from your gallery records no location.',
     g_cam_need_account: 'Sign in to take photos at the reserve. Without an account you can still upload photos.',
     g_locating: 'Getting location…', g_loc_ok: 'Location recorded', g_loc_none: 'No location (you can still save)',
     g_loc_upload: 'Uploaded photo — no location',
-    g_step_id: 'Step 2 · What is it?', g_auto_id: '🔮 Identify automatically (Pl@ntNet)',
-    g_auto_wait: 'Asking Pl@ntNet…', g_auto_fail: 'Automatic ID failed. Use the search box.',
+    g_step_id: 'What is it?',
+    g_auto_fail: 'Automatic ID failed. Pick it by hand.',
     g_auto_pick: 'Suggestions — tap the right one:', g_auto_outside: 'not in inventory',
-    g_auto_lowconf: 'No suggestion reached 70% confidence. Pick it by hand.',
-    g_auto_only_plants: 'Automatic identification only works for plants.',
+    g_auto_only_plants: 'Automatic identification only works for plants so far.',
+    g_identifying: 'Identifying…',
+    g_unknown: "❓ I don't know what it is",
+    g_unknown_note: 'Saved unclassified. The reserve will identify it.',
+    g_pending_id: 'unidentified',
+    g_dup_photo: 'That same photo is already logged.',
+    g_need_reserve: '🔒 Sightings are logged inside the reserve.',
+    g_locked_account: 'Create your account at the reserve to play.',
+    g_locked_outside: "🔒 You're outside the reserve. You can review your records, but not add new ones.",
+    g_saved_pending: 'Photo saved. Now tell us what it is.',
+    g_new_record: '🔭 Possibly a new species for the reserve',
+    g_new_record_go: 'Log as a finding',
+    g_not_in_inv: 'Not in the Cantares inventory.',
+    g_conflict: 'The identifier suggests something else. You choose — the reserve will review it.',
+    g_engine_says: 'The identifier says',
+    g_you_said: 'You said',
+    g_corrected: 'corrected by the reserve',
     g_search_ph: 'Search by common or scientific name…',
     g_group_q: 'Kind of living thing:', g_g_flora: '🌳 Plant', g_g_ave: '🐦 Bird', g_g_mamifero: '🐾 Mammal', g_g_anfibio: '🐸 Amphibian', g_g_otro: '🦋 Other',
     g_not_listed: '➕ Not on the list — log a new finding',
@@ -244,9 +281,11 @@ export function capturedPhotos(limit = 24) {
     .map((o) => ({ url: typeof o.photo === 'string' ? o.photo : URL.createObjectURL(o.photo), common: o.common || o.sci || '', group: o.group || '', time: o.time, lat: o.lat, lon: o.lon }));
 }
 
-// ---------- especie del día (determinista por fecha) — sólo plantas ----------
+// ---------- especie del día (determinista por fecha) ----------
+// Rota entre TODOS los grupos, no sólo flora: con el clasificador cubriendo
+// también aves, dejarlo en plantas desperdiciaba el 82% del inventario.
 function speciesOfDay() {
-  const list = CTX.state.species.filter((s) => s.group === 'flora');
+  const list = CTX.state.species.filter((s) => s.scientific_name);
   if (!list.length) return null;
   // Fecha LOCAL (no UTC): en Colombia (UTC-5) la especie del día cambiaba a
   // las 7 pm; con la fecha local cambia a medianoche, como se espera.
@@ -269,10 +308,14 @@ function scoreCapture(species, { repeat, firstEver, isDaily }) {
     pts += bonus;
   }
   if (repeat) {
-    const cut = -Math.round(pts * (1 - GAME_CFG.repeatFactor));
-    lines.push([T('g_repeat_line'), cut]);
-    pts = Math.max(1, pts + cut);
-  } else if (firstEver) {
+    // La misma especie otra vez no suma. Se sigue registrando —una segunda foto
+    // mejor le sirve al archivo— pero no da puntos, así que fotografiar el mismo
+    // yarumo veinte veces no escala el ranking.
+    lines.length = 0;
+    lines.push([T('g_repeat_line'), GAME_CFG.repeatPoints]);
+    return { pts: GAME_CFG.repeatPoints, lines };
+  }
+  if (firstEver) {
     lines.push([T('g_first_ever'), GAME_CFG.firstEverBonus]);
     pts += GAME_CFG.firstEverBonus;
   }
@@ -301,23 +344,9 @@ function earnedBadges(pid) {
   return ACHIEVEMENTS.filter((a) => a.test(obs));
 }
 
-// ---------- foto: comprimir a JPEG ----------
-function compressPhoto(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const k = Math.min(1, GAME_CFG.photoMaxPx / Math.max(img.width, img.height));
-      const c = document.createElement('canvas');
-      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      c.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob')), 'image/jpeg', GAME_CFG.photoQuality);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('img')); };
-    img.src = url;
-  });
-}
+// La compresión vive en sync.js: `compressImage` usa createImageBitmap, que
+// respeta la orientación EXIF. La versión que había aquí dibujaba un <img> en un
+// canvas y la ignoraba, así que los retratos se guardaban tumbados.
 
 // ---------- ubicación en el momento de la captura ----------
 function snapLocation() {
@@ -355,321 +384,378 @@ function openModal(html) {
   if (CTX && CTX.pushBack) CTX.pushBack('gm', closeModal);
   return ov.querySelector('.gm-body');
 }
-// Un botón que dispara trabajo asíncrono se apaga mientras dura: dos toques
-// seguidos creaban DOS registros (cada uno con su id) y los dos se subían.
-function once(btn, fn) {
-  if (!btn) return;
-  btn.onclick = async (e) => {
-    if (btn.disabled) return;
-    btn.disabled = true;
-    try { await fn(e); } finally { if (btn.isConnected) btn.disabled = false; }
-  };
+
+// El avatar sale del uid, no de un selector: el juego exige cuenta, así que la
+// cuenta ES el perfil. Determinista, para que sea el mismo en todos los teléfonos.
+function avatarFor(id) {
+  let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return AVATARS[h % AVATARS.length];
 }
 
-// ---------- alta de jugador ----------
-function openProfileModal(after) {
-  const body = openModal(`
-    <h2>🎒 ${T('g_title')}</h2>
-    <p class="gm-lead">${T('g_intro')}</p>
-    <label class="gm-label">${T('g_your_name')}</label>
-    <input id="gm-name" class="gm-input" maxlength="24" autocomplete="off" />
-    <label class="gm-label">${T('g_pick_avatar')}</label>
-    <div class="gm-avatars">${AVATARS.map((a, i) => `<button class="gm-avatar${i === 0 ? ' sel' : ''}" data-a="${a}">${a}</button>`).join('')}</div>
-    <button id="gm-go" class="gm-primary">${T('g_start')}</button>`);
-  let avatar = AVATARS[0];
-  body.querySelectorAll('.gm-avatar').forEach((b) => b.onclick = () => {
-    body.querySelectorAll('.gm-avatar').forEach((x) => x.classList.remove('sel'));
-    b.classList.add('sel'); avatar = b.dataset.a;
-  });
-  once(body.querySelector('#gm-go'), async () => {
-    const name = body.querySelector('#gm-name').value.trim();
-    if (!name) { body.querySelector('#gm-name').focus(); return; }
-    const player = { id: uid(), name, emoji: avatar, created: new Date().toISOString() };
-    await dbPut('players', player);
-    allPlayers.push(player);
-    localStorage.setItem('cantares_player', player.id);
-    rebuildCapMap(); renderGamePanel(); CTX.rerenderSpecies();
-    closeModal();
-    if (after) after();
-  });
+// ---------- captura: guarda primero, identifica después ----------
+// El asistente de 3 pasos ya no existe. La foto se guarda en cuanto se toma —sin
+// clasificar y con 0 puntos— y la identificación (automática o a mano) parchea
+// esa fila después. Así una captura sobrevive a que el identificador esté lento,
+// caído, sin cuota o sin señal, y nadie pierde la foto por cerrar la app.
+let cap = null;
+
+function captureHost() { return document.querySelector('#game-tab'); }
+
+/** ¿Está esta foto ya registrada por este jugador? Misma identidad de contenido
+ *  que usa la ingesta del admin: el mismo archivo con otro nombre no cuela. */
+function isDuplicatePhoto(pid, hash) {
+  return !!hash && playerObs(pid).some((o) => o.hash === hash);
 }
 
-// ---------- asistente de captura (3 pasos) ----------
-let wiz = null;
-function openCaptureWizard() {
+function startCapture() {
   const player = currentPlayer();
-  if (!player) { openProfileModal(() => openCaptureWizard()); return; }
-  wiz = { photoBlob: null, photoUrl: null, loc: undefined, time: null, group: null,
-    species: null, isFinding: false, findingName: '', search: '', fromCamera: false, sug: [] };
-  renderWizardPhoto(openModal(''));
+  if (!player) return;
+  cap = { obs: null, url: null, group: null, search: '', engine: null, busy: false, confirmed: false };
+  CTX.pushBack('gmcap', closeCapture);
+  renderCapture();
+  // El input se pincha solo: quien tocó «Registrar» ya dijo que quiere la cámara.
+  const inp = captureHost().querySelector('#gm-file-cam');
+  if (inp) inp.click();
+}
+function closeCapture() {
+  if (cap && cap.url) URL.revokeObjectURL(cap.url);
+  cap = null;
+  CTX.popBack('gmcap');
+  renderGameTab();
 }
 
-// ¿Tiene cuenta en la nube? Tomar la foto con la cámara implica estar EN la
-// reserva, y eso sólo se ofrece a quien entró con su cuenta. Sin cuenta se puede
-// subir una del carrete (que pudo tomarse en cualquier parte y en cualquier fecha).
-function hasAccount() { return !!(CTX && CTX.cloud && CTX.cloud.user); }
-
-function renderWizardPhoto(body) {
-  const cam = hasAccount();
-  body.innerHTML = `
-    <h2>${T('g_step_photo')}</h2>
-    <div class="gm-photo-drop${wiz.photoUrl ? ' has' : ''}" id="gm-drop">
-      ${wiz.photoUrl ? `<img src="${wiz.photoUrl}" alt="">` : `<span>📷</span>`}
-    </div>
-    <div class="gm-row">
-      ${cam ? `<button id="gm-cam" class="gm-secondary">${T('g_take_photo')}</button>` : ''}
-      <button id="gm-up" class="gm-secondary">${T('g_upload_photo')}</button>
-    </div>
-    <input id="gm-file-cam" type="file" accept="image/*" capture="environment" hidden />
-    <input id="gm-file-up" type="file" accept="image/*" hidden />
-    <p class="tiny muted">${T('g_photo_hint')}</p>
-    ${cam ? '' : `<p class="tiny muted">🔒 ${T('g_cam_need_account')}</p>`}
-    <p class="tiny" id="gm-loc">${locLine()}</p>
-    <button id="gm-next" class="gm-primary" ${wiz.photoBlob ? '' : 'disabled'}>→</button>`;
-
-  // `fromCamera` decide si se registra ubicación: la foto subida del carrete pudo
-  // tomarse en otra parte y otro día, así que un GPS de AHORA sería un dato falso.
-  const take = async (input, fromCamera) => {
-    const f = input.files && input.files[0];
-    if (!f) return;
-    wiz.fromCamera = fromCamera;
-    wiz.time = new Date().toISOString();
-    if (fromCamera) body.querySelector('#gm-loc').textContent = '⏳ ' + T('g_locating');
-    try { wiz.photoBlob = await compressPhoto(f); } catch (e) { wiz.photoBlob = f; }
-    if (wiz.photoUrl) URL.revokeObjectURL(wiz.photoUrl);
-    wiz.photoUrl = URL.createObjectURL(wiz.photoBlob);
-    wiz.loc = fromCamera ? await snapLocation() : null;
-    wiz.sug = [];   // otra foto, otras sugerencias
-    renderWizardPhoto(body);
+/** Escribe la captura YA: IndexedDB primero (verdad local), luego la nube por la
+ *  cola offline. Sin especie y sin puntos — eso llega después. */
+async function saveCapture(blob, hash, loc) {
+  const player = currentPlayer();
+  const obs = {
+    id: uid(), playerId: player.id, kind: 'capture',
+    speciesId: null, sci: '', common: '', group: null,
+    confirmedPossible: false,
+    time: new Date().toISOString(),
+    lat: loc ? loc.lat : null, lon: loc ? loc.lon : null, acc: loc ? loc.acc : null,
+    points: 0, breakdown: [], photo: blob, hash,
+    idPending: true,      // aún nadie ha dicho qué es
+    engineSci: null,      // lo que propuso el motor, aparte de lo que dijo la persona
   };
-  const camIn = body.querySelector('#gm-file-cam'), upIn = body.querySelector('#gm-file-up');
-  camIn.onchange = () => take(camIn, true);
-  upIn.onchange = () => take(upIn, false);
-  const camBtn = body.querySelector('#gm-cam');
-  if (camBtn) camBtn.onclick = () => camIn.click();
-  body.querySelector('#gm-up').onclick = () => upIn.click();
-  body.querySelector('#gm-drop').onclick = () => (cam ? camIn : upIn).click();
-  body.querySelector('#gm-next').onclick = () => {
-    if (!wiz.photoBlob) { CTX.toast(T('g_no_photo')); return; }
-    renderWizardId(body);
+  await dbPut('obs', obs);
+  allObs.push(obs);
+  if (obs.lat != null && obs.lon != null)
+    window.dispatchEvent(new CustomEvent('cantares:capture', { detail: { lng: obs.lon, lat: obs.lat, name: '' } }));
+  pushCloud(obs);
+  return obs;
+}
+
+/** Sube (o encola) las dos filas de una observación. Idempotente por
+ *  `client_id` / `id`, así que llamarla otra vez tras identificar no duplica:
+ *  la cola reemplaza la operación pendiente de la misma clave. */
+function pushCloud(obs) {
+  if (!(CTX.cloud && CTX.cloud.enabled)) return;
+  (async () => {
+    try {
+      await saveRow('sightings', {
+        client_id: obs.id, species_id: obs.speciesId, common: obs.common, sci: obs.sci,
+        group: obs.group, lat: obs.lat, lng: obs.lon,
+        taken_at: new Date(obs.time).toISOString(), photo: null, points: obs.points,
+      }, obs.photo instanceof Blob ? obs.photo : null);
+    } catch (e) { console.warn('[cloud] sighting', e && e.message); }
+    try {
+      if (!(obs.photo instanceof Blob)) return;   // `media.url` es NOT NULL y la rellena el blob
+      await saveRow('media', {
+        id: 'gm-' + obs.id, kind: 'photo',
+        // NINGUNA foto de visitante se publica sola, ni cuando eligió una especie
+        // del inventario: quien toca una tarjeta no está confirmando una
+        // identificación (los niños tocan lo que sea). Entra SIEMPRE sin
+        // clasificar y el admin la publica con un toque desde la bandeja.
+        subject_type: obs.speciesId ? 'species' : null,
+        subject_id: obs.speciesId || null,
+        status: 'unclassified',
+        origin: 'game-capture', walk_id: currentWalkId(),
+        lat: obs.lat, lng: obs.lon, taken_at: new Date(obs.time).toISOString(),
+        content_hash: obs.hash || null,
+        // `species_hint` es la conjetura del MOTOR y `subject_id` la elección de
+        // la PERSONA. Antes las dos llevaban lo mismo (lo que dijo la persona),
+        // así que una discrepancia era invisible en la bandeja y no había nada
+        // que revisar. Separadas, el desacuerdo se ve solo.
+        species_hint: obs.engineSci || null,
+        caption: obs.common || obs.sci || null,
+        is_primary: false, sort: 100, reviewed: false,
+      }, { url: obs.photo });
+    } catch (e) { console.warn('[cloud] media', e && e.message); }
+  })();
+}
+
+/** Aplica una identificación sobre una observación ya guardada y la repuntúa. */
+async function applyId(obs, { species, finding, unknown }) {
+  const player = currentPlayer();
+  const daily = speciesOfDay();
+  if (species) {
+    // «repeat» y «firstEver» se miden contra el resto, no contra sí misma.
+    const others = playerObs(player.id).filter((o) => o.id !== obs.id);
+    const repeat = others.some((o) => o.speciesId === species.id);
+    const firstEver = !allObs.some((o) => o.id !== obs.id && o.speciesId === species.id);
+    const scored = scoreCapture(species, { repeat, firstEver, isDaily: !!daily && daily.id === species.id });
+    Object.assign(obs, {
+      kind: 'capture', speciesId: species.id, sci: species.scientific_name || '',
+      common: species.common_name || '', group: species.group || 'otro',
+      confirmedPossible: species.status === 'possible',
+      points: scored.pts, breakdown: scored.lines, idPending: false,
+    });
+  } else if (finding) {
+    Object.assign(obs, {
+      kind: 'finding', speciesId: null, sci: '', common: finding,
+      group: (cap && cap.group) || 'otro',
+      points: GAME_CFG.newFindingPoints,
+      breakdown: [[T('g_finding_line'), GAME_CFG.newFindingPoints]], idPending: false,
+    });
+  } else if (unknown) {
+    Object.assign(obs, {
+      kind: 'capture', speciesId: null, sci: '', common: '',
+      group: (cap && cap.group) || 'otro',
+      points: GAME_CFG.unknownPoints,
+      breakdown: [[T('g_unknown'), GAME_CFG.unknownPoints]], idPending: false,
+    });
+  }
+  await dbPut('obs', obs);
+  pushCloud(obs);
+  rebuildCapMap(); CTX.rerenderSpecies(); refreshObsMapLayer();
+}
+
+/** Lanza el motor sobre una captura ya guardada. Nunca lanza: un fallo de
+ *  identificación es normal, no excepcional. */
+async function runEngine(obs, group) {
+  cap.engine = { state: 'busy' };
+  renderCapture();
+  const r = await identify(obs.photo, group, CTX.state.species, lang());
+  // Se enruta por VEREDICTO, no por un umbral de confianza propio. El filtro de
+  // 0.70 que había aquí se tragaba los `outside-inventory`: el mejor momento del
+  // juego —«puede que hayas encontrado algo nuevo»— no le salía nunca a nadie.
+  const cands = (r.candidates || []).slice(0, 5);
+  obs.engineSci = cands.length ? cands[0].sci : null;
+  obs.idPending = (r.verdict === 'unavailable' || r.verdict === 'quota');
+  await dbPut('obs', obs);
+  if (!cap) return;
+  cap.engine = { state: 'done', verdict: r.verdict, cands, text: verdictText(r, lang()) };
+  renderCapture();
+}
+
+const GROUPS = () => [['flora', T('g_g_flora')], ['ave', T('g_g_ave')], ['mamifero', T('g_g_mamifero')],
+  ['anfibio', T('g_g_anfibio')], ['otro', T('g_g_otro')]];
+
+function renderCapture() {
+  const host = captureHost();
+  if (!host || !cap) return;
+  const obs = cap.obs;
+  if (!obs) {
+    host.innerHTML = `
+      <div class="gm-panel">
+        <h2>${T('g_step_photo')}</h2>
+        <div class="gm-photo-drop" id="gm-drop"><span>📷</span></div>
+        <p class="tiny muted">${T('g_photo_hint')}</p>
+        <input id="gm-file-cam" type="file" accept="image/*" capture="environment" hidden />
+        <button id="gm-cancel" class="gm-linkbtn">${T('g_back')}</button>
+      </div>`;
+    const inp = host.querySelector('#gm-file-cam');
+    host.querySelector('#gm-drop').onclick = () => inp.click();
+    host.querySelector('#gm-cancel').onclick = closeCapture;
+    inp.onchange = () => onPhoto(inp);
+    return;
+  }
+  const eng = cap.engine;
+  const top = eng && eng.cands && eng.cands[0];
+  let engHTML = '';
+  if (eng && eng.state === 'busy') engHTML = `<p class="tiny muted">⏳ ${T('g_identifying')}</p>`;
+  else if (eng && eng.verdict === 'outside-inventory' && top) engHTML = `
+        <div class="gm-newrec">
+          <b>${T('g_new_record')}</b>
+          <p class="gm-sp-title">${esc(top.sci)} <span class="gm-score">${Math.round((top.score || 0) * 100)}%</span></p>
+          <p class="tiny muted">${T('g_not_in_inv')}</p>
+          <button id="gm-newrec-go" class="gm-primary">${T('g_new_record_go')} → +${GAME_CFG.newFindingPoints}</button>
+        </div>`;
+  else if (eng && eng.verdict === 'ok') engHTML = `<p class="tiny">${T('g_auto_pick')}</p>`;
+  else if (eng) engHTML = `<p class="tiny muted">⚠️ ${eng.text || T('g_auto_fail')}</p>`;
+
+  host.innerHTML = `
+    <div class="gm-panel">
+      <h2>${T('g_step_id')}</h2>
+      <div class="gm-mini"><img src="${cap.url}" alt=""></div>
+      <p class="tiny muted">✓ ${T('g_saved_pending')}${locLine(obs)}</p>
+      <p class="gm-label">${T('g_group_q')}</p>
+      <div class="gm-groups">${GROUPS().map(([k, l]) =>
+        `<button class="gm-chip${cap.group === k ? ' sel' : ''}" data-g="${k}">${l}</button>`).join('')}</div>
+      <div id="gm-auto-out">${engHTML}</div>
+      <input id="gm-search" class="gm-input" placeholder="${T('g_search_ph')}" value="${esc(cap.search)}" autocomplete="off" />
+      <div id="gm-candidates" class="gm-candidates"></div>
+      <button id="gm-unknown" class="gm-secondary">${T('g_unknown')}</button>
+      <p class="tiny muted">${T('g_unknown_note')}</p>
+      <button id="gm-finding" class="gm-linkbtn">${T('g_not_listed')}</button>
+      <div id="gm-finding-box" class="hidden">
+        <input id="gm-finding-name" class="gm-input" placeholder="${T('g_finding_name')}" />
+        <button id="gm-finding-go" class="gm-primary">→</button>
+      </div>
+    </div>`;
+
+  host.querySelectorAll('.gm-chip').forEach((b) => b.onclick = () => {
+    const g = b.dataset.g;
+    cap.group = cap.group === g ? null : g;
+    cap.engine = null;
+    renderCapture();
+    // Tocar 🌳 identifica directamente: un toque en vez de dos. Sólo se dispara
+    // con el grupo elegido, para no gastar cuota de plantas en fotos de aves.
+    if (cap.group && idAvailableFor(cap.group)) runEngine(cap.obs, cap.group);
+  });
+  host.querySelector('#gm-search').oninput = (e) => { cap.search = e.target.value; renderCandidates(); };
+  host.querySelector('#gm-unknown').onclick = () => finish({ unknown: true });
+  host.querySelector('#gm-finding').onclick = () => host.querySelector('#gm-finding-box').classList.toggle('hidden');
+  host.querySelector('#gm-finding-go').onclick = () => {
+    const name = host.querySelector('#gm-finding-name').value.trim();
+    if (name) finish({ finding: name });
   };
-}
-function locLine() {
-  if (wiz.loc === undefined) return '';
-  if (!wiz.fromCamera) return '🖼️ ' + T('g_loc_upload');
-  return wiz.loc ? '📍 ' + T('g_loc_ok') + (wiz.loc.acc ? ` (±${wiz.loc.acc} m)` : '') : '⚠️ ' + T('g_loc_none');
+  const nr = host.querySelector('#gm-newrec-go');
+  if (nr) nr.onclick = () => finish({ finding: `${top.common || ''} (${top.sci})`.trim() });
+  renderCandidates();
 }
 
-// Confianza mínima para mostrar una sugerencia de Pl@ntNet. Por debajo de esto
-// las propuestas son ruido y sólo sirven para que alguien toque la primera:
-// antes sin clasificar que mal clasificado.
-const SUG_MIN_SCORE = 0.70;
-
-function renderWizardId(body) {
-  const groups = [['flora', T('g_g_flora')], ['ave', T('g_g_ave')], ['mamifero', T('g_g_mamifero')], ['anfibio', T('g_g_anfibio')], ['otro', T('g_g_otro')]];
-  // La identificación automática es de PLANTAS (Pl@ntNet): sólo se ofrece cuando
-  // ya se dijo que es una planta, no antes de saber qué tipo de ser vivo es.
-  const canAuto = idAvailable() && wiz.group === 'flora';
-  body.innerHTML = `
-    <h2>${T('g_step_id')}</h2>
-    <div class="gm-mini"><img src="${wiz.photoUrl}" alt=""></div>
-    <p class="gm-label">${T('g_group_q')}</p>
-    <div class="gm-groups">${groups.map(([k, l]) => `<button class="gm-chip${wiz.group === k ? ' sel' : ''}" data-g="${k}">${l}</button>`).join('')}</div>
-    ${canAuto ? `<button id="gm-auto" class="gm-secondary">${T('g_auto_id')}</button>` : ''}
-    <div id="gm-auto-out"></div>
-    <input id="gm-search" class="gm-input" placeholder="${T('g_search_ph')}" value="${wiz.search}" autocomplete="off" />
-    <div id="gm-candidates" class="gm-candidates"></div>
-    <button id="gm-finding" class="gm-linkbtn">${T('g_not_listed')}</button>
-    <div id="gm-finding-box" class="hidden">
-      <input id="gm-finding-name" class="gm-input" placeholder="${T('g_finding_name')}" value="${wiz.findingName}" />
-      <button id="gm-finding-go" class="gm-primary">→</button>
-    </div>
-    <button id="gm-backb" class="gm-linkbtn">${T('g_back')}</button>`;
-
-  // Las sugerencias encabezan la MISMA lista de opciones (con su probabilidad) y
-  // debajo sigue el inventario completo: una sola lista que recorrer, no dos.
-  const sugHTML = () => wiz.sug.map((s, i) => `
+function renderCandidates() {
+  const host = captureHost();
+  const el = host && host.querySelector('#gm-candidates');
+  if (!el || !cap) return;
+  const eng = cap.engine;
+  const sug = (eng && eng.state === 'done' && eng.verdict === 'ok' ? eng.cands : []).filter((s) => s.speciesId);
+  const q = cap.search.trim().toLowerCase();
+  let list = CTX.state.species;
+  if (cap.group && cap.group !== 'otro') list = list.filter((s) => s.group === cap.group);
+  // `scientific_name` puede faltar (especies creadas a mano desde el admin). Sin
+  // el `|| ''` esto lanzaba dentro del oninput y el buscador NO filtraba nada.
+  if (q) list = list.filter((s) =>
+    (CTX.L(s, 'common_name') || '').toLowerCase().includes(q) ||
+    (s.common_name || '').toLowerCase().includes(q) ||
+    (s.scientific_name || '').toLowerCase().includes(q));
+  el.innerHTML = sug.map((s, i) => `
       <button class="gm-cand gm-sug" data-i="${i}"><b>${esc(s.common || s.sci)}</b> <i>${esc(s.sci)}</i>
-        <span class="gm-score">${Math.round((s.score || 0) * 100)}%</span>
-        ${s.speciesId ? '' : `<span class="gm-tripla">${T('g_auto_outside')}</span>`}</button>`).join('');
-
-  const renderCandidates = () => {
-    const q = wiz.search.trim().toLowerCase();
-    let list = CTX.state.species;
-    if (wiz.group && wiz.group !== 'otro') list = list.filter((s) => s.group === wiz.group);
-    // `scientific_name` puede faltar (especies creadas a mano desde el admin). Sin
-    // el `|| ''` esto lanzaba dentro del oninput y el buscador NO filtraba nada.
-    if (q) list = list.filter((s) =>
-      (CTX.L(s, 'common_name') || '').toLowerCase().includes(q) ||
-      (s.common_name || '').toLowerCase().includes(q) ||
-      (s.scientific_name || '').toLowerCase().includes(q));
-    const el = body.querySelector('#gm-candidates');
-    el.innerHTML = sugHTML() + list.slice(0, 30).map((s) => `
+        <span class="gm-score">${Math.round((s.score || 0) * 100)}%</span></button>`).join('')
+    + list.slice(0, 30).map((s) => `
       <button class="gm-cand" data-id="${esc(s.id)}">
         <b>${esc(CTX.L(s, 'common_name') || s.scientific_name || '')}</b> <i>${esc(s.scientific_name || '')}</i>
         ${s.status === 'possible' ? `<span class="gm-tripla">×${GAME_CFG.confirmMultiplier}</span>` : ''}
         ${s.flagship ? '<span class="gm-star">★</span>' : ''}
       </button>`).join('');
-    el.querySelectorAll('.gm-cand[data-id]').forEach((b) => b.onclick = () => {
-      wiz.species = CTX.state.species.find((s) => s.id === b.dataset.id);
-      wiz.isFinding = false;
-      renderWizardConfirm(body);
-    });
-    el.querySelectorAll('.gm-sug').forEach((b) => b.onclick = () => {
-      const s = wiz.sug[+b.dataset.i];
-      // Sólo se acepta como especie del inventario lo que la función resolvió
-      // contra species.json; lo demás entra como hallazgo, sin inventarse un id.
-      const hit = s.speciesId && CTX.state.species.find((x) => x.id === s.speciesId);
-      if (hit) { wiz.species = hit; wiz.isFinding = false; }
-      else { wiz.isFinding = true; wiz.species = null; wiz.findingName = `${s.common || ''} (${s.sci})`.trim(); }
-      renderWizardConfirm(body);
-    });
-  };
-  body.querySelectorAll('.gm-chip').forEach((b) => b.onclick = () => {
-    wiz.group = wiz.group === b.dataset.g ? null : b.dataset.g;
-    if (wiz.group !== 'flora') wiz.sug = [];   // sugerencias de plantas para plantas
-    renderWizardId(body);                      // el botón de ID auto aparece/desaparece
+  el.querySelectorAll('.gm-cand[data-id]').forEach((b) => b.onclick = () => {
+    const s = CTX.state.species.find((x) => x.id === b.dataset.id);
+    if (s) pickSpecies(s);
   });
-  body.querySelector('#gm-search').oninput = (e) => { wiz.search = e.target.value; renderCandidates(); };
-  body.querySelector('#gm-finding').onclick = () => body.querySelector('#gm-finding-box').classList.toggle('hidden');
-  body.querySelector('#gm-finding-go').onclick = () => {
-    wiz.isFinding = true; wiz.species = null;
-    wiz.findingName = body.querySelector('#gm-finding-name').value.trim();
-    renderWizardConfirm(body);
-  };
-  body.querySelector('#gm-backb').onclick = () => renderWizardPhoto(body);
-
-  if (canAuto) {
-    body.querySelector('#gm-auto').onclick = async () => {
-      const out = body.querySelector('#gm-auto-out');
-      out.innerHTML = `<p class="tiny muted">⏳ ${T('g_auto_wait')}</p>`;
-      // El motor NO lanza: un fallo de identificación es normal, no excepcional.
-      // Devuelve siempre un veredicto, y «no sé» es una respuesta válida.
-      const r = await identifyPlant(wiz.photoBlob, CTX.state.species, lang());
-      wiz.sug = (r.candidates || []).filter((s) => (s.score || 0) >= SUG_MIN_SCORE).slice(0, 5);
-      if (!wiz.sug.length) {
-        const why = (r.candidates || []).length ? T('g_auto_lowconf') : (verdictText(r, lang()) || T('g_auto_fail'));
-        out.innerHTML = `<p class="tiny muted">⚠️ ${why}</p>`;
-        renderCandidates();
-        return;
-      }
-      out.innerHTML = `<p class="tiny">${T('g_auto_pick')}</p>`;
-      renderCandidates();
-    };
-  }
-  renderCandidates();
+  el.querySelectorAll('.gm-sug').forEach((b) => b.onclick = () => {
+    const s = sug[+b.dataset.i];
+    const hit = CTX.state.species.find((x) => x.id === s.speciesId);
+    if (hit) finish({ species: hit });   // coincide con el motor: no hay conflicto
+  });
 }
 
-function renderWizardConfirm(body) {
+/** La persona eligió a mano. Si el motor propuso otra cosa se muestra el
+ *  desacuerdo y decide ella — pero la fila queda para que la reserva la revise
+ *  (`species_hint` ≠ `subject_id` en la bandeja). El motor NUNCA sobrescribe a la
+ *  persona: es de conjunto cerrado y fuera de él se equivoca con confianza. */
+function pickSpecies(s) {
+  const eng = cap.engine;
+  const top = eng && eng.state === 'done' && eng.cands && eng.cands[0];
+  const disagrees = top && top.speciesId && top.speciesId !== s.id;
+  if (!disagrees || cap.confirmed) return finish({ species: s });
+  const host = captureHost();
+  const box = host.querySelector('#gm-auto-out');
+  box.innerHTML = `
+    <div class="gm-conflict">
+      <p class="tiny">${T('g_conflict')}</p>
+      <button class="gm-cand" id="gm-c-mine"><b>${T('g_you_said')}:</b> ${esc(CTX.L(s, 'common_name') || s.scientific_name || '')}</button>
+      <button class="gm-cand" id="gm-c-eng"><b>${T('g_engine_says')}:</b> ${esc(top.common || top.sci)}
+        <span class="gm-score">${Math.round((top.score || 0) * 100)}%</span></button>
+    </div>`;
+  box.scrollIntoView({ block: 'nearest' });
+  host.querySelector('#gm-c-mine').onclick = () => { cap.confirmed = true; finish({ species: s }); };
+  host.querySelector('#gm-c-eng').onclick = () => {
+    const hit = CTX.state.species.find((x) => x.id === top.speciesId);
+    cap.confirmed = true;
+    finish({ species: hit || s });
+  };
+}
+
+async function finish(what) {
+  if (!cap || cap.busy) return;
+  cap.busy = true;
   const player = currentPlayer();
-  const daily = speciesOfDay();
-  let scored, title, sub;
-  if (wiz.isFinding) {
-    scored = { pts: GAME_CFG.newFindingPoints, lines: [[T('g_finding_line'), GAME_CFG.newFindingPoints]] };
-    title = wiz.findingName || T('g_not_listed').replace('➕ ', '');
-    sub = T('g_finding_note');
-  } else {
-    const s = wiz.species;
-    const repeat = playerObs(player.id).some((o) => o.speciesId === s.id);
-    const firstEver = !allObs.some((o) => o.speciesId === s.id);
-    scored = scoreCapture(s, { repeat, firstEver, isDaily: daily && daily.id === s.id });
-    title = `${CTX.L(s, 'common_name')} · ${s.scientific_name}`;
-    sub = '';
+  const before = new Set(earnedBadges(player.id).map((a) => a.id));
+  const obs = cap.obs;
+  await applyId(obs, what);
+  const after = earnedBadges(player.id).filter((a) => !before.has(a.id));
+  const host = captureHost();
+  host.innerHTML = `
+    <div class="gm-panel gm-success">
+      <div class="gm-burst">🎉</div>
+      <h2>${T('g_saved')}</h2>
+      <p class="gm-earned">${player.emoji} ${esc(player.name)}, ${T('g_you_earned')} <b>+${obs.points}</b> ${T('g_points')}</p>
+      ${after.map((a) => `<p class="gm-badge-new">🎖 ${T('g_new_badge')} ${a.emoji} <b>${T('b_' + a.id)}</b></p>`).join('')}
+      <button id="gm-again" class="gm-secondary">${T('g_capture')}</button>
+      <button id="gm-done" class="gm-primary">OK</button>
+    </div>`;
+  host.querySelector('#gm-done').onclick = closeCapture;
+  host.querySelector('#gm-again').onclick = () => { closeCapture(); startCapture(); };
+}
+
+/** Llega la foto: comprimir → huella → ¿duplicada? → ubicación → ¿dentro? → GUARDAR. */
+async function onPhoto(input) {
+  const f = input.files && input.files[0];
+  if (!f || !cap) return;
+  const player = currentPlayer();
+  const host = captureHost();
+  const drop = host.querySelector('#gm-drop');
+  if (drop) drop.innerHTML = '<span>⏳</span>';
+  let blob;
+  try { blob = await compressImage(f); } catch (e) { blob = f; }
+  let hash = null;
+  try { hash = await sha256Hex(blob); } catch (e) { /* sin huella se guarda igual */ }
+  if (isDuplicatePhoto(player.id, hash)) { CTX.toast(T('g_dup_photo')); closeCapture(); return; }
+  const loc = await snapLocation();
+  // Gate duro en la ESCRITURA, sobre el fix que la captura ya toma de todos
+  // modos. Sin fix se guarda igual: un GPS que no responde bajo el dosel no
+  // puede impedir registrar. Con fix y fuera del polígono, no se guarda.
+  if (loc && !(await inReserve([loc.lon, loc.lat], loc.acc || 0))) {
+    CTX.toast(T('g_need_reserve'));
+    renderCapture();
+    return;
   }
-  const when = new Date(wiz.time);
-  body.innerHTML = `
-    <h2>${T('g_step_confirm')}</h2>
-    <div class="gm-mini"><img src="${wiz.photoUrl}" alt=""></div>
-    <p class="gm-sp-title">${title}</p>
-    ${sub ? `<p class="tiny muted">${sub}</p>` : ''}
-    <p class="tiny muted">🕑 ${when.toLocaleString()} ${wiz.loc ? `· 📍 ${wiz.loc.lat.toFixed(5)}, ${wiz.loc.lon.toFixed(5)}${wiz.loc.acc ? ` (±${wiz.loc.acc} m)` : ''}` : ''}</p>
-    <div class="gm-breakdown">
-      ${scored.lines.map(([l, p]) => `<div class="gm-bd-row"><span>${l}</span><b>${p > 0 ? '+' : ''}${p}</b></div>`).join('')}
-      <div class="gm-bd-row gm-bd-total"><span>Total</span><b>${scored.pts}</b></div>
-    </div>
-    <button id="gm-save" class="gm-primary">${T('g_save')}</button>
-    <button id="gm-backb" class="gm-linkbtn">${T('g_back')}</button>`;
-  body.querySelector('#gm-backb').onclick = () => renderWizardId(body);
-  once(body.querySelector('#gm-save'), async () => {
-    const before = new Set(earnedBadges(player.id).map((a) => a.id));
-    const obs = {
-      id: uid(), playerId: player.id,
-      kind: wiz.isFinding ? 'finding' : 'capture',
-      speciesId: wiz.isFinding ? null : wiz.species.id,
-      sci: wiz.isFinding ? '' : wiz.species.scientific_name,
-      common: wiz.isFinding ? (wiz.findingName || '') : wiz.species.common_name,
-      group: wiz.isFinding ? (wiz.group || 'otro') : wiz.species.group,
-      confirmedPossible: !wiz.isFinding && wiz.species.status === 'possible',
-      time: wiz.time,
-      lat: wiz.loc ? wiz.loc.lat : null, lon: wiz.loc ? wiz.loc.lon : null,
-      acc: wiz.loc ? wiz.loc.acc : null,
-      points: scored.pts, breakdown: scored.lines,
-      photo: wiz.photoBlob,
-    };
-    await dbPut('obs', obs);
-    allObs.push(obs);
-    // Avisar al grabador de recorridos (si hay uno activo) dónde se tomó la foto.
-    if (obs.lat != null && obs.lon != null)
-      window.dispatchEvent(new CustomEvent('cantares:capture', { detail: { lng: obs.lon, lat: obs.lat, name: obs.common || obs.sci || '' } }));
-    // Empuje al inventario global (Supabase) por la COLA OFFLINE: en el bosque
-    // sin señal el avistamiento (y su foto) esperan en el teléfono y se suben
-    // solos al recuperar señal. client_id = id local → reintentar no duplica.
-    if (CTX.cloud && CTX.cloud.enabled) (async () => {
-      try {
-        await saveRow('sightings', { client_id: obs.id, species_id: obs.speciesId, common: obs.common, sci: obs.sci, group: obs.group,
-          lat: obs.lat, lng: obs.lon, taken_at: new Date(obs.time).toISOString(), photo: null, points: obs.points }, obs.photo || null);
-      } catch (e) { console.warn('[cloud] sighting', e && e.message); }
-      // …y ADEMÁS una fila de `media`. Sin esto la foto vive sólo en
-      // `sightings.photo`, una columna sin relación con el inventario: el
-      // trabajo del visitante nunca llegaba a la galería de la especie. Va por
-      // la misma cola offline, así que en el bosque espera y sube sola.
-      try {
-        if (!obs.photo) return;   // `media.url` es NOT NULL y la rellena el blob
-        await saveRow('media', {
-          id: 'gm-' + obs.id, kind: 'photo',
-          // NINGUNA foto de visitante se publica sola, ni cuando eligió una
-          // especie del inventario: quien toca una tarjeta no está confirmando
-          // una identificación (los niños tocan lo que sea) y la foto entraría
-          // directa a la galería pública de esa especie. Entra SIEMPRE sin
-          // clasificar, con la elección guardada como conjetura, y el admin la
-          // publica con un toque desde la bandeja. Antes sin clasificar que mal.
-          subject_type: obs.speciesId ? 'species' : null,
-          subject_id: obs.speciesId || null,
-          status: 'unclassified',
-          origin: 'game-capture', walk_id: currentWalkId(),
-          lat: obs.lat, lng: obs.lon, taken_at: new Date(obs.time).toISOString(),
-          // Lo que se sugirió, separado de lo que se confirmó: `subject_id` es el
-          // dato, `species_hint` la conjetura. Mezclarlos publica suposiciones.
-          species_hint: obs.sci || obs.common || null,
-          caption: obs.common || obs.sci || null,
-          is_primary: false, sort: 100, reviewed: false,
-        }, { url: obs.photo });   // la clave del mapa = la COLUMNA que recibe la URL
-      } catch (e) { console.warn('[cloud] media', e && e.message); }
-    })();
-    rebuildCapMap(); renderGamePanel(); CTX.rerenderSpecies(); refreshObsMapLayer();
-    const after = earnedBadges(player.id).filter((a) => !before.has(a.id));
-    body.innerHTML = `
-      <div class="gm-success">
-        <div class="gm-burst">🎉</div>
-        <h2>${T('g_saved')}</h2>
-        <p class="gm-earned">${player.emoji} ${player.name}, ${T('g_you_earned')} <b>+${scored.pts}</b> ${T('g_points')}</p>
-        ${after.map((a) => `<p class="gm-badge-new">🎖 ${T('g_new_badge')} ${a.emoji} <b>${T('b_' + a.id)}</b></p>`).join('')}
-        <button id="gm-again" class="gm-secondary">${T('g_capture')}</button>
-        <button id="gm-done" class="gm-primary">OK</button>
-      </div>`;
-    body.querySelector('#gm-done').onclick = closeModal;
-    body.querySelector('#gm-again').onclick = () => { closeModal(); openCaptureWizard(); };
-  });
+  cap.obs = await saveCapture(blob, hash, loc);
+  cap.url = URL.createObjectURL(blob);
+  renderCapture();
+}
+
+function locLine(obs) {
+  if (!obs || obs.lat == null) return ' · ⚠️ ' + T('g_loc_none');
+  return ` · 📍 ${T('g_loc_ok')}${obs.acc ? ` (±${obs.acc} m)` : ''}`;
+}
+
+// Reintento de identificación al volver la señal. Una vez: si sigue fallando, la
+// captura se queda sin clasificar y la recoge la bandeja del admin, que existe
+// justo para eso. Se cuelga de los mismos disparadores que ya usa la cola offline.
+async function retryPendingIds() {
+  if (!CTX || !navigator.onLine) return;
+  const player = currentPlayer();
+  if (!player) return;
+  for (const o of playerObs(player.id)) {
+    if (!o.idPending || !o.group || !(o.photo instanceof Blob)) continue;
+    if (!idAvailableFor(o.group)) continue;
+    const r = await identify(o.photo, o.group, CTX.state.species, lang());
+    if (r.verdict === 'unavailable' || r.verdict === 'quota') return;   // sigue sin poder: no insistir
+    const top = (r.candidates || [])[0];
+    o.engineSci = top ? top.sci : null;
+    o.idPending = false;
+    await dbPut('obs', o);
+    pushCloud(o);
+  }
 }
 
 // ---------- ranking ----------
 function openLeaderboard() {
   const rows = ranking();
   const me = currentPlayer();
-  const prizeFor = (i) => {
-    const pz = GAME_CFG.prizes.find((p) => p.rank === i + 1);
-    return pz ? `<span class="gm-prize">${pz.emoji} ${pz[document.documentElement.lang === 'en' ? 'en' : 'es']}</span>` : '';
-  };
   openModal(`
     <h2>🏆 ${T('g_ranking')}</h2>
     <p class="tiny muted">${T('g_leader_sub')}</p>
@@ -679,7 +765,6 @@ function openLeaderboard() {
           <span class="gm-lb-rank">${['🥇', '🥈', '🥉'][i] || '#' + (i + 1)}</span>
           <span class="gm-lb-name">${p.emoji} ${p.name}${me && p.id === me.id ? ` <i>(${T('g_you')})</i>` : ''}</span>
           <span class="gm-lb-pts"><b>${p.points}</b> ${T('g_points')} · ${p.nSpecies} ${T('g_species_n')}</span>
-          ${prizeFor(i)}
         </div>`).join('')}
     </div>` : `<p class="muted">${T('g_no_players')}</p>`}
     <p class="tiny muted" style="margin-top:12px">${T('g_export_note')}</p>
@@ -723,7 +808,7 @@ function openRecords() {
             ${o.sci ? `<i>${o.sci}</i>` : ''}
             <small>🕑 ${new Date(o.time).toLocaleString()}</small>
             ${o.lat != null ? `<small>📍 ${o.lat.toFixed(5)}, ${o.lon.toFixed(5)}${o.acc ? ` (±${o.acc} m)` : ''}</small>` : ''}
-            <small>+${o.points} ${T('g_points')}${o.kind === 'finding' ? ' · ' + T('g_pending') : ''}</small>
+            <small>+${o.points} ${T('g_points')}${o.kind === 'finding' ? ' · ' + T('g_pending') : ''}${!o.speciesId && o.kind !== 'finding' ? ' · ' + T('g_pending_id') : ''}</small>
           </div>
           <button class="gm-rec-del" data-id="${o.id}">🗑</button>
         </div>`).join('')}
@@ -736,9 +821,18 @@ function openRecords() {
   // Borrar con confirmación en dos toques (sin diálogos nativos)
   body.querySelectorAll('.gm-rec-del').forEach((b) => b.onclick = async () => {
     if (b.dataset.armed) {
-      await dbDelete('obs', b.dataset.id);
-      allObs = allObs.filter((o) => o.id !== b.dataset.id);
-      rebuildCapMap(); renderGamePanel(); CTX.rerenderSpecies(); refreshObsMapLayer();
+      const id = b.dataset.id;
+      await dbDelete('obs', id);
+      // ...y en la nube. Antes solo se borraba lo local, asi que la fila de
+      // `sightings`, la de `media` y su objeto en Storage quedaban huerfanos.
+      // La cola encola por `tabla:id`, asi que borrar algo que aun estaba
+      // pendiente de subir colapsa las dos operaciones en una sola.
+      if (CTX.cloud && CTX.cloud.enabled) {
+        try { await deleteRow('sightings', id); } catch (e) { console.warn('[cloud] del sighting', e && e.message); }
+        try { await deleteRow('media', 'gm-' + id); } catch (e) { console.warn('[cloud] del media', e && e.message); }
+      }
+      allObs = allObs.filter((o) => o.id !== id);
+      rebuildCapMap(); renderGameTab(); CTX.rerenderSpecies(); refreshObsMapLayer();
       openRecords();
     } else { b.dataset.armed = '1'; b.textContent = T('g_delete_sure'); }
   });
@@ -841,51 +935,91 @@ function refreshObsMapLayer() {
 }
 
 // ---------- panel en la vista Especies ----------
-function renderGamePanel() {
-  const el = document.querySelector('#game-panel');
+// ---------- la pestaña ----------
+// Tres estados. Sin cuenta: bloqueada, pero VISIBLE — esconderla no explicaría
+// que el servicio existe. Fuera de la reserva: se ven los registros pero no se
+// añaden. Dentro (o sin fix): completa.
+//
+// El geocerco NO se sondea al entrar: pedir un fix de alta precisión cuesta ~12 s
+// de radio bajo el dosel, y la captura ya toma uno. Aquí se usa la última
+// posición conocida, que es gratis, y el gate duro vive en el guardado.
+let outsideKnown = false;
+async function refreshOutside() {
+  const p = CTX.state.userPos;
+  outsideKnown = p ? !(await inReserve([p[0], p[1]], 0)) : false;
+}
+
+function renderGameTab() {
+  const el = document.querySelector('#game-tab');
   if (!el) return;
-  const player = currentPlayer();
   const daily = speciesOfDay();
   const dailyHtml = daily ? `
-    <div class="gm-daily">🌟 <b>${T('g_daily')}:</b> ${CTX.L(daily, 'common_name')}
-      <i>${daily.scientific_name}</i> — ${T('g_daily_x')}</div>` : '';
-  if (!player) {
+    <div class="gm-daily">🌟 <b>${T('g_daily')}:</b> ${esc(CTX.L(daily, 'common_name') || '')}
+      <i>${esc(daily.scientific_name || '')}</i> — ${T('g_daily_x')}</div>` : '';
+
+  if (!CTX.hasAccount || !CTX.hasAccount()) {
     el.innerHTML = `
       <div class="gm-panel">
         <h2>🎒 ${T('g_title')}</h2>
         <p class="gm-lead">${T('g_intro')}</p>
         ${dailyHtml}
-        <button id="gm-create" class="gm-primary">${T('g_create')}</button>
+        <button class="gm-primary gm-big gm-locked" id="gm-capture">🔒 ${T('g_capture')}</button>
+        <p class="tiny muted">${T('g_locked_account')}</p>
       </div>`;
-    el.querySelector('#gm-create').onclick = () => openProfileModal();
+    el.querySelector('#gm-capture').onclick = () => CTX.toast(T('g_locked_account'));
     return;
   }
-  const rows = ranking();
-  const rank = rows.findIndex((p) => p.id === player.id) + 1;
+  const player = currentPlayer();
+  if (!player) { el.innerHTML = `<div class="gm-panel"><h2>🎒 ${T('g_title')}</h2></div>`; return; }
+
+  const thumbs = capturedPhotos(8);
   el.innerHTML = `
     <div class="gm-panel">
       <div class="gm-head">
-        <span class="gm-player">${player.emoji} <b>${player.name}</b></span>
-        <span class="gm-stats"><b>${playerPoints(player.id)}</b> ${T('g_points')} · ${T('g_rank')} #${rank} · ${distinctSpecies(player.id)} ${T('g_species_n')}</span>
+        <span class="gm-player">${player.emoji} <b>${esc(player.name)}</b></span>
+        <span class="gm-stats" id="gm-stats"></span>
       </div>
       ${dailyHtml}
-      <button id="gm-capture" class="gm-primary gm-big">${T('g_capture')}</button>
+      <button id="gm-capture" class="gm-primary gm-big${outsideKnown ? ' gm-locked' : ''}">${outsideKnown ? '🔒 ' : ''}${T('g_capture')}</button>
+      ${outsideKnown ? `<p class="tiny muted">${T('g_locked_outside')}</p>` : ''}
       <div class="gm-row">
         <button id="gm-lb" class="gm-secondary">${T('g_ranking')}</button>
         <button id="gm-bd" class="gm-secondary">${T('g_badges')}</button>
         <button id="gm-rc" class="gm-secondary">${T('g_records')}</button>
       </div>
+      ${thumbs.length ? `<div class="gm-strip" id="gm-strip">${thumbs.map((t) =>
+        `<img src="${t.url}" alt="${esc(t.common)}" loading="lazy">`).join('')}</div>` : ''}
     </div>`;
-  el.querySelector('#gm-capture').onclick = openCaptureWizard;
+  el.querySelector('#gm-capture').onclick = () => {
+    if (outsideKnown) { CTX.toast(T('g_need_reserve')); return; }
+    startCapture();
+  };
   el.querySelector('#gm-lb').onclick = openLeaderboard;
   el.querySelector('#gm-bd').onclick = openBadges;
   el.querySelector('#gm-rc').onclick = openRecords;
+  const strip = el.querySelector('#gm-strip');
+  if (strip) strip.onclick = openRecords;
+  renderGameTabStats();
 }
 
-// Re-render tras cambio de idioma (app.js lo llama desde setLang).
+// Las cifras se pintan aparte para poder refrescarlas sin rehacer la pestaña.
+function renderGameTabStats() {
+  const el = document.querySelector('#gm-stats');
+  const player = currentPlayer();
+  if (!el || !player) return;
+  const rows = ranking();
+  const rank = rows.findIndex((p) => p.id === player.id) + 1;
+  el.innerHTML = `<b>${playerPoints(player.id)}</b> ${T('g_points')}`
+    + (rank ? ` · ${T('g_rank')} #${rank}` : '')
+    + ` · ${distinctSpecies(player.id)} ${T('g_species_n')}`;
+}
+
+// Re-render tras cambio de idioma (app.js lo llama desde setLang) y al entrar en
+// la pestaña (switchView). Refresca de paso si seguimos dentro del polígono.
 export function refreshGameUI() {
   if (!CTX) return;
-  renderGamePanel();
+  renderGameTab();
+  refreshOutside().then(() => { if (!cap) renderGameTab(); });
 }
 
 // ---------- init ----------
@@ -902,7 +1036,10 @@ export async function initGame(ctx) {
   if (ctx.cloud && ctx.cloud.enabled && ctx.cloud.user) {
     try {
       const u = ctx.cloud.user;
-      if (!allPlayers.find((p) => p.id === u.id)) { const pl = { id: u.id, name: u.username || 'Visitante', created: Date.now() }; await dbPut('players', pl); allPlayers.push(pl); }
+      if (!allPlayers.find((p) => p.id === u.id)) {
+        const pl = { id: u.id, name: u.username || 'Visitante', emoji: avatarFor(u.id), created: Date.now() };
+        await dbPut('players', pl); allPlayers.push(pl);
+      }
       localStorage.setItem('cantares_player', u.id);
       const cloudObs = await ctx.cloud.mySightings();
       const have = new Set(allObs.map((o) => o.id));
@@ -910,7 +1047,24 @@ export async function initGame(ctx) {
         const oid = 'cloud_' + cs.id;
         // client_id = id local original: si esta captura nació en ESTE teléfono
         // (o ya se bajó antes), no duplicarla.
-        if (have.has(oid) || (cs.client_id && have.has(cs.client_id))) continue;
+        // Si la captura nacio aqui y la reserva le corrigio la especie al
+        // revisarla, se adopta la correccion y se REPUNTUA: los puntos se dieron
+        // al vuelo con lo que dijo el visitante, y esta es la unica pasada donde
+        // se puede saber que cambiaron de opinion.
+        if (cs.client_id && have.has(cs.client_id)) {
+          const mine = allObs.find((x) => x.id === cs.client_id);
+          if (mine && (cs.species_id || null) !== (mine.speciesId || null)) {
+            const sp = cs.species_id && (ctx.state.species || []).find((x) => x.id === cs.species_id);
+            if (sp) {
+              const sc = scoreCapture(sp, { repeat: false, firstEver: false, isDaily: false });
+              Object.assign(mine, { speciesId: sp.id, sci: sp.scientific_name || '', common: sp.common_name || '',
+                group: sp.group || 'otro', points: sc.pts, breakdown: sc.lines, corrected: true, idPending: false });
+              await dbPut('obs', mine);
+            }
+          }
+          continue;
+        }
+        if (have.has(oid)) continue;
         const o = { id: oid, playerId: u.id, kind: cs.species_id ? 'capture' : 'finding', speciesId: cs.species_id || null,
           sci: cs.sci || '', common: cs.common || '', group: cs.group || 'otro',
           // time SIEMPRE como string ISO (el resto del código ordena con
@@ -922,7 +1076,20 @@ export async function initGame(ctx) {
       }
     } catch (e) { console.warn('[cloud] rehidratar', e && e.message); }
   }
+  // Sin cuenta no hay jugador. `cantares_player` sobrevivia al cierre de sesion,
+  // asi que en el telefono compartido de la porteria el siguiente visitante
+  // abria el juego con las capturas y los puntos del anterior.
+  if (!(ctx.cloud && ctx.cloud.enabled && ctx.cloud.user)) localStorage.removeItem('cantares_player');
+
   rebuildCapMap();
-  renderGamePanel();
+  await refreshOutside();
+  renderGameTab();
   ctx.rerenderSpecies();
+
+  // Identificaciones pendientes: los mismos disparadores que ya usa la cola
+  // offline, en vez de un temporizador propio.
+  const retry = () => retryPendingIds().catch((e) => console.warn('[id] retry', e && e.message));
+  window.addEventListener('online', () => setTimeout(retry, 2500));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(retry, 3000); });
+  setTimeout(retry, 5000);
 }
