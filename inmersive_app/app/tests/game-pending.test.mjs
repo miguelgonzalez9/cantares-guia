@@ -11,6 +11,7 @@ import { dirname, join } from 'node:path';
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const game = readFileSync(join(PUB, 'js', 'game.js'), 'utf8');
 const sync = readFileSync(join(PUB, 'js', 'sync.js'), 'utf8');
+const admin = readFileSync(join(PUB, 'js', 'admin.js'), 'utf8');
 
 // --- copias de game.js ---
 const playerObs = (obs, pid) => obs.filter((o) => o.playerId === pid);
@@ -63,4 +64,20 @@ assert.ok(/if \(r\.verdict === 'unavailable' \|\| r\.verdict === 'quota'\) retur
 assert.ok(/status: 'unclassified'/.test(game));
 assert.ok(/reviewed: false/.test(game));
 
-console.log('game-pending: 7/7 OK');
+// 8. Un DESACUERDO entre la persona y el motor tiene que VERSE en la bandeja.
+//    El chip del clasificador se pintaba solo cuando no habia nada clasificado
+//    (`species_hint && !subject_id`), asi que justo el caso que hay que revisar
+//    -foto con especie puesta y conjetura contraria- no se veia.
+assert.ok(!/m\.species_hint && !m\.subject_id \?/.test(admin),
+  'la condicion vieja escondia los conflictos');
+assert.ok(/function hintChip\(m\)/.test(admin));
+assert.ok(/fm-hint-conflict/.test(admin), 'un desacuerdo se marca aparte');
+
+// --- la comparacion, tal cual la hace admin.js ---
+const norm = (x) => (x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+assert.strictEqual(norm(' Quercus  humboldtii '), norm('quercus humboldtii'));
+assert.strictEqual(norm('Quercus humboldtii'), norm('Quércus Humboldtii'),
+  'acentos y mayusculas no pueden inventar un conflicto');
+assert.notStrictEqual(norm('Quercus humboldtii'), norm('Panopsis suaveolens'));
+
+console.log('game-pending: 11/11 OK');

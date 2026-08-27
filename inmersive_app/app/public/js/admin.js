@@ -995,6 +995,26 @@ function addMedia(preset, fromCamera) {
 const mediaSel = new Set();
 function selClear() { mediaSel.clear(); }
 
+// La conjetura del MOTOR (`species_hint`, nombre científico) frente a lo que
+// eligió la PERSONA (`subject_id`). Antes esto sólo se pintaba cuando no había
+// nada clasificado, así que un DESACUERDO —el caso que de verdad hay que
+// revisar— no se veía: la foto llegaba con su especie puesta y la conjetura
+// contraria escondida detrás. Ahora un desacuerdo se marca en rojo y sube al
+// principio de la tarjeta.
+function hintChip(m) {
+  if (!m.species_hint) return '';
+  const pct = m.hint_confidence != null ? ` ${(m.hint_confidence * 100).toFixed(0)}%` : '';
+  if (!m.subject_id) {
+    return `<span class="fm-hint" title="Sugerencia del clasificador, sin confirmar">🤖 ${esc(m.species_hint)}${pct}</span>`;
+  }
+  if (m.subject_type !== 'species') return '';
+  const picked = CTX.state.species.find((x) => x.id === m.subject_id);
+  const same = picked && norm(picked.scientific_name) === norm(m.species_hint);
+  if (same) return '';   // coinciden: no hay nada que revisar
+  return `<span class="fm-hint fm-hint-conflict" title="El identificador propuso otra cosa. Lo eligió la persona; confirma tú.">⚠️ 🤖 ${esc(m.species_hint)}${pct}</span>`;
+}
+const norm = (x) => (x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
 function mediaCardHTML(m, opts = {}) {
   const sel = mediaSel.has(m.id);
   const thumb = m.kind === 'video'
@@ -1006,7 +1026,7 @@ function mediaCardHTML(m, opts = {}) {
     ${thumb}
     <div class="fm-meta">
       <span class="fm-subj">${subjectLabel(m)}${m.caption ? ` · <i>${esc(m.caption)}</i>` : ''}</span>
-      ${m.species_hint && !m.subject_id ? `<span class="fm-hint" title="Sugerencia del clasificador, sin confirmar">🤖 ${esc(m.species_hint)}${m.hint_confidence != null ? ` ${(m.hint_confidence * 100).toFixed(0)}%` : ''}</span>` : ''}
+      ${hintChip(m)}
       ${m.origin && m.origin !== 'admin-upload' ? `<span class="fm-origin">${esc(ORIGIN_LABEL[m.origin] || m.origin)}</span>` : ''}
       ${m.archive_dir ? `<span class="fm-origin fm-dir" title="Carpeta del archivo local">🗂 ${esc(m.archive_dir)}</span>` : ''}
       <div class="fm-btns">

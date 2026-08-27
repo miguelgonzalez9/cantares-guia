@@ -605,6 +605,8 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 
 /* tira de últimas capturas en la pestaña */
+.fm-hint-conflict { color: var(--red); font-weight: 700; }
+
 .gm-strip {
   display: flex; gap: 6px; overflow-x: auto; margin-top: 12px;
   padding-bottom: 4px; -webkit-overflow-scrolling: touch;
