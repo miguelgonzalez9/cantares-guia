@@ -86,3 +86,22 @@ export function verdictText(r, lang = 'es') {
   };
   return (lang === 'en' ? EN : ES)[r && r.verdict] || '';
 }
+
+// ---------- Enrutador ----------
+// El juego no sabe (ni debe saber) qué backend contesta. Hoy sólo hay uno,
+// Pl@ntNet, y es de PLANTAS: cubre 120 de las 734 especies del inventario. Las
+// 602 aves no tienen backend todavía (issue #24) y eso NO es un error: se
+// devuelve el mismo `unavailable` que cuando se agota la cuota, y quien llama
+// cae al buscador manual por el mismo camino.
+//
+// Añadir aves más adelante es un `if` aquí dentro. Nada del juego cambia.
+
+/** ¿Hay identificación automática para este grupo? Sirve para no ofrecer el
+ *  atajo cuando no puede funcionar. */
+export function idAvailableFor(group) { return group === 'flora' && idAvailable(); }
+
+/** Identifica según el grupo. Devuelve siempre un objeto con `verdict`; nunca lanza. */
+export async function identify(blob, group, species, lang = 'es') {
+  if (group === 'flora') return identifyPlant(blob, species, lang);
+  return { verdict: 'unavailable', reason: 'sin identificador para este grupo' };
+}

@@ -184,6 +184,32 @@ export async function upsertSighting(s) {
   if (error) throw error;
 }
 
+// Borrar el avistamiento propio. La PK de `sightings` la genera la base, así
+// que el cliente sólo conoce su `client_id`: es por donde subió la fila y es
+// por donde la borra. La política `sightings_delete` ya limita a
+// `auth.uid() = user_id or is_admin()`, así que nadie borra lo ajeno.
+export async function deleteSighting(clientId) {
+  const c = await getClient();
+  const { error } = await c.from('sightings').delete().eq('client_id', clientId);
+  if (error) throw error;
+}
+
+// Ranking global sin tabla ni vista nuevas: `sightings` es de lectura pública y
+// `profiles` es legible por cualquier autenticado (política `profiles_read`
+// incluye `auth.role() = 'authenticated'`), y el juego exige cuenta. Select
+// estrecho a propósito: sumar puntos no necesita bajar las fotos.
+// Una vista `game_ranking` sería algo más limpia, pero es una migración que hay
+// que acordarse de correr contra la base viva para agregar unas pocas filas.
+export async function rankingRows() {
+  const c = await getClient();
+  const [s, p] = await Promise.all([
+    c.from('sightings').select('user_id,points,species_id'),
+    c.from('profiles').select('id,username'),
+  ]);
+  if (s.error || p.error) throw (s.error || p.error);
+  return { sightings: s.data || [], profiles: p.data || [] };
+}
+
 // ---------- caminatas del visitante (privadas; siguen al usuario) ----------
 export async function upsertWalk(w) {
   const c = await getClient();
