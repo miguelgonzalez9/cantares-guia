@@ -458,7 +458,7 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--tabbar-h) + var(--safe-b));
   padding-bottom: var(--safe-b);
-  display: grid; grid-template-columns: repeat(4, 1fr);   /* 4 pestañas (Cuenta pasó al header) */
+  display: grid; grid-template-columns: repeat(5, 1fr);   /* 5 pestañas (Cuenta pasó al header) */
   background: var(--card); border-top: 1px solid var(--line); z-index: 30;
 }
 .tab {
@@ -603,12 +603,27 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
   width: 100%; border: 1.5px solid var(--line); border-radius: 10px; font-size: 14px;
   padding: 10px 12px; margin: 6px 0; background: #fff; color: var(--ink);
 }
-.gm-avatars { display: flex; gap: 8px; flex-wrap: wrap; }
-.gm-avatar {
-  font-size: 22px; width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
-  border: 2px solid var(--line); background: #fff;
+
+/* tira de últimas capturas en la pestaña */
+.gm-strip {
+  display: flex; gap: 6px; overflow-x: auto; margin-top: 12px;
+  padding-bottom: 4px; -webkit-overflow-scrolling: touch;
 }
-.gm-avatar.sel { border-color: var(--sun); background: #fff4e8; }
+.gm-strip img {
+  width: 72px; height: 72px; flex: 0 0 auto; object-fit: cover;
+  border-radius: 10px; border: 1px solid var(--line); cursor: pointer;
+}
+/* posible especie nueva: resultado de primera clase, no caso borde */
+.gm-newrec {
+  border: 2px dashed var(--sun); border-radius: 12px;
+  padding: 12px; margin: 10px 0; background: #fffaf0;
+}
+.gm-newrec .gm-sp-title { margin: 6px 0; }
+/* la persona y el motor no coinciden: decide la persona, revisa la reserva */
+.gm-conflict {
+  border: 1px solid var(--line); border-left: 3px solid var(--sky);
+  border-radius: 10px; padding: 10px; margin: 8px 0; background: var(--mist);
+}
 
 /* asistente de captura */
 .gm-photo-drop {
@@ -668,7 +683,6 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .gm-lb-rank { grid-row: span 3; font-size: 17px; font-weight: 800; color: var(--muted); text-align: center; }
 .gm-lb-name { font-weight: 700; color: var(--forest); }
 .gm-lb-pts { font-size: 12px; color: var(--muted); }
-.gm-prize { font-size: 11.5px; color: var(--sun); font-weight: 700; }
 
 /* logros */
 .gm-badges { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
@@ -1463,4 +1477,4 @@ body.picking-points #route-info { display: none !important; }
 
 /* Recorrido guiado bloqueado (visitante sin cuenta = no esta en la reserva).
    El boton se deja a la vista a proposito: que se sepa que el servicio existe. */
-.ri-start.locked { opacity: .62; filter: saturate(.5); }
+.ri-start.locked, .gm-locked { opacity: .62; filter: saturate(.5); }

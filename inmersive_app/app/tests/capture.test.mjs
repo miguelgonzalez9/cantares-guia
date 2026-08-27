@@ -1,7 +1,7 @@
-// Captura del juego (issue #10, puntos 1–6). La cámara, el GPS y Pl@ntNet no
-// corren sin navegador; aquí se prueba lo que sí es puro: que el buscador no
-// vuelva a romperse con una especie sin nombre científico, y que el filtro de
-// confianza deje fuera lo que no llega al 70%. El resto se prueba con el dedo.
+// Captura del juego (issues #10 y #26). La cámara, el GPS y Pl@ntNet no corren
+// sin navegador; aquí se prueba lo que sí es puro: que el buscador no vuelva a
+// romperse con una especie sin nombre científico, y que la captura siga siendo
+// «guarda primero, identifica después». El resto se prueba con el dedo.
 //
 // Correr:  node inmersive_app/app/tests/capture.test.mjs
 import assert from 'node:assert';
@@ -11,6 +11,7 @@ import { dirname, join } from 'node:path';
 
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const game = readFileSync(join(PUB, 'js', 'game.js'), 'utf8');
+const app = readFileSync(join(PUB, 'js', 'app.js'), 'utf8');
 const html = readFileSync(join(PUB, 'index.html'), 'utf8');
 
 // --- copia de la función de filtrado del buscador (game.js renderCandidates) ---
@@ -41,30 +42,57 @@ assert.deepStrictEqual(search(INV, 'quercus').map((s) => s.id), ['c']);
 assert.strictEqual(search(INV, 'zzz').length, 0);
 assert.strictEqual(search(INV, '').length, 3);
 
-// 3. Umbral de confianza: sólo se muestran sugerencias ≥70%.
-const MIN = Number(/const SUG_MIN_SCORE = ([\d.]+)/.exec(game)[1]);
-assert.strictEqual(MIN, 0.70, 'el umbral del código debe ser 0.70');
-const cands = [{ sci: 'A', score: 0.95 }, { sci: 'B', score: 0.70 }, { sci: 'C', score: 0.69 }, { sci: 'D', score: 0.12 }];
-const kept = cands.filter((s) => (s.score || 0) >= MIN).map((s) => s.sci);
-assert.deepStrictEqual(kept, ['A', 'B'], '0.69 no pasa; 0.70 justo sí');
+// 3. Se enruta por VEREDICTO, no por un umbral de confianza propio.
+//    El filtro cliente de 0.70 se tragaba los `outside-inventory`: caían en la
+//    rama de «ninguna sugerencia llegó al 70%» y el mejor momento del juego
+//    —«puede que hayas encontrado algo nuevo»— no le salía nunca a nadie.
+assert.ok(!/SUG_MIN_SCORE/.test(game), 'el umbral cliente debe haber desaparecido');
+assert.ok(/verdict === 'outside-inventory'/.test(game), 'outside-inventory necesita su propia rama');
+assert.ok(/verdict === 'ok'/.test(game));
 
-// 4. La ubicación SÓLO se registra cuando la foto se toma con la cámara.
-assert.ok(/wiz\.loc = fromCamera \? await snapLocation\(\) : null/.test(game),
-  'una foto subida del carrete no puede llevar el GPS de ahora');
+// 4. GUARDA PRIMERO: la foto se escribe antes de saber qué es.
+assert.ok(/cap\.obs = await saveCapture\(/.test(game));
+assert.ok(/idPending: true/.test(game), 'la captura nace sin identificar');
+assert.ok(/points: 0, breakdown: \[\]/.test(game), 'y sin puntos: llegan al identificar');
 
-// 5. La cámara exige cuenta; subir, no. Sin esto cualquiera «captura en la reserva».
-assert.ok(/function hasAccount\(\)/.test(game));
-assert.ok(/const cam = hasAccount\(\);/.test(game));
-assert.ok(/\$\{cam \? `<button id="gm-cam"/.test(game), 'el botón de cámara depende de la cuenta');
-assert.ok(/<button id="gm-up"/.test(game) && !/cam \?[^`]*gm-up/.test(game),
-  'subir foto debe estar SIEMPRE disponible');
+// 5. El gate duro del geocerco va en la ESCRITURA, sobre el fix que ya se toma.
+//    Sin fix se guarda igual — un GPS mudo bajo el dosel no puede impedir
+//    registrar (sync.js: nunca se descarta trabajo de campo).
+assert.ok(/if \(loc && !\(await inReserve\(/.test(game),
+  'el geocerco se evalúa sólo cuando hay fix, y bloquea el guardado');
 
-// 6. La identificación automática es de plantas: sólo con el grupo flora elegido.
-assert.ok(/idAvailable\(\) && wiz\.group === 'flora'/.test(game));
+// 6. Fuera la subida desde galería: sólo cámara.
+assert.ok(!/gm-file-up/.test(game), 'la subida desde galería debe haber desaparecido');
+assert.ok(/id="gm-file-cam" type="file" accept="image\/\*" capture="environment"/.test(game));
 
-// 7. Los tres botones externos ya no están (Pl@ntNet / Merlin / iNaturalist).
+// 7. Un solo predicado de permiso, y vive en app.js.
+assert.ok(!/function hasAccount\(\)/.test(game), 'game.js ya no define el suyo');
+assert.ok(!/isGuestVisitor/.test(app), 'el proxy por flag de invitado debe haber desaparecido');
+assert.ok(/const hasAccount = \(\) => !!Cloud\.currentUser\(\);/.test(app));
+
+// 8. La identificación automática la decide el enrutador, no el juego.
+assert.ok(/idAvailableFor\(cap\.group\)/.test(game));
+assert.ok(!/identifyPlant/.test(game), 'el juego llama al enrutador, no al backend');
+
+// 9. `species_hint` lleva la conjetura del MOTOR y `subject_id` la de la PERSONA.
+//    Antes las dos llevaban lo mismo, así que un desacuerdo era invisible en la
+//    bandeja y no había nada que revisar.
+assert.ok(/species_hint: obs\.engineSci \|\| null/.test(game));
+
+// 10. Duplicados por contenido, con la misma huella que usa la ingesta del admin.
+assert.ok(/import \{ sha256Hex \} from '\.\/archive-intake\.js'/.test(game));
+assert.ok(/isDuplicatePhoto\(player\.id, hash\)/.test(game));
+
+// 11. Sin premios: los puntos los escribe el cliente y nadie puede comprobarlos.
+assert.ok(!/prizes:/.test(game), 'los premios deben haberse eliminado');
+
+// 12. Los tres botones externos siguen fuera (Pl@ntNet / Merlin / iNaturalist).
 for (const gone of ['species-tools', 'id_plant', 'id_bird', 'id_inat', 'inat-link']) {
   assert.ok(!html.includes(gone), `${gone} debería haberse eliminado del HTML`);
 }
 
-console.log('capture: 7/7 OK');
+// 13. El juego vive en su pestaña, y el panel viejo ya no existe.
+assert.ok(html.includes('data-view="juego"') && html.includes('id="game-tab"'));
+assert.ok(!html.includes('id="game-panel"'), 'el panel dentro de Especies debe haber desaparecido');
+
+console.log('capture: 13/13 OK');
