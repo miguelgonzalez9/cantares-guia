@@ -2,7 +2,7 @@
 """
 16_sync_inventory.py — El Excel maestro es el GROUND TRUTH del inventario.
 
-  export:  species.json  →  info/censos_inventarios/inventario_maestro.xlsx
+  export:  species.json  →  info/ambiental/censos_inventarios/inventario_maestro.xlsx
   import:  inventario_maestro.xlsx  →  species.json   (aplica tus cambios/añadidos)
 
 Añadir una especie = añadir una fila en el Excel (basta scientific_name + group +
@@ -27,7 +27,7 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parents[1]
 SPECIES = ROOT / "app" / "public" / "data" / "species.json"
-XLSX = ROOT.parent / "info" / "censos_inventarios" / "inventario_maestro.xlsx"
+XLSX = ROOT.parent / "info" / "ambiental" / "censos_inventarios" / "inventario_maestro.xlsx"
 
 # Orden de columnas (todas las claves que usa la app). group y habit al frente.
 COLS = ["id", "group", "habit", "status", "scientific_name", "common_name",

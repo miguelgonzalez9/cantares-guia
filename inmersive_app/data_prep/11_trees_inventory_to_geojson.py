@@ -13,8 +13,13 @@
 #   python data_prep/11_trees_inventory_to_geojson.py
 import openpyxl, json, re, os
 
-XLSX = os.environ.get('CANTARES_XLSX',
-    r'C:\Users\migol\Dropbox\Cantares\info\censos_inventarios\3_Listado Especies Cantares.xlsx')
+# Relativa al repo, no absoluta a la maquina de nadie. `info/censos_inventarios/`
+# se reorganizo a `info/ambiental/censos_inventarios/arboles_arbustos/` y esta ruta
+# se quedo apuntando al sitio viejo: el script fallaba al abrirlo.
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+XLSX = os.environ.get('CANTARES_XLSX', os.path.join(
+    _ROOT, 'info', 'ambiental', 'censos_inventarios', 'arboles_arbustos',
+    '3_Listado Especies Cantares.xlsx'))
 OUT = os.path.join(os.path.dirname(__file__), '..', 'app', 'public', 'data', 'trees.geojson')
 
 def ddm_to_dd(pos):
