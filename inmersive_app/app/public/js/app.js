@@ -1390,7 +1390,13 @@ function routeStopCount(id) {
   const r = state.routesById[id];
   if (!r || !r.scripts) return 0;
   const member = new Set(state.waypoints.filter((w) => (w.properties.routes || []).includes(id)).map((w) => w.properties.id));
-  return Object.keys(r.scripts).filter((pid) => member.has(pid) && r.scripts[pid] && (r.scripts[pid].es || r.scripts[pid].en)).length;
+  // Se ENUMERA, no se indexa por punto: `route.scripts[pointId]` es la operación
+  // «dame el guión de este punto», y ésa pasa siempre por routeScript, que es
+  // donde vive el guard de cuenta-y-dentro-de-la-reserva (guide-gate.test.mjs
+  // cuenta ese patrón y exige que aparezca una sola vez). Contar cuántos puntos
+  // tienen guión no revela ningún texto, así que no necesita el embudo — pero
+  // tampoco puede saltárselo por la puerta de atrás.
+  return Object.entries(r.scripts).filter(([pid, sc]) => member.has(pid) && sc && (sc.es || sc.en)).length;
 }
 async function fetchElevation(coords) {
   const N = Math.min(coords.length, 90);

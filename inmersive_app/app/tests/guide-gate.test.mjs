@@ -14,7 +14,10 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
-const app = readFileSync(join(PUB, 'js', 'app.js'), 'utf8');
+// Se normalizan los finales de linea: git los convierte a CRLF al hacer
+// checkout en Windows, y entonces las regex de abajo que llevan `\n` pegado a un
+// token dejan de casar — el test falla sin que nadie haya tocado el codigo.
+const app = readFileSync(join(PUB, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // --- forma: el guard esta DENTRO de routeScript, no en los botones ---
 const rs = /function routeScript\(routeId, pointId\) \{([\s\S]*?)\n\}/.exec(app);
