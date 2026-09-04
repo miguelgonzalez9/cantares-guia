@@ -3033,6 +3033,8 @@ function editRecorrido(id) {
       <label>Color</label><div class="admin-palette" id="rt-palette">${PALETTE.map((c) => `<button type="button" class="admin-sw ${c === color ? 'sel' : ''}" data-c="${c}" style="background:${c}"></button>`).join('')}</div>
       <label>Resumen (ES)</label><textarea id="rt-sum" rows="2">${esc(r.summary)}</textarea>
       <label>Summary (EN)</label><textarea id="rt-sum-en" rows="2">${esc(r.summary_en)}</textarea>
+      <label>Duración medida (min) <span class="admin-note">— déjalo vacío para que la calcule la app</span></label>
+      <input id="rt-dur" type="number" min="0" step="5" value="${r.duration_min == null ? '' : r.duration_min}" placeholder="p. ej. 105">
 
       <div class="admin-group-h">🚩 Puntos del recorrido</div>
       <label>Punto de inicio</label>
@@ -3145,7 +3147,8 @@ function editRecorrido(id) {
     name: body.querySelector('#rt-name').value, name_en: body.querySelector('#rt-name-en').value,
     emoji, color, summary: body.querySelector('#rt-sum').value, summary_en: body.querySelector('#rt-sum-en').value,
     start_id: startId, end_id: endId, memberPoints: [...memberWork], scripts: scriptWork,
-    segments: segWork.slice(), freeroam_paths: freeWork }; };
+    segments: segWork.slice(), freeroam_paths: freeWork,
+    duration_min: body.querySelector('#rt-dur').value }; };
   // Dibujar un trazo libre (nuevo si atIndex es null, o volver a dibujar el de
   // esa posición). Dibujar cierra el panel, así que el formulario se guarda antes
   // y se reabre después — el mismo ida y vuelta que usa el editor de senderos.
@@ -3197,7 +3200,9 @@ function editRecorrido(id) {
     const row = { id: r.id, name: body.querySelector('#rt-name').value.trim() || null, name_en: body.querySelector('#rt-name-en').value.trim() || null,
       emoji, color, summary: body.querySelector('#rt-sum').value.trim() || null, summary_en: body.querySelector('#rt-sum-en').value.trim() || null,
       start_id: startId || null, end_id: endId || null,
-      segments: segWork, scripts, freeroam_paths: freePaths, sort: r.sort || 0 };
+      segments: segWork, scripts, freeroam_paths: freePaths, sort: r.sort || 0,
+      // Un numero medido caminando gana sobre cualquier modelo. Vacio = que lo calcule la app.
+      duration_min: (body.querySelector('#rt-dur').value || '').trim() === '' ? null : Math.max(0, Math.round(+body.querySelector('#rt-dur').value)) || null };
     body.querySelector('#rt-err').textContent = 'Guardando…';
     try {
       const res = await saveRow('routes', row);

@@ -55,6 +55,7 @@ const state = {
   atTrailhead: false,       // ¿ya llegó al inicio del recorrido?
   flowTimer: null,          // animación de flechas/flujo sobre el recorrido
   eleCache: {},             // desnivel por recorrido (cache de la API de elevación)
+  routeStats: {},           // tiempo MEDIDO por recorrido (mediana de caminatas completas)
 };
 
 // ---------- tipos de punto (legend filter) ----------
@@ -1320,10 +1321,55 @@ function eleText(r) { return `⛰️ +${Math.round(r.gainM)} m`; }
 // más 1 h por cada 600 m de subida. Es una estimacion, y se muestra con ~.
 // ponytail: ritmo unico; si alguna vez hay perfiles (familia, deportista), aqui
 // se parametriza.
-function walkText(distM, gainM) {
-  const min = Math.round((distM / 4000 + gainM / 600) * 60);
-  if (!isFinite(min) || min <= 0) return '⏱️ —';
-  return min < 60 ? `⏱️ ~${min} min` : `⏱️ ~${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
+// Constantes del modelo, en un solo sitio. Naismith con la corrección de
+// Langmuir, con valores de SENDERO DE MONTAÑA HÚMEDA — no de camino llano, que
+// es lo que había antes (4 km/h y 600 m/h) y por eso el Recorrido del Agua salía
+// en ~30 min cuando eso es lo que tarda sólo la bajada a la cascada.
+//
+// Son valores de manual, no medidos: el ancla de cordura es esa observación —
+// 1.518 m a 4 km/h daban 23 min para el recorrido ENTERO, menos que su propia
+// bajada. En cuanto haya 3 caminatas completas de verdad, la mediana observada
+// sustituye a todo esto (ver routeDuration).
+const WALK_KMH = 2.0;            // ritmo en llano sobre sendero estrecho y húmedo
+const ASCENT_M_PER_H = 400;      // 1 h por cada 400 m de subida acumulada
+const DESCENT_MIN_PER_300M = 10; // Langmuir: la bajada pronunciada TAMBIÉN cuesta
+const STOP_MIN = 3;              // pararse a escuchar un punto de la audioguía
+// Minutos a pie. `stops` son los puntos con guión: un recorrido con audioguía se
+// hace parando, y no contarlo era la mitad del error.
+function walkMinutes(distM, gainM, lossM, stops) {
+  const m = (distM / 1000) / WALK_KMH * 60
+    + (gainM || 0) / ASCENT_M_PER_H * 60
+    + (lossM || 0) / 300 * DESCENT_MIN_PER_300M
+    + (stops || 0) * STOP_MIN;
+  return isFinite(m) ? Math.round(m) : 0;
+}
+const fmtMin = (min) => (min < 60 ? `~${min} min` : `~${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`);
+// Dos números, porque son dos cosas distintas: cuánto se tarda en caminarlo y
+// cuánto en hacerlo como está diseñado, parándose en cada punto.
+function walkText(distM, gainM, lossM, stops) {
+  const walking = walkMinutes(distM, gainM, lossM, 0);
+  if (walking <= 0) return '⏱️ —';
+  const guided = walkMinutes(distM, gainM, lossM, stops);
+  return guided > walking ? `🚶 ${fmtMin(walking)} · 🎧 ${fmtMin(guided)}` : `⏱️ ${fmtMin(walking)}`;
+}
+// Precedencia del tiempo que se enseña: lo que MIDIÓ el dueño gana sobre lo que
+// midieron los visitantes, y eso gana sobre cualquier modelo. Un número medido
+// vale más que una regla de manual, por buena que sea la regla.
+function routeDuration(route, distM, gainM, lossM, stops) {
+  if (route && route.duration_min > 0) return { text: `⏱️ ${fmtMin(route.duration_min)}`, src: 'manual' };
+  const st = route && state.routeStats && state.routeStats[route.id];
+  if (st && st.n_walks >= 3 && st.median_min > 0) {
+    return { text: `⏱️ ${fmtMin(Math.round(st.median_min))}`, src: 'medido', n: st.n_walks };
+  }
+  return { text: walkText(distM, gainM, lossM, stops), src: 'modelo' };
+}
+// Paradas de la audioguia: puntos del recorrido que TIENEN guion. Un punto sin
+// guion no suena y no hace parar a nadie, asi que no cuenta.
+function routeStopCount(id) {
+  const r = state.routesById[id];
+  if (!r || !r.scripts) return 0;
+  const member = new Set(state.waypoints.filter((w) => (w.properties.routes || []).includes(id)).map((w) => w.properties.id));
+  return Object.keys(r.scripts).filter((pid) => member.has(pid) && r.scripts[pid] && (r.scripts[pid].es || r.scripts[pid].en)).length;
 }
 async function fetchElevation(coords) {
   const N = Math.min(coords.length, 90);
@@ -1335,17 +1381,25 @@ async function fetchElevation(coords) {
   const res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`);
   if (!res.ok) throw new Error('elev ' + res.status);
   const e = (await res.json()).elevation || [];
-  let gain = 0, min = Infinity, max = -Infinity;
-  for (let i = 0; i < e.length; i++) { min = Math.min(min, e[i]); max = Math.max(max, e[i]); if (i > 0 && e[i] > e[i - 1]) gain += e[i] - e[i - 1]; }
-  return { gainM: gain, minEle: min, maxEle: max };
+  // La BAJADA tambien cuesta tiempo en sendero pronunciado (correccion de
+  // Langmuir), asi que se suma aparte en vez de tirarla.
+  let gain = 0, loss = 0, min = Infinity, max = -Infinity;
+  for (let i = 0; i < e.length; i++) {
+    min = Math.min(min, e[i]); max = Math.max(max, e[i]);
+    if (i > 0 && e[i] > e[i - 1]) gain += e[i] - e[i - 1];
+    if (i > 0 && e[i] < e[i - 1]) loss += e[i - 1] - e[i];
+  }
+  return { gainM: gain, lossM: loss, minEle: min, maxEle: max };
 }
 async function applyElevation(id, path) {
   const set = (sel, txt) => { const el = $(sel); if (el && state.activeRoute === id) el.textContent = txt; };
+  const route = state.routesById[id];
+  const stops = routeStopCount(id);
   // El tiempo depende del desnivel, asi que se pinta con el, no antes.
-  const paint = (r) => { set('#ri-ele', eleText(r)); set('#ri-time', walkText(pathLengthM(path), r.gainM)); };
+  const paint = (r) => { set('#ri-ele', eleText(r)); set('#ri-time', routeDuration(route, pathLengthM(path), r.gainM, r.lossM, stops).text); };
   if (state.eleCache[id]) { paint(state.eleCache[id]); return; }
   try { const r = await fetchElevation(path); state.eleCache[id] = r; paint(r); }
-  catch (e) { set('#ri-ele', '⛰️ —'); set('#ri-time', walkText(pathLengthM(path), 0)); }
+  catch (e) { set('#ri-ele', '⛰️ —'); set('#ri-time', routeDuration(route, pathLengthM(path), 0, 0, stops).text); }
 }
 
 // ---------- waypoint card ----------
@@ -3340,13 +3394,17 @@ async function loadCloudData() {
   // visitante mira una pantalla vacía. Los refrescos posteriores ya lo hacían.
   if (!navigator.onLine) return;
   try {
-    const [cw, cs, cr, ct, cm, cpt, cc] = await Promise.all([
+    const [cw, cs, cr, ct, cm, cpt, cc, cts] = await Promise.all([
       Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null),
       Cloud.listRoutes().catch(() => null), Cloud.listTrails().catch(() => null),
       Cloud.listMedia().catch(() => null), Cloud.listPointTypes().catch(() => null),
       Cloud.listContent().catch(() => null),
+      Cloud.listRouteTimeStats().catch(() => null),
     ]);
     if (cc && cc.length) applyCloudContent(cc);   // textos de Historia / Info editados por el admin
+    // Tiempos medidos: mientras no haya 3 caminatas completas de un recorrido no
+    // hay fila, y routeDuration se queda con el modelo. Es lo normal al principio.
+    if (cts && cts.length) { state.routeStats = {}; cts.forEach((r) => { state.routeStats[r.route_id] = r; }); }
     if (cpt && cpt.length) applyCloudTypes(cpt);   // tipos de punto ANTES de coloreado/leyenda
     if (cw && cw.length) applyCloudWaypoints(cw);
     if (cs && cs.length) applyCloudSpecies(cs);
