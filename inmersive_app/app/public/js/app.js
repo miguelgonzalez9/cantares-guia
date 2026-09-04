@@ -3,7 +3,7 @@
 
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
-import { initAuthGate, doLogout } from './auth-ui.js';
+import { initAuthGate, doLogout, inReserve } from './auth-ui.js';
 import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin } from './admin.js';
 import { initGuide, startVisitorTourOnce } from './guide.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
@@ -1220,6 +1220,25 @@ function selectRoute(id) {
 // es una entitlement, y los dos discrepaban al caducar la sesion: sin flag de
 // invitado el recorrido guiado se abria, y sin `cloud.user` el juego se cerraba.
 const hasAccount = () => !!Cloud.currentUser();
+// Geocerco CACHEADO, evaluado con la ultima posicion conocida. No se pide un
+// fijo nuevo: uno de alta precision cuesta ~12 s de radio a plena potencia bajo
+// dosel, y aqui la respuesta no vale eso. Sin posicion falla ABIERTO --el gate
+// de cuenta ya exige haberse dado de alta DENTRO de la reserva-- igual que en
+// el juego (decision 2026-08-25).
+let _outsideReserve = false, _geoCheckedAt = null;
+function refreshOutsideReserve() {
+  const p = state.userPos;
+  if (!p) return;
+  // Re-evaluar en cada fijo es tirar trabajo: 25 m no cambian de que lado del
+  // lindero estas, y el buffer del geocerco son 75 m.
+  if (_geoCheckedAt && haversine(_geoCheckedAt, p) < 25) return;
+  _geoCheckedAt = p;
+  inReserve(p, state.userAccuracy || 0).then((inside) => { _outsideReserve = !inside; });
+}
+// Derecho a la GUIA: cuenta Y estar en la reserva. Cubre empezar el recorrido y
+// oir/leer el guion de un punto, que son la misma cosa -- el guion ES el
+// recorrido guiado, y hasta ahora se regalaba con un toque en el punto.
+const canGuide = () => hasAccount() && !_outsideReserve;
 function renderRouteInfo(route, built) {
   const info = $('#route-info');
   if (!route) { info.classList.add('hidden'); return; }
@@ -1252,8 +1271,8 @@ function renderRouteInfo(route, built) {
         ${sLbl ? `<span class="ri-end-item"><span class="ri-dot start"></span>${t('lg_start')}: ${escapeHtml(sLbl)}</span>` : ''}
         ${eLbl ? `<span class="ri-end-item"><span class="ri-dot end"></span>${t('lg_end')}: ${escapeHtml(eLbl)}</span>` : ''}
       </div>` : ''}
-      <button class="ri-start ${guiding ? 'active' : ''}${hasAccount() ? '' : ' locked'}" id="ri-start" style="${guiding ? '' : `background:${route.color}`}">
-        ${guiding ? t('ri_stop_walk') : (hasAccount() ? '' : '🔒 ') + t('ri_start_walk')}</button>
+      <button class="ri-start ${guiding ? 'active' : ''}${canGuide() ? '' : ' locked'}" id="ri-start" style="${guiding ? '' : `background:${route.color}`}">
+        ${guiding ? t('ri_stop_walk') : (canGuide() ? '' : '🔒 ') + t('ri_start_walk')}</button>
       <div class="ri-points-head">${t('ri_points')} <span class="ri-count">${pts.length}</span></div>
       ${pts.length ? `<ul class="ri-points">${pts.map((w) => {
         const m = typeMeta(w.properties.tipo);
@@ -1267,7 +1286,7 @@ function renderRouteInfo(route, built) {
   // un toque más, pero hace la audioguía predecible y da un sitio fijo donde
   // probar la voz — antes la pregunta aparecía o no y nadie sabía por qué.
   $('#ri-start').onclick = () => {
-    if (!hasAccount()) { toast(t('guiding_on_site')); return; }
+    if (!canGuide()) { toast(t('guiding_on_site')); return; }
     if (state.guiding === id) return stopGuiding();
     askTourMode(id);
   };
@@ -1583,11 +1602,14 @@ function showGuideCard(wp) {
   // tarjeta se queda corta (mirar el teléfono mientras caminas es justo lo que
   // se quiere evitar). En ambos casos el texto está disponible a un toque.
   const reading = state.tourMode === 'read';
+  // El guion es un objeto {es,en}: hay que ELEGIR idioma antes de pintarlo. Es
+  // la misma eleccion que hace la voz, y sale del mismo sitio (`scriptLine`).
+  const scText = (scriptLine(sc) || {}).text || '';
   el.innerHTML = `
     <div class="gs-head"><b>📍 ${escapeHtml(L(p, 'title') || p.title || '')}</b>
       <button class="gs-x" id="gc-x" aria-label="${escapeHtml(t('gc_close'))}">×</button></div>
     ${photo ? `<div class="gs-photo" style="background-image:url('${escapeHtml(photo)}')"></div>` : ''}
-    ${sc ? `<p class="gs-body ${reading ? '' : 'gs-clamp'}">${escapeHtml(sc)}</p>` : ''}
+    ${scText ? `<p class="gs-body ${reading ? '' : 'gs-clamp'}">${escapeHtml(scText)}</p>` : ''}
     <div class="gs-acts">
       ${sc && !reading ? `<button class="gs-ghost" id="gc-say">${t('gc_listen')}</button>` : ''}
       <button class="gs-cta" id="gc-more">${t('more_info')}</button>
@@ -1754,6 +1776,7 @@ function onPosition(pos) {
     // adelante, no pelearle el mapa en cada fijo del GPS.
     else if (state.following) state.map.easeTo({ center: state.userPos, duration: 600 });
   }
+  refreshOutsideReserve();
   checkProximity();
   if (state.guiding) renderTrailhead();   // destino, distancia, rumbo y traza en vivo
 }
@@ -1917,6 +1940,12 @@ function guideChip(show) {
 // offline). Un punto sin guión en ese recorrido no activa audio. Como el mismo
 // punto puede estar en varios recorridos, la clave es (recorrido, punto).
 function routeScript(routeId, pointId) {
+  // El permiso se comprueba AQUI, no en cada boton: `routeScript` es el unico
+  // sitio por el que un guion llega a la pantalla (la tarjeta de llegada y el
+  // popup del punto), asi que un solo guard los cubre a los dos y a los que
+  // vengan. Un recorrido YA EMPEZADO no se corta: salirse dos metros del buffer
+  // a mitad de camino no puede callar la audioguia.
+  if (!state.guiding && !canGuide()) return null;
   const r = routeId && state.routesById[routeId];
   const s = r && r.scripts && r.scripts[pointId];
   return (s && (s.es || s.en)) ? s : null;
@@ -1989,16 +2018,21 @@ function speak(text, lang) {
   }, 90);
   return true;
 }
-// Lee un guión. Si no llega a leerse, el texto sigue estando en la tarjeta.
-function speakScript(s) {
-  if (!s) return;
-  // El idioma se elige JUNTO con el texto, no por separado: si falta el guión en
-  // inglés se cae al español, y anunciar en-US sobre un texto español hace que
-  // la voz lo lea con fonética inglesa — ininteligible para todo el mundo.
+// Texto + idioma de un guión, elegidos JUNTOS. Van juntos porque son la misma
+// decisión: si falta el guión en inglés se cae al español, y anunciar en-US
+// sobre un texto español hace que la voz lo lea con fonética inglesa —
+// ininteligible para todo el mundo. Lo usan la voz Y la tarjeta: cuando sólo lo
+// sabía la voz, la tarjeta pintaba `[object Object]` en modo LEER.
+function scriptLine(s) {
+  if (!s) return null;
   const useEn = LANG === 'en' && !!s.en;
   const text = useEn ? s.en : (s.es || s.en);
-  if (!text) return;
-  speak(text, useEn ? 'en-US' : (s.es ? 'es-CO' : 'en-US'));
+  return text ? { text, lang: useEn ? 'en-US' : (s.es ? 'es-CO' : 'en-US') } : null;
+}
+// Lee un guión. Si no llega a leerse, el texto sigue estando en la tarjeta.
+function speakScript(s) {
+  const l = scriptLine(s);
+  if (l) speak(l.text, l.lang);
 }
 
 // Tres guardas contra el aviso prematuro (la queja: «la voz arranca cuando
