@@ -4,7 +4,7 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout, inReserve } from './auth-ui.js';
-import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin, saveSpeciesPatch, mediaActions } from './admin.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin, saveSpeciesPatch, mediaActions, getPath, setPath } from './admin.js';
 import { inlineField, isEditing, setEditing, editToggleButton } from './inline-edit.js';
 import { initGuide, startVisitorTourOnce } from './guide.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
@@ -57,6 +57,7 @@ const state = {
   flowTimer: null,          // animación de flechas/flujo sobre el recorrido
   eleCache: {},             // desnivel por recorrido (cache de la API de elevación)
   routeStats: {},           // tiempo MEDIDO por recorrido (mediana de caminatas completas)
+  contentFromCloud: false,  // ¿llegó la copia de la nube de las páginas de texto?
 };
 
 // ---------- tipos de punto (legend filter) ----------
@@ -316,6 +317,7 @@ const I18N = {
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
     sp_search_ph: 'Buscar por nombre común, científico o familia…', sp_no_match: 'Ninguna especie coincide con',
     sp_edit_full: 'Ficha completa…', ie_on: '✏️ Editar', ie_off: '✓ Listo',
+    ce_sections: 'Secciones…', ie_no_cloud: 'Sin señal no se puede editar esta página: no sé qué había guardado y lo pisaría.',
     f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos', f_anf: '🐸 Anfibios',
     f_seen: '👁 Vistas', f_potential: '✨ Potenciales', f_bothtier: 'Ambas',
     f_mapped: '📍 En el mapa', f_listed: '📋 Solo en el listado',
@@ -437,6 +439,7 @@ const I18N = {
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
     sp_search_ph: 'Search by common name, scientific name or family…', sp_no_match: 'No species match',
     sp_edit_full: 'Full record…', ie_on: '✏️ Edit', ie_off: '✓ Done',
+    ce_sections: 'Sections…', ie_no_cloud: 'Offline this page cannot be edited: I do not know what was saved and would overwrite it.',
     f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals', f_anf: '🐸 Amphibians',
     f_seen: '👁 Seen', f_potential: '✨ Possible', f_bothtier: 'Both',
     f_mapped: '📍 On the map', f_listed: '📋 List only',
@@ -2555,6 +2558,50 @@ function showSpecies(s) {
 // la ficha EN INGLÉS sin comprobarlo sobrescribiría el texto español con lo que
 // se escribió en inglés. Por eso el campo que se guarda depende del idioma en
 // pantalla, y en inglés se edita `*_en`.
+// ---- edición en sitio de las páginas de texto (Historia / Info) ----
+// Los elementos marcados con data-ie llevan su RUTA dentro del documento
+// (`secciones.2.texto`), así que el guardado no necesita saber nada de la forma
+// de cada página: escribe esa ruta y manda el doc entero.
+//
+// El bloqueo sin señal no es un detalle. `state.historia` es el JSON EMPACADO
+// mientras no haya llegado la copia de la nube (loadCloudData se rinde sin
+// conexión), así que guardar entonces pisaría con el texto de build todo lo que
+// se hubiera escrito antes. Hasta ahora eso no se notaba porque el editor no
+// guardaba NADA — al arreglarlo, empezaría a poder pasar de verdad.
+const CONTENT_STATE = { historia: 'historia', comercial: 'comercial', reserve_info: 'reserveInfo' };
+function contentDoc(key) { return state[CONTENT_STATE[key]]; }
+function contentEditBlock() {
+  if (!state.contentFromCloud) return t('ie_no_cloud');
+  return null;
+}
+function wireContentInlineEdit(root, key, slotId) {
+  if (!root || !isAdminUser()) return;
+  const slot = slotId && document.getElementById(slotId);
+  if (slot && !slot.firstChild) {
+    slot.appendChild(editToggleButton({ label: t('ie_on'), labelOn: t('ie_off'),
+      disabledReason: contentEditBlock(), toast,
+      onToggle: () => { renderHistoria(); renderVisitInfo(); renderComercial(); } }));
+  }
+  if (!isEditing() || contentEditBlock()) return;
+  root.querySelectorAll('[data-ie]').forEach((el) => {
+    const path = el.dataset.ie;
+    inlineField(el, {
+      type: el.dataset.ieType || 'text',
+      value: getPath(contentDoc(key), path) || '',
+      placeholder: '…',
+      onSave: async (v) => {
+        const doc = JSON.parse(JSON.stringify(contentDoc(key) || {}));
+        setPath(doc, path, v.trim() || null);
+        try {
+          const res = await saveRow('content', { id: key, doc });
+          applyLocalRow('content', res.row);
+          toast(res.queued ? '💾 Guardado en el teléfono — se subirá con señal' : '✓ Guardado');
+        } catch (e) { toast(`⚠️ ${(e && e.message) || e}`); }
+        renderHistoria(); renderVisitInfo(); renderComercial();
+      },
+    });
+  });
+}
 // Acciones de foto sobre la galería de la ficha. Reutilizan las mismas
 // funciones que el panel de Fotos (mediaActions en admin.js): clasificar,
 // borrar y subir tienen que encolarse igual desde los dos sitios.
@@ -2639,7 +2686,11 @@ function renderVisitInfo() {
   const info = state.reserveInfo;
   if (!info) { el.innerHTML = ''; return; }
   const pending = `<span class="v-pending">${t('v_pending')}</span>`;
-  const val = (field) => { const v = L(info, field); return v ? escapeHtml(v) : pending; };
+  const enL = LANG === 'en';
+  // Cada valor lleva la RUTA del campo que edita, con el sufijo del idioma en
+  // pantalla: editar la ficha en ingles no puede escribir sobre el texto español.
+  const val = (field) => { const v = L(info, field); const k = enL ? `${field}_en` : field;
+    return `<span data-ie="${k}" data-ie-type="area">${v ? escapeHtml(v) : pending}</span>`; };
   const phone = info.phone || '';
   const wa = (info.whatsapp || '').replace(/[^\d]/g, '');
   const contactBits = [];
@@ -2649,7 +2700,7 @@ function renderVisitInfo() {
   const rules = L(info, 'rules') || [];
 
   el.innerHTML = `
-    ${isAdminUser() ? `<button class="ce-edit-btn" id="vi-edit">✏️ ${t('ce_edit_visit')}</button>` : ''}
+    ${isAdminUser() ? `<div class="ce-admin-bar"><span id="vi-ie-slot"></span><button class="ce-edit-btn" id="vi-edit">🗂️ ${t('ce_sections')}</button></div>` : ''}
     <div class="panel visit-panel">
       <h2>${t('visit_h')}</h2>
       <div class="v-grid">
@@ -2669,6 +2720,7 @@ function renderVisitInfo() {
   // nadie va a leer en el momento en que haría falta. Los campos siguen en
   // reserve_info.json por si vuelve.
   const veb = $('#vi-edit'); if (veb) veb.onclick = () => openContentEditor('reserve_info');
+  wireContentInlineEdit(el, 'reserve_info', 'vi-ie-slot');
 }
 // ---------- Nuestra Historia (data/historia.json) ----------
 // TODO el texto viene transcrito de documentos de la reserva; la app sólo lo pinta.
@@ -2677,27 +2729,30 @@ function renderHistoria() {
   const h = state.historia;
   if (!h) { el.innerHTML = ''; return; }
   // Secciones: se pintan en el orden del JSON. Añadir texto = añadir un objeto.
-  const blk = (b) => {
+  const en = LANG === 'en';
+  const editing = isAdminUser() && isEditing();
+  const blk = (b, i) => {
     const titulo = L(b, 'titulo'), texto = L(b, 'texto');
-    if (!titulo && !texto) return '';   // slot vacío → no ocupa espacio
+    if (!titulo && !texto && !editing) return '';   // slot vacío → no ocupa espacio
     return `<section class="panel hist-panel">
       ${b.foto ? `<img class="hist-foto" src="${escapeAttr(b.foto)}" alt="" loading="lazy">` : ''}
-      ${titulo ? `<h2 class="hist-h">${escapeHtml(titulo)}</h2>` : ''}
-      ${texto ? paraHtml(texto, 'hist-p') : ''}
+      <h2 class="hist-h" data-ie="secciones.${i}.${en ? 'titulo_en' : 'titulo'}">${escapeHtml(titulo)}</h2>
+      <div data-ie="secciones.${i}.${en ? 'texto_en' : 'texto'}" data-ie-type="area">${texto ? paraHtml(texto, 'hist-p') : ''}</div>
       ${b.pie ? `<p class="hist-pie">${escapeHtml(b.pie)}</p>` : ''}
     </section>`;
   };
   const items = (h.hitos && h.hitos.items) || [];
   const hitos = items.length ? `<section class="panel hist-panel hist-tl-panel">
       <h2 class="hist-h">${escapeHtml(L(h.hitos, 'titulo') || '')}</h2>
-      <ol class="hist-timeline">${items.map((it) => `<li class="${it.hito ? 'is-key' : ''}">
+      <ol class="hist-timeline">${items.map((it, i) => `<li class="${it.hito ? 'is-key' : ''}">
         <span class="ht-date">${escapeHtml(it.fecha || '')}</span>
-        <span class="ht-text">${escapeHtml(L(it, 'texto') || '')}</span></li>`).join('')}</ol>
+        <span class="ht-text" data-ie="hitos.items.${i}.${en ? 'texto_en' : 'texto'}" data-ie-type="area">${escapeHtml(L(it, 'texto') || '')}</span></li>`).join('')}</ol>
     </section>` : '';
-  el.innerHTML = `${isAdminUser() ? `<button class="ce-edit-btn" id="hist-edit">✏️ ${t('ce_edit')}</button>` : ''}
-    ${L(h, 'lead') ? `<figure class="hist-quote"><blockquote>${escapeHtml(L(h, 'lead'))}</blockquote></figure>` : ''}
+  el.innerHTML = `${isAdminUser() ? `<div class="ce-admin-bar"><span id="hist-ie-slot"></span><button class="ce-edit-btn" id="hist-edit">🗂️ ${t('ce_sections')}</button></div>` : ''}
+    <figure class="hist-quote"><blockquote data-ie="${en ? 'lead_en' : 'lead'}" data-ie-type="area">${escapeHtml(L(h, 'lead') || '')}</blockquote></figure>
     ${(h.secciones || []).map(blk).join('')}${hitos}`;
   const eb = $('#hist-edit'); if (eb) eb.onclick = () => openContentEditor('historia');
+  wireContentInlineEdit(el, 'historia', 'hist-ie-slot');
 }
 // Íconos de las apps a las que llevan los enlaces. Van EN LÍNEA (SVG, sin red):
 // la app tiene que verse igual sin señal, así que nada de cargarlos de un CDN.
@@ -3563,6 +3618,11 @@ async function loadCloudData() {
       Cloud.listContent().catch(() => null),
       Cloud.listRouteTimeStats().catch(() => null),
     ]);
+    // La marca va aquí y no dentro de applyCloudContent: lo que habilita editar
+    // es que la CONSULTA haya funcionado, no que haya filas. Una tabla vacía es
+    // un estado legítimo (todavía no se ha guardado nada) y con la marca dentro
+    // se quedaba bloqueada la edición para siempre.
+    if (cc) state.contentFromCloud = true;
     if (cc && cc.length) applyCloudContent(cc);   // textos de Historia / Info editados por el admin
     // Tiempos medidos: mientras no haya 3 caminatas completas de un recorrido no
     // hay fila, y routeDuration se queda con el modelo. Es lo normal al principio.

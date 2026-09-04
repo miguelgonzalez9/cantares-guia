@@ -443,6 +443,10 @@ textarea.ie-input { resize: vertical; line-height: 1.5; }
 .sp-add { display: flex; align-items: center; justify-content: center; min-height: 90px;
   border: 1px dashed var(--line); border-radius: 10px; background: none; color: inherit;
   font-size: 13px; cursor: pointer; }
+/* Barra de admin de las paginas de texto: el interruptor de edicion en sitio y,
+   al lado, el editor de ESTRUCTURA (anadir/borrar/reordenar secciones), que en
+   sitio y con el pulgar es peor que en un formulario. */
+.ce-admin-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
 .species-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .species-card {
   background: var(--card); border-radius: 14px; padding: 12px; box-shadow: 0 2px 8px rgba(20,45,30,.06);

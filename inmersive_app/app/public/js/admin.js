@@ -1335,8 +1335,8 @@ const CONTENT_SCHEMA = {
     ],
   },
 };
-const getPath = (o, p) => p.split('.').reduce((a, k) => (a && a[k] != null ? a[k] : undefined), o);
-function setPath(o, p, v) {
+export const getPath = (o, p) => p.split('.').reduce((a, k) => (a && a[k] != null ? a[k] : undefined), o);
+export function setPath(o, p, v) {
   const ks = p.split('.'); let cur = o;
   ks.slice(0, -1).forEach((k) => { if (typeof cur[k] !== 'object' || cur[k] == null) cur[k] = {}; cur = cur[k]; });
   cur[ks[ks.length - 1]] = v;
