@@ -1286,7 +1286,13 @@ export function openContentEditor(key) {
   if (!ov) { ov = document.createElement('div'); ov.id = 'ce-ov'; ov.className = 'ce-ov'; document.body.appendChild(ov); }
   const close = () => ov.remove();
 
-  const inputFor = (f, val, id) => {
+  // El tercer argumento es un PREFIJO, no el id: el id se compone aquí como
+  // `prefix + f.k`, igual que lo busca readInto. Cuando este parámetro se usaba
+  // tal cual como id, TODOS los campos salían con el mismo (`id="top_"`),
+  // readInto buscaba `#top_lead` y no encontraba nada, y guardar escribía el
+  // borrador sin tocar: historia, comercial e info no guardaban nunca.
+  const inputFor = (f, val, prefix) => {
+    const id = prefix + f.k;
     const v = val == null ? '' : val;
     if (f.t === 'check') return `<label class="ce-chk"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}> ${esc(f.l)}</label>`;
     const lbl = `<label class="ce-lbl" for="${id}">${esc(f.l)}</label>`;
