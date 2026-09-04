@@ -4,7 +4,8 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout, inReserve } from './auth-ui.js';
-import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin } from './admin.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin, saveSpeciesPatch } from './admin.js';
+import { inlineField, isEditing, setEditing, editToggleButton } from './inline-edit.js';
 import { initGuide, startVisitorTourOnce } from './guide.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps, saveRow, deleteRow, compressImage } from './sync.js';
@@ -314,6 +315,7 @@ const I18N = {
     carbon_h: '🌳 Carbono capturado',
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
     sp_search_ph: 'Buscar por nombre común, científico o familia…', sp_no_match: 'Ninguna especie coincide con',
+    sp_edit_full: 'Ficha completa…', ie_on: '✏️ Editar', ie_off: '✓ Listo',
     f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos', f_anf: '🐸 Anfibios',
     f_seen: '👁 Vistas', f_potential: '✨ Potenciales', f_bothtier: 'Ambas',
     f_mapped: '📍 En el mapa', f_listed: '📋 Solo en el listado',
@@ -434,6 +436,7 @@ const I18N = {
     carbon_h: '🌳 Carbon captured',
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
     sp_search_ph: 'Search by common name, scientific name or family…', sp_no_match: 'No species match',
+    sp_edit_full: 'Full record…', ie_on: '✏️ Edit', ie_off: '✓ Done',
     f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals', f_anf: '🐸 Amphibians',
     f_seen: '👁 Seen', f_potential: '✨ Possible', f_bothtier: 'Both',
     f_mapped: '📍 On the map', f_listed: '📋 List only',
@@ -2337,9 +2340,21 @@ function renderSpeciesGrid(highlightId) {
       b.id = 'species-admin-add'; b.className = 'admin-add'; b.style.marginBottom = '10px';
       b.textContent = '＋ ' + t('sp_new');
       b.onclick = () => openSpeciesEditor(null, () => { refreshSpecies(); renderSpeciesGrid(); });
-      grid.parentNode.insertBefore(b, grid);
+      // El interruptor gobierna TODA la pestaña, ficha incluida: se enciende una
+      // vez y se editan varias especies seguidas, viendo cómo van quedando.
+      const tg = editToggleButton({ label: t('ie_on'), labelOn: t('ie_off'),
+        onToggle: () => { renderSpeciesGrid(); if (state.openSpeciesId) { const sp = state.species.find((x) => x.id === state.openSpeciesId); if (sp) showSpecies(sp); } } });
+      tg.id = 'species-edit-toggle'; tg.style.marginLeft = '8px';
+      const bar = document.createElement('div'); bar.id = 'species-admin-bar'; bar.style.marginBottom = '10px';
+      bar.appendChild(b); bar.appendChild(tg);
+      grid.parentNode.insertBefore(bar, grid);
     }
-  } else if (adminAdd) adminAdd.remove();
+  } else if (adminAdd) {
+    // Se va la barra entera (botón + interruptor), no sólo el botón: dejar el
+    // interruptor de edición a la vista de un visitante sería peor que el bug.
+    (document.getElementById('species-admin-bar') || adminAdd).remove();
+    if (isEditing()) setEditing(false);
+  }
   // Rejilla vacía buscando: decirlo, en vez de dejar un hueco que parece un fallo.
   if (!list.length && speciesQuery.trim()) {
     const p = document.createElement('p');
@@ -2483,17 +2498,17 @@ function showSpecies(s) {
       : `<div class="wp-photo-hdr wp-no-photo" style="background:linear-gradient(135deg, var(--green), var(--deep))"><span class="wp-hdr-emoji">${groupMeta(speciesGroup(s)).emoji}</span></div>`}
     <div class="wp-inner">
       <div class="wp-theme-badges"><span class="species-group-tag" style="background:${groupMeta(speciesGroup(s)).color}">${escapeHtml(groupLabel(speciesGroup(s)))}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}${iucnBadge(s.iucn)}</div>
-      <h2 class="wp-title">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
-      ${s.scientific_name ? `<p class="wp-sci"><em>${escapeHtml(s.scientific_name)}</em>${s.family ? ` · ${escapeHtml(s.family)}` : ''}</p>` : ''}
+      <h2 class="wp-title" id="sp-f-common">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
+      <p class="wp-sci"><em id="sp-f-sci">${escapeHtml(s.scientific_name || '')}</em> · <span id="sp-f-family">${escapeHtml(s.family || '')}</span></p>
       ${rest.length ? `<div class="sp-gallery">${rest.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
-      ${L(s, 'description')
+      <div id="sp-f-desc">${L(s, 'description')
         ? paraHtml(L(s, 'description'), 'wp-desc')
-        : (s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : '')}
+        : (s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : '')}</div>
       <div class="sp-where">📍 ${wps.length ? `${wps.length} ${wps.length === 1 ? t('sp_here_1') : t('sp_here_n')}` : t('sp_nowhere')}</div>
       ${wps.length ? `${mapImg ? `<img class="sp-map" src="${mapImg}" alt="">` : ''}
         <div class="sp-locs">${wps.map((w) => `<button class="chip" data-wp="${escapeHtml(w.properties.id)}">${escapeHtml(L(w.properties, 'title') || w.properties.title)}</button>`).join('')}</div>` : ''}
       ${admin ? `<div class="sp-admin-actions">
-        <button class="wp-nav" id="sp-edit" style="background:var(--deep)">✏️ ${t('sp_edit')}</button>
+        <button class="wp-nav" id="sp-edit" style="background:var(--deep)">📋 ${t('sp_edit_full')}</button>
         <button class="wp-nav" id="sp-frame" style="background:var(--moss)">🖼️ ${t('sp_frame')}</button>
         ${cover ? `<button class="wp-nav" id="sp-dl" style="background:var(--muted)">⬇️ ${t('sp_dl')}</button>` : ''}
       </div>` : ''}
@@ -2507,6 +2522,37 @@ function showSpecies(s) {
   const ed = $('#sp-edit'); if (ed) ed.onclick = () => { closeWaypoint(); openSpeciesEditor(s.id, () => { refreshSpecies(); renderSpeciesGrid(); }); };
   const fr = $('#sp-frame'); if (fr) fr.onclick = () => openReframe('species', s.id);
   const dl = $('#sp-dl'); if (dl) dl.onclick = () => downloadPhoto(cover.full, L(s, 'common_name') || s.scientific_name);
+  if (admin) wireSpeciesInlineEdit(s);
+}
+// Edición EN SITIO de la ficha de especie: se toca el título y se edita el
+// título, sobre la ficha real. El editor modal sigue existiendo para crear,
+// borrar y los campos que no se ven en la ficha (estado, IUCN, ★, notas).
+//
+// Ojo con el idioma: `L()` cae al español cuando falta el inglés, así que editar
+// la ficha EN INGLÉS sin comprobarlo sobrescribiría el texto español con lo que
+// se escribió en inglés. Por eso el campo que se guarda depende del idioma en
+// pantalla, y en inglés se edita `*_en`.
+function wireSpeciesInlineEdit(s) {
+  const en = LANG === 'en';
+  const save = async (patch) => {
+    try {
+      const row = await saveSpeciesPatch(s, patch);
+      Object.assign(s, patch);
+      renderSpeciesGrid(); showSpecies(state.species.find((x) => x.id === s.id) || s);
+      return row;
+    } catch (e) { toast(`⚠️ ${(e && e.message) || e}`); }
+  };
+  const f = (sel, opts) => inlineField($(sel), opts);
+  f('#sp-f-common', { value: (en ? s.common_name_en : s.common_name) || '',
+    placeholder: en ? 'Common name (EN)' : 'Nombre común',
+    onSave: (v) => save(en ? { common_name_en: v.trim() || null } : { common_name: v.trim() || null }) });
+  f('#sp-f-sci', { value: s.scientific_name || '', placeholder: 'Nombre científico',
+    onSave: (v) => save({ scientific_name: v.trim() || null }) });
+  f('#sp-f-family', { value: s.family || '', placeholder: 'Familia',
+    onSave: (v) => save({ family: v.trim() || null }) });
+  f('#sp-f-desc', { type: 'area', value: (en ? s.description_en : s.description) || '',
+    placeholder: en ? 'Technical description (EN)' : 'Descripción técnica',
+    onSave: (v) => save(en ? { description_en: v.trim() || null } : { description: v.trim() || null }) });
 }
 // Visor a pantalla completa para una foto/video de la galería.
 function openLightbox(url, kind) {

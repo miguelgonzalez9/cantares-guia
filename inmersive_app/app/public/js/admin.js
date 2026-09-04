@@ -699,6 +699,30 @@ export function openSpeciesEditor(id, onSaved) {
   };
 }
 
+// Guardar UN campo de una especie desde la edición en sitio. Vive aquí, junto al
+// editor modal, para que la regla de procedencia no acabe escrita en dos sitios:
+// editar la descripción en la app cuenta como revisarla, se toque donde se toque.
+// La fila se manda completa (no sólo el campo) porque `upsert` crea la fila si
+// todavía no existe en la nube — muchas especies sólo viven en el JSON empacado.
+export async function saveSpeciesPatch(s, patch) {
+  const merged = { ...s, ...patch };
+  const row = { id: s.id,
+    common_name: merged.common_name || null, common_name_en: merged.common_name_en || null,
+    scientific_name: merged.scientific_name || null, family: merged.family || null,
+    group: editorGroup(merged), status: merged.status || 'documented',
+    notes: merged.notes || null, flagship: !!merged.flagship, photo: merged.photo || null,
+    description: merged.description || null, description_en: merged.description_en || null,
+    iucn: merged.iucn || null };
+  if ('description' in patch && row.description) {
+    row.description_reviewed = true;
+    row.description_source = (s.description_source && s.description_source !== 'llm_draft') ? s.description_source : 'admin';
+  }
+  const res = await saveRow('species', row);
+  CTX.applyLocalRow('species', res.row);
+  CTX.toast(res.queued ? '💾 Guardada en el teléfono — se subirá con señal' : '✓ Guardado');
+  return res.row;
+}
+
 // Descarga una foto (punto o especie) forzando el guardado, aun si es de otro
 // dominio (Supabase Storage): se baja como blob y se dispara la descarga.
 export async function downloadPhoto(url, name) {

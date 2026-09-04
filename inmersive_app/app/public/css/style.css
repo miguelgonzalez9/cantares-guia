@@ -412,6 +412,24 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .sp-search-x { position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
   border: 0; background: none; font-size: 15px; line-height: 1; padding: 6px 8px; cursor: pointer; opacity: .6; }
 .species-empty { opacity: .75; font-size: 14px; padding: 14px 2px; grid-column: 1 / -1; }
+/* ---------- Edicion EN SITIO ----------
+   Se edita sobre la pagina real, no en un formulario aparte. Mientras el modo
+   esta apagado no hay ni un borde de mas: la pagina se ve exactamente como la
+   ve un visitante, que es la mitad de para que sirve poder apagarlo. */
+.edit-toggle { border: 1px solid var(--line); background: var(--card, #fff); color: inherit;
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+.edit-toggle.on { background: #2f6f4e; border-color: #2f6f4e; color: #fff; }
+.edit-toggle.off { opacity: .45; }
+body.is-editing .ie-field { outline: 1px dashed rgba(47,111,78,.55); outline-offset: 3px;
+  border-radius: 4px; cursor: text; }
+body.is-editing .ie-field:hover { background: rgba(47,111,78,.07); }
+.ie-field.ie-empty { opacity: .5; font-style: italic; }
+.ie-field.ie-open { outline: none; background: none; }
+/* El campo hereda tipografia y tamano del elemento que sustituye: lo que se ve
+   mientras se escribe tiene que ser lo que va a quedar. */
+.ie-input { width: 100%; box-sizing: border-box; font: inherit; color: inherit;
+  background: var(--card, #fff); border: 1px solid #2f6f4e; border-radius: 6px; padding: 4px 6px; }
+textarea.ie-input { resize: vertical; line-height: 1.5; }
 .species-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .species-card {
   background: var(--card); border-radius: 14px; padding: 12px; box-shadow: 0 2px 8px rgba(20,45,30,.06);
