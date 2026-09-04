@@ -313,6 +313,7 @@ const I18N = {
     ortho_h: '🛰️ Antes / después (ortofoto)', ortho_p: 'Ortofoto fotogramétrica de la reserva (~4,4 cm/píxel).',
     carbon_h: '🌳 Carbono capturado',
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
+    sp_search_ph: 'Buscar por nombre común, científico o familia…', sp_no_match: 'Ninguna especie coincide con',
     f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos', f_anf: '🐸 Anfibios',
     f_seen: '👁 Vistas', f_potential: '✨ Potenciales', f_bothtier: 'Ambas',
     f_mapped: '📍 En el mapa', f_listed: '📋 Solo en el listado',
@@ -432,6 +433,7 @@ const I18N = {
     ortho_h: '🛰️ Before / after (orthophoto)', ortho_p: 'Photogrammetric orthophoto of the reserve (~4.4 cm/pixel).',
     carbon_h: '🌳 Carbon captured',
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
+    sp_search_ph: 'Search by common name, scientific name or family…', sp_no_match: 'No species match',
     f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals', f_anf: '🐸 Amphibians',
     f_seen: '👁 Seen', f_potential: '✨ Possible', f_bothtier: 'Both',
     f_mapped: '📍 On the map', f_listed: '📋 List only',
@@ -2275,6 +2277,20 @@ function renderSpeciesFilters() {
   });
 }
 // Filtro de grupo solo (independiente de la capa vistas/potenciales).
+// Texto del buscador de la pestaña Especies. Se normaliza (sin tildes, en
+// minúsculas) para que «tangara» encuentre «Tángara» y «buho» encuentre «Búho».
+let speciesQuery = '';
+const normTxt = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+// Se busca por nombre común (ES y EN), científico y familia: son los cuatro
+// nombres por los que alguien puede conocer un bicho. TODAS las palabras
+// escritas tienen que aparecer en algún campo — así «tangara azul» filtra de
+// verdad en vez de traer las 30 tángaras.
+function matchesQuery(s, terms) {
+  if (!terms.length) return true;
+  const hay = normTxt([s.common_name, s.common_name_en, s.scientific_name, s.family,
+    s.family_common, s.ebird_common_es, s.ebird_common_en].filter(Boolean).join(' '));
+  return terms.every((w) => hay.includes(w));
+}
 function groupFiltered() {
   return state.species.filter((s) =>
     speciesFilter === 'all' ? true
@@ -2282,7 +2298,8 @@ function groupFiltered() {
     : speciesGroup(s) === speciesFilter);
 }
 function filteredSpecies() {
-  const base = groupFiltered();
+  const terms = normTxt(speciesQuery).split(/\s+/).filter(Boolean);
+  const base = groupFiltered().filter((s) => matchesQuery(s, terms));
   // Sin categoría elegida no hay toggle visible (ver renderSpeciesFilters), así
   // que TAMPOCO se filtra: un filtro que actúa sin botón que lo muestre es un
   // filtro invisible, y el visitante no entiende por qué le faltan especies.
@@ -2317,6 +2334,14 @@ function renderSpeciesGrid(highlightId) {
       grid.parentNode.insertBefore(b, grid);
     }
   } else if (adminAdd) adminAdd.remove();
+  // Rejilla vacía buscando: decirlo, en vez de dejar un hueco que parece un fallo.
+  if (!list.length && speciesQuery.trim()) {
+    const p = document.createElement('p');
+    p.className = 'species-empty';
+    p.textContent = `${t('sp_no_match')} «${speciesQuery.trim()}».`;
+    grid.appendChild(p);
+    return;
+  }
   list.forEach((s) => {
     const gg = gOf(s), gm = groupMeta(gg);
     if (showHeaders && gg !== lastGroup) {
@@ -3197,6 +3222,7 @@ function applyStaticI18n() {
   document.documentElement.lang = LANG;
   $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   $$('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  $$('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
   $('#lang-toggle').textContent = LANG === 'es' ? 'EN' : 'ES';
   const h = $('#bc-handle'); if (h) h.setAttribute('aria-label', t('base_compare_a11y'));
   const hb = $('#help-btn'); if (hb) { hb.title = t('help_a11y'); hb.setAttribute('aria-label', t('help_a11y')); }
@@ -3222,6 +3248,15 @@ async function main() {
   // Tap fuera del recuadro (sobre el fondo oscuro) lo cierra.
   $('#waypoint-card').addEventListener('click', (e) => { if (e.target.id === 'waypoint-card') closeWaypoint(); });
   $('#search-btn').onclick = openSearch;
+  // Buscador de la pestaña Especies. Se filtra al teclear (744 especies en
+  // memoria: no hace falta ni debounce ni ir al servidor) y la ✕ sólo aparece
+  // cuando hay algo escrito, para no ofrecer un botón que no hace nada.
+  const spQ = $('#species-q'), spX = $('#species-q-x');
+  if (spQ) {
+    const applyQ = () => { speciesQuery = spQ.value; if (spX) spX.hidden = !spQ.value; renderSpeciesGrid(); };
+    spQ.oninput = applyQ;
+    if (spX) spX.onclick = () => { spQ.value = ''; applyQ(); spQ.focus(); };
+  }
   $('#search-close').onclick = closeSearch;
   $('#search-input').oninput = (e) => renderSearch(e.target.value);
   // Legend and GPS button: draggable (tap still collapses / locates).
