@@ -2909,9 +2909,16 @@ function renderRecorridos() {
 // orden como índices del array original (`onDrop([2,0,1])`).
 function wireSegDrag(ol, onDrop) {
   if (!ol) return;
+  // La captura y los listeners van sobre el <ol>, que NO se mueve — nunca sobre
+  // el grip. El grip vive dentro del <li> que este código mueve con
+  // insertBefore, y mover un nodo lo saca antes del documento: eso libera la
+  // captura de puntero, así que al primer reordenamiento dejaban de llegar
+  // pointermove/pointerup, `end` no corría y `onDrop` no se llamaba nunca. La
+  // lista se veía reordenada, pero segWork no cambiaba y el <li> se quedaba
+  // fantasma con la clase .dragging.
   ol.querySelectorAll('.seg-grip').forEach((g) => g.onpointerdown = (ev) => {
     const li = g.closest('li'); if (!li) return;
-    ev.preventDefault(); g.setPointerCapture(ev.pointerId);
+    ev.preventDefault(); ol.setPointerCapture(ev.pointerId);
     li.classList.add('dragging');          // el CSS le quita pointer-events: si no,
                                            // elementFromPoint devolvería el propio li
     const move = (e) => {
@@ -2922,13 +2929,13 @@ function wireSegDrag(ol, onDrop) {
       ol.insertBefore(li, (e.clientY < r.top + r.height / 2) ? t : t.nextSibling);
     };
     const end = () => {
-      g.removeEventListener('pointermove', move);
-      g.removeEventListener('pointerup', end); g.removeEventListener('pointercancel', end);
+      ol.removeEventListener('pointermove', move);
+      ol.removeEventListener('pointerup', end); ol.removeEventListener('pointercancel', end);
       li.classList.remove('dragging');
       onDrop([...ol.children].map((n) => +n.dataset.i));
     };
-    g.addEventListener('pointermove', move);
-    g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end);
+    ol.addEventListener('pointermove', move);
+    ol.addEventListener('pointerup', end); ol.addEventListener('pointercancel', end);
   });
 }
 
