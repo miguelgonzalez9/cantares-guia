@@ -951,7 +951,11 @@ function freeRoamRing() {
   const p = state.freeroam && state.freeroam.polygon;
   return Array.isArray(p) && p.length >= 4 ? p : null;   // anillo cerrado mínimo
 }
-function freeRoamPath(cs) {
+// `keep` es la máscara paralela de orderedPathFromSegments: las coordenadas que
+// vienen de un TRAZO LIBRE se respetan tal cual. Ese trazo está dibujado a
+// propósito dentro de la zona, así que enderezarlo lo borraría entero — es
+// exactamente lo contrario de lo que se pidió al dibujarlo.
+function freeRoamPath(cs, keep) {
   const ring = freeRoamRing();
   if (!ring || !Array.isArray(cs) || cs.length < 3) return cs;
   const out = [];
@@ -960,8 +964,13 @@ function freeRoamPath(cs) {
     if (!inPolygon(cs[i], ring)) { out.push(cs[i]); i++; continue; }
     let j = i;                                   // tramo consecutivo dentro de la zona
     while (j + 1 < cs.length && inPolygon(cs[j + 1], ring)) j++;
-    out.push(cs[i]);                             // por donde entra
-    if (j > i) out.push(cs[j]);                  // por donde sale (recta entre los dos)
+    let drawn = false;
+    if (keep) for (let k = i; k <= j && !drawn; k++) drawn = !!keep[k];
+    if (drawn) { for (let k = i; k <= j; k++) out.push(cs[k]); }   // dibujado: intacto
+    else {
+      out.push(cs[i]);                           // por donde entra
+      if (j > i) out.push(cs[j]);                // por donde sale (recta entre los dos)
+    }
     i = j + 1;
   }
   return out.length >= 2 ? out : cs;
@@ -970,22 +979,43 @@ function freeRoamPath(cs) {
 // Encadena senderos en el ORDEN dado (route.segments), orientando cada uno para
 // conectar con el anterior. Ese orden fija la dirección del recorrido.
 const trailById = (tid) => state.trails.find((t) => t.properties.id === tid);
-function orderedPathFromSegments(ids) {
-  const segs = ids.map(trailById).filter(Boolean).map((t) => t.geometry.coordinates.slice());
+// Un tramo del recorrido es un sendero de la red O un TRAZO LIBRE propio del
+// recorrido (`free:<clave>` → route.freeroam_paths[clave]). El trazo libre no
+// es un sendero: no está en `trails`, no sale en la lista de senderos y no se
+// reutiliza en otro recorrido. Existe para poder pasar por donde no hay sendero
+// —el claro de la casa— sin ensuciar la red con uno inventado.
+const FREE_SEG = 'free:';
+const isFreeSeg = (id) => String(id || '').startsWith(FREE_SEG);
+const freeSegKey = (id) => String(id).slice(FREE_SEG.length);
+function segCoords(id, freePaths) {
+  if (isFreeSeg(id)) {
+    const cs = freePaths && freePaths[freeSegKey(id)];
+    return Array.isArray(cs) && cs.length >= 2 ? cs.slice() : null;
+  }
+  const t = trailById(id);
+  return t ? t.geometry.coordinates.slice() : null;
+}
+// Devuelve { path, free }: el trazado encadenado y, en paralelo, qué coordenadas
+// vienen de un trazo libre. Ese marcador es lo que impide luego que freeRoamPath
+// enderece —y borre— justo lo que se dibujó a mano.
+function orderedPathFromSegments(ids, freePaths) {
+  const segs = [];
+  (ids || []).forEach((id) => { const cs = segCoords(id, freePaths); if (cs) segs.push({ cs, free: isFreeSeg(id) }); });
   if (!segs.length) return null;
-  let path = segs[0].slice();
+  let path = segs[0].cs.slice(), free = path.map(() => segs[0].free);
   if (segs.length > 1) {   // orientar el primero según por dónde sigue el segundo
-    const n = segs[1];
+    const n = segs[1].cs;
     const endToNext = Math.min(haversine(path[path.length - 1], n[0]), haversine(path[path.length - 1], n[n.length - 1]));
     const startToNext = Math.min(haversine(path[0], n[0]), haversine(path[0], n[n.length - 1]));
-    if (startToNext < endToNext) path.reverse();
+    if (startToNext < endToNext) { path.reverse(); free.reverse(); }
   }
   for (let i = 1; i < segs.length; i++) {
-    let seg = segs[i]; const tail = path[path.length - 1];
+    let seg = segs[i].cs; const tail = path[path.length - 1];
     if (haversine(tail, seg[seg.length - 1]) < haversine(tail, seg[0])) seg = seg.slice().reverse();
-    path = haversine(tail, seg[0]) < 5 ? path.concat(seg.slice(1)) : path.concat(seg);
+    const add = haversine(tail, seg[0]) < 5 ? seg.slice(1) : seg;   // soldar si se tocan
+    path = path.concat(add); free = free.concat(add.map(() => segs[i].free));
   }
-  return path;
+  return { path, free };
 }
 
 // Greedily chain a route's segments into ONE ordered polyline start→end, so the
@@ -998,7 +1028,8 @@ function buildRoutePath(id) {
   // según los puntos de inicio/fin si se dieron (para que el flujo del camino
   // apunte hacia donde el admin marcó, aunque no cambie el orden de senderos).
   if (route && Array.isArray(route.segments) && route.segments.length) {
-    let path = freeRoamPath(orderedPathFromSegments(route.segments));
+    const built = orderedPathFromSegments(route.segments, route.freeroam_paths);
+    let path = built && freeRoamPath(built.path, built.free);
     if (path && path.length >= 2) {
       const last = path.length - 1;
       const sC = sWp && sWp.geometry.coordinates, eC = eWp && eWp.geometry.coordinates;
@@ -1048,11 +1079,14 @@ function buildRoutePath(id) {
 // la caja de información del recorrido; el editor la reutiliza para que los
 // guiones salgan en el orden en que el visitante llega a cada punto, no en el
 // orden en que el admin los fue tocando en el mapa.
-function orderPointsAlongSegments(segIds, ptIds, startId, endId) {
+function orderPointsAlongSegments(segIds, ptIds, startId, endId, freePaths) {
   const ids = (ptIds || []).slice();
   const sWp = startId ? wpById(startId) : null;
   const eWp = endId ? wpById(endId) : null;
-  let path = orderedPathFromSegments(segIds || []);
+  // Con los trazos libres puestos: los puntos del claro se proyectan sobre el
+  // trazado que se dibujó, no sobre la recta que dejaría el enderezado.
+  const built = orderedPathFromSegments(segIds || [], freePaths);
+  let path = built && built.path;
   // Sin senderos elegidos no había trazado sobre el que proyectar y los puntos
   // se quedaban en el orden en que el admin los fue TOCANDO en el mapa — que no
   // es el orden en que se caminan. Se deduce el camino por la red de senderos
@@ -1481,7 +1515,7 @@ function routePointsInOrder(id) {
   const r = state.routesById[id];
   if (!r) return [];
   const ids = state.waypoints.filter((w) => (w.properties.routes || []).includes(id)).map((w) => w.properties.id);
-  return orderPointsAlongSegments(r.segments || [], ids, r.start_id, r.end_id).map(wpById).filter(Boolean);
+  return orderPointsAlongSegments(r.segments || [], ids, r.start_id, r.end_id, r.freeroam_paths).map(wpById).filter(Boolean);
 }
 // ¿A dónde toca ir AHORA? Antes de llegar al inicio, al inicio; después, al
 // siguiente punto que no se haya visitado; al final, al punto de fin.
@@ -3198,6 +3232,11 @@ async function main() {
         ensureGps: () => { if (state.watchId == null) locate(); },   // GPS caliente para marcar sin esperar
         orderPointsAlongSegments,   // guiones en el orden del recorrido (editor de recorridos)
         freeRoam: () => state.freeroam,
+        // ¿Está el punto dentro de la zona de recorrido libre? Lo usa el editor
+        // para no dejar dibujar un trazo libre fuera de ella. Sin zona definida
+        // devuelve true (falla abierto): el editor no puede bloquear por algo
+        // que el admin todavía no ha dibujado.
+        inFreeRoam: (pt) => { const ring = freeRoamRing(); return ring ? inPolygon(pt, ring) : true; },
         setFreeRoam: (doc) => { state.freeroam = doc; if (state.activeRoute) selectRoute(state.activeRoute); },
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
       initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); },

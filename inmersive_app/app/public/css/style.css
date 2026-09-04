@@ -880,6 +880,9 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-seg-btns button { border: none; background: var(--mist); color: var(--forest); width: 26px; height: 26px;
   border-radius: 7px; cursor: pointer; font-size: 13px; }
 .admin-seglist li.dragging { opacity: .55; pointer-events: none; }
+/* Un TRAZO LIBRE no es un sendero: se dibuja, no se elige de la lista. Se
+   distingue a la vista para que no se confunda con un tramo de la red. */
+.admin-seglist li.seg-free > span:first-child { color: var(--brand, #2f6f4e); font-style: italic; }
 .seg-grip { cursor: grab; touch-action: none; }   /* touch-action: si no, el dedo hace scroll en vez de arrastrar */
 #rt-segs select, #rt-start, #rt-end { width: 100%; box-sizing: border-box; }
 /* HUD de dibujo de senderos (sobre el mapa) */
