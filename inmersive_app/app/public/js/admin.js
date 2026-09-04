@@ -1286,7 +1286,13 @@ export function openContentEditor(key) {
   if (!ov) { ov = document.createElement('div'); ov.id = 'ce-ov'; ov.className = 'ce-ov'; document.body.appendChild(ov); }
   const close = () => ov.remove();
 
-  const inputFor = (f, val, id) => {
+  // El tercer argumento es un PREFIJO, no el id: el id se compone aquí como
+  // `prefix + f.k`, igual que lo busca readInto. Cuando este parámetro se usaba
+  // tal cual como id, TODOS los campos salían con el mismo (`id="top_"`),
+  // readInto buscaba `#top_lead` y no encontraba nada, y guardar escribía el
+  // borrador sin tocar: historia, comercial e info no guardaban nunca.
+  const inputFor = (f, val, prefix) => {
+    const id = prefix + f.k;
     const v = val == null ? '' : val;
     if (f.t === 'check') return `<label class="ce-chk"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}> ${esc(f.l)}</label>`;
     const lbl = `<label class="ce-lbl" for="${id}">${esc(f.l)}</label>`;
@@ -2903,9 +2909,16 @@ function renderRecorridos() {
 // orden como índices del array original (`onDrop([2,0,1])`).
 function wireSegDrag(ol, onDrop) {
   if (!ol) return;
+  // La captura y los listeners van sobre el <ol>, que NO se mueve — nunca sobre
+  // el grip. El grip vive dentro del <li> que este código mueve con
+  // insertBefore, y mover un nodo lo saca antes del documento: eso libera la
+  // captura de puntero, así que al primer reordenamiento dejaban de llegar
+  // pointermove/pointerup, `end` no corría y `onDrop` no se llamaba nunca. La
+  // lista se veía reordenada, pero segWork no cambiaba y el <li> se quedaba
+  // fantasma con la clase .dragging.
   ol.querySelectorAll('.seg-grip').forEach((g) => g.onpointerdown = (ev) => {
     const li = g.closest('li'); if (!li) return;
-    ev.preventDefault(); g.setPointerCapture(ev.pointerId);
+    ev.preventDefault(); ol.setPointerCapture(ev.pointerId);
     li.classList.add('dragging');          // el CSS le quita pointer-events: si no,
                                            // elementFromPoint devolvería el propio li
     const move = (e) => {
@@ -2916,13 +2929,13 @@ function wireSegDrag(ol, onDrop) {
       ol.insertBefore(li, (e.clientY < r.top + r.height / 2) ? t : t.nextSibling);
     };
     const end = () => {
-      g.removeEventListener('pointermove', move);
-      g.removeEventListener('pointerup', end); g.removeEventListener('pointercancel', end);
+      ol.removeEventListener('pointermove', move);
+      ol.removeEventListener('pointerup', end); ol.removeEventListener('pointercancel', end);
       li.classList.remove('dragging');
       onDrop([...ol.children].map((n) => +n.dataset.i));
     };
-    g.addEventListener('pointermove', move);
-    g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end);
+    ol.addEventListener('pointermove', move);
+    ol.addEventListener('pointerup', end); ol.addEventListener('pointercancel', end);
   });
 }
 
