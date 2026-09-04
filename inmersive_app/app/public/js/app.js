@@ -4,7 +4,7 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout, inReserve } from './auth-ui.js';
-import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin, saveSpeciesPatch } from './admin.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin, saveSpeciesPatch, mediaActions } from './admin.js';
 import { inlineField, isEditing, setEditing, editToggleButton } from './inline-edit.js';
 import { initGuide, startVisitorTourOnce } from './guide.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
@@ -2477,6 +2477,28 @@ function iucnBadge(code) {
   const dark = ['VU', 'DD', 'NE'].includes(code);
   return `<span class="badge" title="UICN ${code}" style="background:${IUCN_COLOR[code]};color:${dark ? '#222' : '#fff'}">${code}</span>`;
 }
+// ¿Es una foto PRESTADA? La galería de una especie mezcla sus propias fotos con
+// las del punto donde vive y con `species.photo`, que no son filas de `media`
+// suyas. Borrarlas desde aquí quitaría la portada de un punto, así que se marcan
+// y sólo se ofrece adoptarlas: una fila nueva apuntando a la MISMA url.
+const isBorrowedPhoto = (m) => !m.id || String(m.id).startsWith('sp-photo:')
+  || String(m.id).startsWith('shared:') || m.subject_type === 'waypoint';
+function speciesGalleryHtml(s, rest, admin) {
+  const ed = admin && isEditing();
+  const figs = rest.map((m, i) => {
+    const cap = m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : '';
+    if (!ed) return `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${cap}</figure>`;
+    const acts = isBorrowedPhoto(m)
+      ? `<span class="sp-borrowed" title="Es de otro sitio: aquí sólo se toma prestada">prestada</span>
+         <button type="button" class="sp-act" data-a="adopt" data-i="${i}" title="Usar como foto de esta especie">＋</button>`
+      : `<button type="button" class="sp-act" data-a="cover" data-i="${i}" title="Poner de portada">★</button>
+         <button type="button" class="sp-act" data-a="class" data-i="${i}" title="Reclasificar">🏷️</button>
+         <button type="button" class="sp-act" data-a="del" data-i="${i}" title="Eliminar">🗑️</button>`;
+    return `<figure class="sp-fig sp-fig-ed" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${cap}<div class="sp-acts">${acts}</div></figure>`;
+  }).join('');
+  const add = ed ? `<button type="button" class="sp-fig sp-add" id="sp-add-photo">＋ foto</button>` : '';
+  return (figs || add) ? `<div class="sp-gallery">${figs}${add}</div>` : '';
+}
 function showSpecies(s) {
   if (!s) return;
   const wps = speciesWaypoints(s);
@@ -2500,7 +2522,7 @@ function showSpecies(s) {
       <div class="wp-theme-badges"><span class="species-group-tag" style="background:${groupMeta(speciesGroup(s)).color}">${escapeHtml(groupLabel(speciesGroup(s)))}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}${iucnBadge(s.iucn)}</div>
       <h2 class="wp-title" id="sp-f-common">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
       <p class="wp-sci"><em id="sp-f-sci">${escapeHtml(s.scientific_name || '')}</em> · <span id="sp-f-family">${escapeHtml(s.family || '')}</span></p>
-      ${rest.length ? `<div class="sp-gallery">${rest.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
+      ${speciesGalleryHtml(s, rest, admin)}
       <div id="sp-f-desc">${L(s, 'description')
         ? paraHtml(L(s, 'description'), 'wp-desc')
         : (s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : '')}</div>
@@ -2517,7 +2539,8 @@ function showSpecies(s) {
   $('#waypoint-card').classList.remove('hidden');
   pushBack('card', closeWaypoint);   // el botón atrás del teléfono cierra la ficha
   state.openWaypointId = null; state.openSpeciesId = s.id;
-  $$('#wp-content .sp-gallery .sp-fig').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
+  $$('#wp-content .sp-gallery .sp-fig[data-full]').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
+  if (admin && isEditing()) wireSpeciesGalleryEdit(s, rest);
   $$('#wp-content .sp-locs .chip').forEach((c) => c.onclick = () => { const w = wpById(c.dataset.wp); closeWaypoint(); if (w) selectSearch(w.properties.id); });
   const ed = $('#sp-edit'); if (ed) ed.onclick = () => { closeWaypoint(); openSpeciesEditor(s.id, () => { refreshSpecies(); renderSpeciesGrid(); }); };
   const fr = $('#sp-frame'); if (fr) fr.onclick = () => openReframe('species', s.id);
@@ -2532,6 +2555,24 @@ function showSpecies(s) {
 // la ficha EN INGLÉS sin comprobarlo sobrescribiría el texto español con lo que
 // se escribió en inglés. Por eso el campo que se guarda depende del idioma en
 // pantalla, y en inglés se edita `*_en`.
+// Acciones de foto sobre la galería de la ficha. Reutilizan las mismas
+// funciones que el panel de Fotos (mediaActions en admin.js): clasificar,
+// borrar y subir tienen que encolarse igual desde los dos sitios.
+function wireSpeciesGalleryEdit(s, rest) {
+  const repaint = () => { const cur = state.species.find((x) => x.id === s.id) || s; showSpecies(cur); renderSpeciesGrid(); };
+  $$('#wp-content .sp-gallery .sp-act').forEach((b) => b.onclick = async (ev) => {
+    ev.preventDefault(); ev.stopPropagation();   // no abrir el visor al tocar un botón
+    const m = rest[+b.dataset.i]; if (!m) return;
+    try {
+      if (b.dataset.a === 'cover') await mediaActions.cover(m, s.id, repaint);
+      else if (b.dataset.a === 'class') mediaActions.reclassify(m, repaint);
+      else if (b.dataset.a === 'del') await mediaActions.remove(m, repaint);
+      else if (b.dataset.a === 'adopt') await mediaActions.adopt(m, s.id, repaint);
+    } catch (e) { toast(`⚠️ ${(e && e.message) || e}`); }
+  });
+  const add = $('#sp-add-photo');
+  if (add) add.onclick = (ev) => { ev.stopPropagation(); mediaActions.add(s.id, repaint); };
+}
 function wireSpeciesInlineEdit(s) {
   const en = LANG === 'en';
   const save = async (patch) => {
