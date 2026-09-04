@@ -54,7 +54,10 @@ export const GAME_I18N = {
     g_create: '🎒 Crear explorador', g_your_name: 'Tu nombre', g_pick_avatar: 'Elige tu avatar',
     g_start: '¡Empezar!', g_points: 'puntos', g_rank: 'Puesto', g_species_n: 'especies',
     g_capture: '📸 Registrar avistamiento', g_ranking: '🏆 Ranking', g_badges: '🎖 Logros', g_records: '📒 Mis registros',
-    g_daily: 'Especie del día', g_daily_x: 'puntos ×2 hoy',
+    g_daily: 'Especie del día', g_daily_x: 'puntos dobles hoy',
+    g_recent: 'Últimas capturas',
+    g_no_captures_yet: 'Aún no hay capturas. La primera foto abre tu cuaderno.',
+    g_next_badge: 'Próximo logro', g_all_badges: '¡Todos los logros conseguidos!',
     g_step_photo: 'La foto', g_take_photo: '📷 Tomar foto', g_upload_photo: '🖼️ Subir foto',
     g_photo_hint: 'Al TOMAR la foto se guarda la hora y tu ubicación GPS. Al SUBIR una del carrete no se registra ubicación.',
     g_cam_need_account: 'Entra con tu cuenta para tomar fotos en la reserva. Sin cuenta puedes subir fotos del carrete.',
@@ -118,7 +121,10 @@ export const GAME_I18N = {
     g_create: '🎒 Create explorer', g_your_name: 'Your name', g_pick_avatar: 'Pick your avatar',
     g_start: 'Start!', g_points: 'points', g_rank: 'Rank', g_species_n: 'species',
     g_capture: '📸 Log a sighting', g_ranking: '🏆 Leaderboard', g_badges: '🎖 Badges', g_records: '📒 My records',
-    g_daily: 'Species of the day', g_daily_x: 'points ×2 today',
+    g_daily: 'Species of the day', g_daily_x: 'double points today',
+    g_recent: 'Latest captures',
+    g_no_captures_yet: 'No captures yet. Your first photo opens the notebook.',
+    g_next_badge: 'Next badge', g_all_badges: 'All badges earned!',
     g_step_photo: 'The photo', g_take_photo: '📷 Take photo', g_upload_photo: '🖼️ Upload photo',
     g_photo_hint: 'TAKING a photo stores the time and your GPS location. UPLOADING one from your gallery records no location.',
     g_cam_need_account: 'Sign in to take photos at the reserve. Without an account you can still upload photos.',
@@ -953,43 +959,70 @@ function renderGameTab() {
   const el = document.querySelector('#game-tab');
   if (!el) return;
   const daily = speciesOfDay();
+  // La especie del día es una sugerencia, no la acción principal: va DEBAJO del
+  // botón y en tarjeta clara, para no disputarle la jerarquía.
   const dailyHtml = daily ? `
-    <div class="gm-daily">🌟 <b>${T('g_daily')}:</b> ${esc(CTX.L(daily, 'common_name') || '')}
-      <i>${esc(daily.scientific_name || '')}</i> — ${T('g_daily_x')}</div>` : '';
+    <div class="gmx-daily">
+      <span class="gmx-k">${T('g_daily')}</span>
+      <b class="gmx-daily-name">${esc(CTX.L(daily, 'common_name') || '')}</b>
+      <i class="gmx-daily-sci">${esc(daily.scientific_name || '')}</i>
+      <span class="gmx-daily-x">×2 · ${T('g_daily_x')}</span>
+    </div>` : '';
 
   if (!CTX.hasAccount || !CTX.hasAccount()) {
     el.innerHTML = `
-      <div class="gm-panel">
-        <h2>🎒 ${T('g_title')}</h2>
-        <p class="gm-lead">${T('g_intro')}</p>
+      <section class="gmx">
+        <div class="gmx-hero">
+          <h1 class="gmx-title">${T('g_title')}</h1>
+          <p class="gmx-lead">${T('g_intro')}</p>
+        </div>
+        <div class="gmx-dock">
+          <button class="gmx-cta gmx-cta-locked" id="gm-capture">🔒 ${T('g_capture')}</button>
+          <p class="gmx-lock">${T('g_locked_account')}</p>
+        </div>
         ${dailyHtml}
-        <button class="gm-primary gm-big gm-locked" id="gm-capture">🔒 ${T('g_capture')}</button>
-        <p class="tiny muted">${T('g_locked_account')}</p>
-      </div>`;
+      </section>`;
     el.querySelector('#gm-capture').onclick = () => CTX.toast(T('g_locked_account'));
     return;
   }
   const player = currentPlayer();
-  if (!player) { el.innerHTML = `<div class="gm-panel"><h2>🎒 ${T('g_title')}</h2></div>`; return; }
+  if (!player) {
+    el.innerHTML = `<section class="gmx"><div class="gmx-hero"><h1 class="gmx-title">${T('g_title')}</h1></div></section>`;
+    return;
+  }
 
   const thumbs = capturedPhotos(8);
+  const nRecs = playerObs(player.id).length;
+  const nBadges = earnedBadges(player.id).length;
+  const rank = ranking().findIndex((p) => p.id === player.id) + 1;
+
   el.innerHTML = `
-    <div class="gm-panel">
-      <div class="gm-head">
-        <span class="gm-player">${player.emoji} <b>${esc(player.name)}</b></span>
-        <span class="gm-stats" id="gm-stats"></span>
+    <section class="gmx">
+      <div class="gmx-hero">
+        <p class="gmx-id"><span class="gmx-avatar" aria-hidden="true">${player.emoji}</span>${esc(player.name)}</p>
+        <h1 class="gmx-title">${T('g_title')}</h1>
+        <div id="gm-stats"></div>
       </div>
+
+      <div class="gmx-dock">
+        <button id="gm-capture" class="gmx-cta${outsideKnown ? ' gmx-cta-locked' : ''}">${outsideKnown ? '🔒 ' : ''}${T('g_capture')}</button>
+        ${outsideKnown ? `<p class="gmx-lock">${T('g_locked_outside')}</p>` : ''}
+      </div>
+
       ${dailyHtml}
-      <button id="gm-capture" class="gm-primary gm-big${outsideKnown ? ' gm-locked' : ''}">${outsideKnown ? '🔒 ' : ''}${T('g_capture')}</button>
-      ${outsideKnown ? `<p class="tiny muted">${T('g_locked_outside')}</p>` : ''}
-      <div class="gm-row">
-        <button id="gm-lb" class="gm-secondary">${T('g_ranking')}</button>
-        <button id="gm-bd" class="gm-secondary">${T('g_badges')}</button>
-        <button id="gm-rc" class="gm-secondary">${T('g_records')}</button>
+
+      <h2 class="gmx-h">${T('g_recent')}</h2>
+      ${thumbs.length
+        ? `<div class="gmx-strip" id="gm-strip" role="list">${thumbs.map((t) =>
+            `<img role="listitem" src="${t.url}" alt="${esc(t.common)}" loading="lazy">`).join('')}</div>`
+        : `<p class="gmx-empty">${T('g_no_captures_yet')}</p>`}
+
+      <div class="gmx-nav">
+        <button id="gm-lb" class="gmx-nav-btn"><b>${rank ? '#' + rank : '—'}</b><span>${T('g_ranking')}</span></button>
+        <button id="gm-bd" class="gmx-nav-btn"><b>${nBadges}/${ACHIEVEMENTS.length}</b><span>${T('g_badges')}</span></button>
+        <button id="gm-rc" class="gmx-nav-btn"><b>${nRecs}</b><span>${T('g_records')}</span></button>
       </div>
-      ${thumbs.length ? `<div class="gm-strip" id="gm-strip">${thumbs.map((t) =>
-        `<img src="${t.url}" alt="${esc(t.common)}" loading="lazy">`).join('')}</div>` : ''}
-    </div>`;
+    </section>`;
   el.querySelector('#gm-capture').onclick = () => {
     if (outsideKnown) { CTX.toast(T('g_need_reserve')); return; }
     startCapture();
@@ -997,21 +1030,42 @@ function renderGameTab() {
   el.querySelector('#gm-lb').onclick = openLeaderboard;
   el.querySelector('#gm-bd').onclick = openBadges;
   el.querySelector('#gm-rc').onclick = openRecords;
+  // La tira es un atajo de dedo; el camino accesible por teclado es el botón
+  // «Mis registros» de la fila de abajo, que abre exactamente lo mismo.
   const strip = el.querySelector('#gm-strip');
   if (strip) strip.onclick = openRecords;
   renderGameTabStats();
 }
 
 // Las cifras se pintan aparte para poder refrescarlas sin rehacer la pestaña.
+// Tres números grandes (lo que el visitante quiere saber de un vistazo bajo el
+// sol) y una barra hacia el próximo logro, que convierte «tienes 4 logros» en
+// «te falta esto y así se consigue».
 function renderGameTabStats() {
   const el = document.querySelector('#gm-stats');
   const player = currentPlayer();
   if (!el || !player) return;
   const rows = ranking();
   const rank = rows.findIndex((p) => p.id === player.id) + 1;
-  el.innerHTML = `<b>${playerPoints(player.id)}</b> ${T('g_points')}`
-    + (rank ? ` · ${T('g_rank')} #${rank}` : '')
-    + ` · ${distinctSpecies(player.id)} ${T('g_species_n')}`;
+  const got = earnedBadges(player.id);
+  const gotIds = new Set(got.map((a) => a.id));
+  const next = ACHIEVEMENTS.find((a) => !gotIds.has(a.id));
+  const pct = Math.round((got.length / ACHIEVEMENTS.length) * 100);
+  el.innerHTML = `
+    <div class="gmx-rail">
+      <div class="gmx-stat"><b>${playerPoints(player.id).toLocaleString()}</b><span>${T('g_points')}</span></div>
+      <div class="gmx-stat"><b>${rank ? '#' + rank : '—'}</b><span>${T('g_rank')}</span></div>
+      <div class="gmx-stat"><b>${distinctSpecies(player.id)}</b><span>${T('g_species_n')}</span></div>
+    </div>
+    <div class="gmx-next">
+      <div class="gmx-next-head">
+        <span class="gmx-k">${next ? T('g_next_badge') : T('g_all_badges')}</span>
+        <span class="gmx-next-n">${got.length}/${ACHIEVEMENTS.length}</span>
+      </div>
+      <div class="gmx-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+           aria-valuenow="${pct}" aria-label="${T('g_badges')}"><i style="width:${pct}%"></i></div>
+      ${next ? `<p class="gmx-next-d"><span aria-hidden="true">${next.emoji}</span> <b>${T('b_' + next.id)}</b> — ${T('b_' + next.id + '_d')}</p>` : ''}
+    </div>`;
 }
 
 // Re-render tras cambio de idioma (app.js lo llama desde setLang) y al entrar en

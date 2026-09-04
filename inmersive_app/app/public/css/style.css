@@ -24,6 +24,9 @@
   --water:  #269ed9;
   --sun:    #f28e14;   /* CTAs (naranja de marca) */
   --bg:     #f4f7fa;
+  /* Mismo --bg con alfa 0. Necesario para los degradados de desvanecido:
+     `transparent` interpola por negro transparente en Safari y deja un velo gris. */
+  --bg-0:   rgba(244, 247, 250, 0);
   --card:   #ffffff;
   --ink:    #12233a;   /* texto principal */
   --muted:  #5f7183;
@@ -552,14 +555,6 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .gm-panel h2 { color: #fff; margin: 0 0 6px; font-size: 17px; }
 .gm-panel .gm-lead { font-size: 13px; line-height: 1.5; opacity: 0.94; margin: 0 0 10px; }
-.gm-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.gm-player { font-size: 15px; }
-.gm-stats { font-size: 12px; opacity: 0.92; }
-.gm-daily {
-  font-size: 12px; background: rgba(255,255,255,0.14); border-radius: 10px;
-  padding: 8px 10px; margin-bottom: 10px; line-height: 1.45;
-}
-.gm-daily i { opacity: 0.85; }
 .gm-primary {
   display: block; width: 100%; border: none; border-radius: 12px; cursor: pointer;
   background: var(--sun); color: #fff; font-size: 14.5px; font-weight: 800;
@@ -567,7 +562,6 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .gm-primary:active { transform: scale(0.98); }
 .gm-primary:disabled { opacity: 0.45; }
-.gm-big { font-size: 16px; padding: 14px; }
 .gm-secondary {
   border: none; border-radius: 10px; cursor: pointer; flex: 1;
   background: rgba(255,255,255,0.16); color: inherit; font-size: 12.5px; font-weight: 700;
@@ -604,17 +598,8 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
   padding: 10px 12px; margin: 6px 0; background: #fff; color: var(--ink);
 }
 
-/* tira de últimas capturas en la pestaña */
 .fm-hint-conflict { color: var(--red); font-weight: 700; }
 
-.gm-strip {
-  display: flex; gap: 6px; overflow-x: auto; margin-top: 12px;
-  padding-bottom: 4px; -webkit-overflow-scrolling: touch;
-}
-.gm-strip img {
-  width: 72px; height: 72px; flex: 0 0 auto; object-fit: cover;
-  border-radius: 10px; border: 1px solid var(--line); cursor: pointer;
-}
 /* posible especie nueva: resultado de primera clase, no caso borde */
 .gm-newrec {
   border: 2px dashed var(--sun); border-radius: 12px;
@@ -714,6 +699,156 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .cap-badge {
   position: absolute; bottom: 10px; right: 10px; font-size: 10.5px; font-weight: 800;
   background: var(--mist); color: var(--forest); border-radius: 999px; padding: 2px 7px;
+}
+
+/* ---------- Pestaña del Juego: la hoja de campo ----------
+   Se lee CON EL SOL DE FRENTE y con una mano. De ahí las tres decisiones:
+   (1) el bloque de identidad va sobre el degradado oscuro de marca — la mancha
+       oscura es lo único que no se lava con luz directa;
+   (2) las cifras son grandes y los rótulos pequeños, no al revés: puntos, puesto
+       y especies son lo que se mira de un vistazo;
+   (3) el botón de registrar queda ANCLADO abajo (position: sticky) — el pulgar
+       llega ahí sin recolocar el teléfono, por mucho que se baje la página.
+   Las cifras van en la fuente del sistema: --brand-font (Meroche) es sólo para
+   el wordmark y los títulos de sección. */
+.gmx { display: flex; flex-direction: column; }
+
+.gmx-hero {
+  background: linear-gradient(150deg, var(--navy) 0%, var(--forest) 55%, var(--moss) 130%);
+  color: #fff; border-radius: 20px; padding: 16px 16px 14px; box-shadow: var(--shadow);
+}
+.gmx-id {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 2px;
+  font-size: 13.5px; font-weight: 700; color: rgba(255, 255, 255, 0.88);
+}
+.gmx-avatar {
+  font-size: 17px; line-height: 1; width: 30px; height: 30px; flex: 0 0 auto;
+  display: grid; place-items: center; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+.gmx-title {
+  font-family: var(--brand-font); font-weight: normal; color: #fff;
+  font-size: 30px; line-height: 1.05; letter-spacing: 0.3px; margin: 2px 0 12px;
+}
+.gmx-lead { font-size: 14px; line-height: 1.5; color: rgba(255, 255, 255, 0.94); margin: 0; }
+
+/* Rótulo de dato: siempre pequeño, en versalitas, nunca por debajo de 12.5px. */
+.gmx-k {
+  font-size: 12.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* Las tres cifras, separadas por filetes finos. */
+.gmx-rail {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 12px 0;
+}
+.gmx-stat { text-align: center; padding: 0 4px; min-width: 0; }
+.gmx-stat + .gmx-stat { border-left: 1px solid rgba(255, 255, 255, 0.22); }
+.gmx-stat b {
+  display: block; font-size: 30px; font-weight: 800; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+.gmx-stat span {
+  display: block; margin-top: 4px; font-size: 12.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.82);
+}
+
+/* Progreso al próximo logro: dice qué falta Y cómo se consigue. */
+.gmx-next { margin-top: 12px; }
+.gmx-next-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.gmx-next-n { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.gmx-bar {
+  height: 7px; border-radius: 999px; margin-top: 7px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.22);
+}
+.gmx-bar i { display: block; height: 100%; border-radius: 999px; background: var(--lime); }
+.gmx-next-d { font-size: 13px; line-height: 1.45; margin: 7px 0 0; color: rgba(255, 255, 255, 0.9); }
+.gmx-next-d b { color: #fff; }
+
+/* El botón manda: anclado abajo, 60 px de alto, oro sobre azul noche.
+   Es el par de mayor contraste de la marca (~11:1) y el que aguanta el sol —
+   mejor que el naranja de marca en blanco, que ni siquiera llega a AA. */
+.gmx-dock {
+  position: sticky; bottom: 0; z-index: 2;
+  margin: 14px -16px 0; padding: 14px 16px 10px;
+  background: linear-gradient(180deg, var(--bg-0) 0%, var(--bg) 30%);
+}
+.gmx-cta {
+  display: block; width: 100%; min-height: 60px; border: none; border-radius: 16px;
+  background: var(--gold); color: var(--navy);
+  font-family: inherit; font-size: 17px; font-weight: 800; letter-spacing: 0.01em;
+  padding: 14px 16px; cursor: pointer; box-shadow: 0 4px 16px rgba(10, 14, 29, 0.22);
+  transition: transform .08s ease;
+}
+.gmx-cta:active { transform: scale(0.985); }
+.gmx-cta:focus-visible { outline: 3px solid var(--deep); outline-offset: 3px; }
+.gmx-cta-locked {
+  background: var(--card); color: var(--muted); box-shadow: none;
+  border: 2px dashed var(--line);
+}
+.gmx-lock {
+  font-size: 12.5px; line-height: 1.45; color: var(--muted);
+  margin: 8px 2px 0; text-align: center;
+}
+
+/* Especie del día: sugerencia, no acción. Tarjeta clara con filete dorado. */
+.gmx-daily {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--gold);
+  border-radius: 14px; padding: 11px 13px; margin-top: 14px;
+}
+.gmx-daily .gmx-k { color: var(--deep); }
+.gmx-daily-name { font-size: 16px; color: var(--forest); line-height: 1.25; }
+.gmx-daily-sci { font-size: 13px; color: var(--muted); }
+.gmx-daily-x {
+  align-self: flex-start; margin-top: 5px;
+  font-size: 12.5px; font-weight: 800; color: var(--navy); background: var(--gold);
+  border-radius: 999px; padding: 3px 10px;
+}
+
+.gmx-h {
+  font-family: var(--brand-font); font-weight: normal; color: var(--deep);
+  font-size: 19px; margin: 20px 0 8px;
+}
+.gmx-strip {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.gmx-strip::-webkit-scrollbar { display: none; }
+.gmx-strip img {
+  width: 88px; height: 88px; flex: 0 0 auto; object-fit: cover;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--mist); cursor: pointer;
+}
+.gmx-empty {
+  font-size: 13.5px; line-height: 1.5; color: var(--muted); margin: 0;
+  border: 1.5px dashed var(--line); border-radius: 14px; padding: 14px; text-align: center;
+}
+
+/* Ranking / Logros / Registros: cada uno lleva ya su cifra, así que la fila
+   informa además de navegar. */
+.gmx-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0 4px; }
+.gmx-nav-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 66px; padding: 10px 6px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--card);
+  color: var(--ink); font-family: inherit;
+}
+.gmx-nav-btn:active { background: var(--mist); }
+.gmx-nav-btn:focus-visible { outline: 3px solid var(--deep); outline-offset: 2px; }
+.gmx-nav-btn b {
+  font-size: 20px; font-weight: 800; color: var(--deep); line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.gmx-nav-btn span {
+  font-size: 12.5px; font-weight: 700; color: var(--muted); text-align: center; line-height: 1.25;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gmx-cta { transition: none; }
+  .gmx-cta:active { transform: none; }
 }
 
 /* ================= Puerta de entrada (login) ================= */
@@ -1479,4 +1614,4 @@ body.picking-points #route-info { display: none !important; }
 
 /* Recorrido guiado bloqueado (visitante sin cuenta = no esta en la reserva).
    El boton se deja a la vista a proposito: que se sepa que el servicio existe. */
-.ri-start.locked, .gm-locked { opacity: .62; filter: saturate(.5); }
+.ri-start.locked { opacity: .62; filter: saturate(.5); }
