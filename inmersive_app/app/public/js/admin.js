@@ -1146,7 +1146,7 @@ function subjectList(pt, chip) {
     wps = wps.filter((w) => (w.properties.routes || []).includes(rtId));
     const r = (CTX.state.routes || []).find((x) => x.id === rtId);
     if (r && CTX.orderPointsAlongSegments) {
-      const at = new Map(CTX.orderPointsAlongSegments(r.segments || [], wps.map((w) => w.properties.id), r.start_id, r.end_id)
+      const at = new Map(CTX.orderPointsAlongSegments(r.segments || [], wps.map((w) => w.properties.id), r.start_id, r.end_id, r.freeroam_paths)
         .map((id, i) => [id, i]));
       const rank = (w) => (at.has(w.properties.id) ? at.get(w.properties.id) : 1e9);
       wps.sort((a, b) => rank(a) - rank(b));
@@ -1880,13 +1880,24 @@ function simplifyDP(cs, tolM) {
   }
   return cs.filter((_, i) => keep[i]);
 }
-function startVertexDraw(onDone) {
+// `opts` deja reutilizar este mismo dibujo para el TRAZO LIBRE, que necesita dos
+// cosas más: pegarse a puntos y senderos (opts.snap) y no salirse de la zona de
+// recorrido libre (opts.guard). Un segundo dibujador copiado sería el mismo bug
+// dos veces en cuanto uno de los dos cambie.
+function startVertexDraw(onDone, opts = {}) {
   if (!drawInit()) { CTX.toast('Espera a que cargue el mapa'); onDone(null); return; }
   draw = { coords: [], onDone, mode: 'vertex' };
   closePanel();
   CTX.map.getCanvas().style.cursor = 'crosshair';
-  CTX.toast('Toca el mapa para trazar el sendero');
-  draw.clickHandler = (e) => { draw.coords.push([e.lngLat.lng, e.lngLat.lat]); drawUpdate(); updateDrawHud(); };
+  CTX.toast(opts.hint || 'Toca el mapa para trazar el sendero');
+  draw.clickHandler = (e) => {
+    let pt = [e.lngLat.lng, e.lngLat.lat];
+    const snapped = opts.snap ? opts.snap(pt) : null;
+    if (snapped) { pt = snapped.slice(); }
+    if (opts.guard && !opts.guard(pt, !!snapped)) { CTX.toast(opts.guardMsg || 'Ahí no se puede'); return; }
+    draw.coords.push(pt); drawUpdate(); updateDrawHud();
+    if (snapped) CTX.toast('🧲 pegado');
+  };
   CTX.map.on('click', draw.clickHandler);
   showDrawHud();
 }
@@ -1992,6 +2003,33 @@ function snapTrailPoint(c, exceptTrailId) {
   if (a && b) return hav(c, a) <= hav(c, b) ? a : b;
   return a || b;
 }
+// ---- imán del TRAZO LIBRE ----
+// Radio más generoso que el de los senderos (VX_SNAP_M = 12, WP_SNAP_M = 4)
+// porque aquí sí se QUIERE quedar pegado: un trazo libre existe para unir la
+// casa, el vivero o el jardín de colibríes con la red, y se dibuja con el pulgar
+// sobre el mapa, no con un ratón. Se pega a PUNTOS y a EXTREMOS de sendero — no
+// a cualquier vértice intermedio, que engancharía a media línea sin querer.
+const FREE_SNAP_M = 15;
+const trailEndpoints = () => {
+  const out = [];
+  (CTX.state.trails || []).forEach((t) => {
+    const cs = (t.geometry && t.geometry.coordinates) || [];
+    if (cs.length) { out.push(cs[0]); out.push(cs[cs.length - 1]); }
+  });
+  return out;
+};
+function snapFreePoint(c) {
+  const a = nearestVertexSnap(c, allWaypointCoords(), FREE_SNAP_M);
+  const b = nearestVertexSnap(c, trailEndpoints(), FREE_SNAP_M);
+  if (a && b) return hav(c, a) <= hav(c, b) ? a : b;
+  return a || b;
+}
+// Un trazo libre vive DENTRO de la zona de recorrido libre. Se admite un vértice
+// fuera sólo si quedó pegado por imán: es como se empalma con un sendero o un
+// punto que está justo en el borde, sin tener que abrir la mano y permitir
+// dibujar por toda la reserva.
+const freeVertexOk = (pt, snapped) => !!snapped || CTX.inFreeRoam(pt);
+
 // Distancia (m) de p al segmento a-b (proyección local plana).
 function segDistM(a, b, p) {
   const lat0 = a[1] * Math.PI / 180, kx = 111320 * Math.cos(lat0), ky = 110540;
@@ -2355,7 +2393,25 @@ function updateEditBar() {
 }
 
 // ---------------- resaltar senderos en el mapa ----------------
-const trailFeat = (id) => CTX.state.trails.find((t) => t.properties.id === id);
+// Un tramo de recorrido puede ser un sendero de la red o un TRAZO LIBRE propio
+// del recorrido que se está editando (`free:<clave>`). `_freePaths` apunta al
+// borrador abierto, de modo que trailFeat resuelve los dos y todo lo que cuelga
+// de él —trailEnds, segsTouch, orderSegmentsStartToEnd, highlightSegments— trata
+// un trazo libre como un tramo más, sin duplicar una línea de lógica.
+const FREE_SEG = 'free:';
+const isFreeSeg = (id) => String(id || '').startsWith(FREE_SEG);
+const freeSegKey = (id) => String(id).slice(FREE_SEG.length);
+let _freePaths = {};
+function freeSegCoords(id) {
+  if (!isFreeSeg(id)) return null;
+  const cs = _freePaths[freeSegKey(id)];
+  return Array.isArray(cs) && cs.length >= 2 ? cs : null;
+}
+const trailFeat = (id) => {
+  const cs = freeSegCoords(id);
+  if (cs) return { type: 'Feature', properties: { id, name: 'Trazo libre', _free: true }, geometry: { type: 'LineString', coordinates: cs } };
+  return CTX.state.trails.find((t) => t.properties.id === id);
+};
 const wpCoord = (pid) => { const w = pid && CTX.state.waypoints.find((x) => x.properties.id === pid); return w ? w.geometry.coordinates : null; };
 // Extremos (primer y último vértice) de un sendero.
 const trailEnds = (tid) => { const tr = trailFeat(tid); if (!tr) return null; const c = tr.geometry.coordinates; return [c[0], c[c.length - 1]]; };
@@ -2887,6 +2943,7 @@ function editSendero(id) {
 // ---------------- RECORRIDOS ----------------
 function renderRecorridos() {
   clearHighlight();
+  _freePaths = {};   // se sale del editor: ningún borrador de trazos abierto
   const body = document.getElementById('admin-body');
   const routes = CTX.state.routes.slice();
   body.innerHTML = `
@@ -2950,6 +3007,13 @@ function editRecorrido(id) {
   }
   _routeDraft = null;
   let segWork = (r.segments || []).slice();
+  // Trazos libres del recorrido: { clave: [[lng,lat], ...] }. Se referencian
+  // desde segWork como `free:<clave>`, así que su sitio en el recorrido es una
+  // posición en la lista de tramos, igual que un sendero. `_freePaths` apunta a
+  // este borrador para que trailFeat —y con él el resaltado, el orden y los
+  // avisos de empalme— los trate como un tramo más mientras se edita.
+  let freeWork = JSON.parse(JSON.stringify(r.freeroam_paths || {}));
+  _freePaths = freeWork;
   let color = r.color || PALETTE[0], emoji = r.emoji || EMOJIS[0];
   // Puntos del recorrido: inicio, fin e intermedios (por membresía point.routes).
   let startId = r.start_id || null, endId = r.end_id || null;
@@ -2969,6 +3033,8 @@ function editRecorrido(id) {
       <label>Color</label><div class="admin-palette" id="rt-palette">${PALETTE.map((c) => `<button type="button" class="admin-sw ${c === color ? 'sel' : ''}" data-c="${c}" style="background:${c}"></button>`).join('')}</div>
       <label>Resumen (ES)</label><textarea id="rt-sum" rows="2">${esc(r.summary)}</textarea>
       <label>Summary (EN)</label><textarea id="rt-sum-en" rows="2">${esc(r.summary_en)}</textarea>
+      <label>Duración medida (min) <span class="admin-note">— déjalo vacío para que la calcule la app</span></label>
+      <input id="rt-dur" type="number" min="0" step="5" value="${r.duration_min == null ? '' : r.duration_min}" placeholder="p. ej. 105">
 
       <div class="admin-group-h">🚩 Puntos del recorrido</div>
       <label>Punto de inicio</label>
@@ -3008,16 +3074,30 @@ function editRecorrido(id) {
     const badFirst = segWork.length && startId && !segsTouch(segWork[0], wpCoord(startId));
     const badLast = segWork.length && endId && !segsTouch(segWork[segWork.length - 1], wpCoord(endId));
     el.innerHTML = `
-      <ol class="admin-seglist">${segWork.map((tid, i) => { const tr = CTX.state.trails.find((t) => t.properties.id === tid);
+      <ol class="admin-seglist">${segWork.map((tid, i) => {
         const warn = (i === 0 && badFirst) ? ' ⚠️' : (i === segWork.length - 1 && badLast) ? ' ⚠️' : '';
+        // Un trazo libre se ve distinto (✏️) porque se edita distinto: no se
+        // elige de una lista, se dibuja. El resto de botones son los mismos.
+        if (isFreeSeg(tid)) {
+          const cs = freeSegCoords(tid);
+          const label = cs ? `✏️ Trazo libre · ${cs.length} pts` : '✏️ Trazo libre (vacío) ⚠️';
+          return `<li data-i="${i}" class="seg-free"><span>${label}${warn}</span><span class="admin-seg-btns"><button type="button" class="seg-grip" title="Arrastrar para reordenar">⠿</button><button type="button" data-redraw="${i}" title="Volver a dibujar este trazo">✏️</button><button type="button" data-rm="${i}">✕</button></span></li>`;
+        }
+        const tr = CTX.state.trails.find((t) => t.properties.id === tid);
         return `<li data-i="${i}"><span>${esc(tr ? tr.properties.name || tid : tid)}${warn}</span><span class="admin-seg-btns"><button type="button" class="seg-grip" title="Arrastrar para reordenar">⠿</button><button type="button" data-dup="${i}" title="Duplicar (p. ej. volver por el mismo sendero)">⧉</button><button type="button" data-rm="${i}">✕</button></span></li>`; }).join('')}</ol>
       <div class="admin-loc-btns" style="margin:2px 0 6px">
         <button type="button" class="admin-pick" id="rt-seg-order">🧭 Ordenar inicio → fin</button>
+        <button type="button" class="admin-pick" id="rt-seg-free" title="Dibujar por donde no hay sendero, dentro de la zona de recorrido libre">✏️ ＋ Trazo libre</button>
       </div>
       ${pickerHTML('rt-segsel', '🔎 ＋ añadir sendero… (escribe para filtrar)')}`;
     wirePicker(el, 'rt-segsel', CTX.state.trails.map((t) => ({ id: t.properties.id, label: t.properties.name || t.properties.id })),
       (tid) => { segWork.push(tid); renderSegs(); });
     el.querySelector('#rt-seg-order').onclick = () => { segWork = orderSegmentsStartToEnd(segWork, wpCoord(startId), wpCoord(endId)); renderSegs(); };
+    // ✏️ Trazo libre: dibujar por donde NO hay sendero, sin crear uno. Entra en
+    // la lista como un tramo más, así que su sitio en el recorrido es explícito
+    // (se arrastra, se reordena) en vez de deducido por cercanía.
+    el.querySelector('#rt-seg-free').onclick = () => drawFree(null);
+    el.querySelectorAll('[data-redraw]').forEach((b) => b.onclick = () => drawFree(+b.dataset.redraw));
     // ⧉ Duplicar: el MISMO sendero otra vez, justo detrás. Un recorrido de ida y
     // vuelta pasa dos veces por el mismo tramo; al encadenar, el segundo se orienta
     // solo en sentido contrario (ver orderedPathFromSegments en app.js).
@@ -3039,7 +3119,7 @@ function editRecorrido(id) {
     // tocando los puntos en el mapa. Con inicio + fin el orden se deduce por la
     // red de senderos (ver orderPointsAlongSegments en app.js).
     const ids = CTX.orderPointsAlongSegments
-      ? CTX.orderPointsAlongSegments(segWork, [...memberWork], startId, endId)
+      ? CTX.orderPointsAlongSegments(segWork, [...memberWork], startId, endId, freeWork)
       : [...memberWork];
     // El número delante hace visible el orden: si sale mal, se ve aquí y no en
     // el monte con la audioguía contando el punto 4 antes que el 2.
@@ -3067,7 +3147,29 @@ function editRecorrido(id) {
     name: body.querySelector('#rt-name').value, name_en: body.querySelector('#rt-name-en').value,
     emoji, color, summary: body.querySelector('#rt-sum').value, summary_en: body.querySelector('#rt-sum-en').value,
     start_id: startId, end_id: endId, memberPoints: [...memberWork], scripts: scriptWork,
-    segments: segWork.slice() }; };
+    segments: segWork.slice(), freeroam_paths: freeWork,
+    duration_min: body.querySelector('#rt-dur').value }; };
+  // Dibujar un trazo libre (nuevo si atIndex es null, o volver a dibujar el de
+  // esa posición). Dibujar cierra el panel, así que el formulario se guarda antes
+  // y se reabre después — el mismo ida y vuelta que usa el editor de senderos.
+  const newFreeKey = () => { let n = 1; while (freeWork['l' + n]) n++; return 'l' + n; };
+  const drawFree = (atIndex) => {
+    const ring = (CTX.freeRoam() || {}).polygon;
+    if (!Array.isArray(ring) || ring.length < 4) {
+      CTX.toast('Primero hay que dibujar la zona de recorrido libre (pestaña Senderos)'); return;
+    }
+    saveDraft();
+    startVertexDraw((c) => {
+      if (c && c.length >= 2) {
+        const key = atIndex == null ? newFreeKey() : freeSegKey(segWork[atIndex]);
+        _routeDraft.freeroam_paths = { ..._routeDraft.freeroam_paths, [key]: c };
+        if (atIndex == null) _routeDraft.segments = [...(_routeDraft.segments || []), FREE_SEG + key];
+      }
+      editRecorrido(id);
+    }, { snap: snapFreePoint, guard: freeVertexOk,
+      guardMsg: 'Fuera de la zona de recorrido libre. Para empalmar, toca justo sobre un punto o el extremo de un sendero.',
+      hint: 'Toca dentro de la zona para trazar. Se pega solo a puntos y extremos de sendero.' });
+  };
   body.querySelector('#rt-pick').onclick = () => { saveDraft(); startRoutePick(id); };
   body.querySelector('#rt-start-pick').onclick = () => { saveDraft(); pickRoutePoint(id, 'start'); };
   body.querySelector('#rt-end-pick').onclick = () => { saveDraft(); pickRoutePoint(id, 'end'); };
@@ -3090,10 +3192,17 @@ function editRecorrido(id) {
     }
     // Guardar solo los guiones de puntos que siguen en el recorrido.
     const scripts = {}; for (const pid of memberWork) if (scriptWork[pid]) scripts[pid] = scriptWork[pid];
+    // Y sólo los trazos libres que siguen referenciados desde la lista de tramos:
+    // quitar el tramo de la lista es lo que borra el trazo, sin dejar geometría
+    // huérfana engordando la fila.
+    const freePaths = {};
+    for (const sid of segWork) if (isFreeSeg(sid)) { const k = freeSegKey(sid); if (freeWork[k]) freePaths[k] = freeWork[k]; }
     const row = { id: r.id, name: body.querySelector('#rt-name').value.trim() || null, name_en: body.querySelector('#rt-name-en').value.trim() || null,
       emoji, color, summary: body.querySelector('#rt-sum').value.trim() || null, summary_en: body.querySelector('#rt-sum-en').value.trim() || null,
       start_id: startId || null, end_id: endId || null,
-      segments: segWork, scripts, sort: r.sort || 0 };
+      segments: segWork, scripts, freeroam_paths: freePaths, sort: r.sort || 0,
+      // Un numero medido caminando gana sobre cualquier modelo. Vacio = que lo calcule la app.
+      duration_min: (body.querySelector('#rt-dur').value || '').trim() === '' ? null : Math.max(0, Math.round(+body.querySelector('#rt-dur').value)) || null };
     body.querySelector('#rt-err').textContent = 'Guardando…';
     try {
       const res = await saveRow('routes', row);

@@ -55,6 +55,7 @@ const state = {
   atTrailhead: false,       // ¿ya llegó al inicio del recorrido?
   flowTimer: null,          // animación de flechas/flujo sobre el recorrido
   eleCache: {},             // desnivel por recorrido (cache de la API de elevación)
+  routeStats: {},           // tiempo MEDIDO por recorrido (mediana de caminatas completas)
 };
 
 // ---------- tipos de punto (legend filter) ----------
@@ -951,7 +952,11 @@ function freeRoamRing() {
   const p = state.freeroam && state.freeroam.polygon;
   return Array.isArray(p) && p.length >= 4 ? p : null;   // anillo cerrado mínimo
 }
-function freeRoamPath(cs) {
+// `keep` es la máscara paralela de orderedPathFromSegments: las coordenadas que
+// vienen de un TRAZO LIBRE se respetan tal cual. Ese trazo está dibujado a
+// propósito dentro de la zona, así que enderezarlo lo borraría entero — es
+// exactamente lo contrario de lo que se pidió al dibujarlo.
+function freeRoamPath(cs, keep) {
   const ring = freeRoamRing();
   if (!ring || !Array.isArray(cs) || cs.length < 3) return cs;
   const out = [];
@@ -960,8 +965,13 @@ function freeRoamPath(cs) {
     if (!inPolygon(cs[i], ring)) { out.push(cs[i]); i++; continue; }
     let j = i;                                   // tramo consecutivo dentro de la zona
     while (j + 1 < cs.length && inPolygon(cs[j + 1], ring)) j++;
-    out.push(cs[i]);                             // por donde entra
-    if (j > i) out.push(cs[j]);                  // por donde sale (recta entre los dos)
+    let drawn = false;
+    if (keep) for (let k = i; k <= j && !drawn; k++) drawn = !!keep[k];
+    if (drawn) { for (let k = i; k <= j; k++) out.push(cs[k]); }   // dibujado: intacto
+    else {
+      out.push(cs[i]);                           // por donde entra
+      if (j > i) out.push(cs[j]);                // por donde sale (recta entre los dos)
+    }
     i = j + 1;
   }
   return out.length >= 2 ? out : cs;
@@ -970,22 +980,43 @@ function freeRoamPath(cs) {
 // Encadena senderos en el ORDEN dado (route.segments), orientando cada uno para
 // conectar con el anterior. Ese orden fija la dirección del recorrido.
 const trailById = (tid) => state.trails.find((t) => t.properties.id === tid);
-function orderedPathFromSegments(ids) {
-  const segs = ids.map(trailById).filter(Boolean).map((t) => t.geometry.coordinates.slice());
+// Un tramo del recorrido es un sendero de la red O un TRAZO LIBRE propio del
+// recorrido (`free:<clave>` → route.freeroam_paths[clave]). El trazo libre no
+// es un sendero: no está en `trails`, no sale en la lista de senderos y no se
+// reutiliza en otro recorrido. Existe para poder pasar por donde no hay sendero
+// —el claro de la casa— sin ensuciar la red con uno inventado.
+const FREE_SEG = 'free:';
+const isFreeSeg = (id) => String(id || '').startsWith(FREE_SEG);
+const freeSegKey = (id) => String(id).slice(FREE_SEG.length);
+function segCoords(id, freePaths) {
+  if (isFreeSeg(id)) {
+    const cs = freePaths && freePaths[freeSegKey(id)];
+    return Array.isArray(cs) && cs.length >= 2 ? cs.slice() : null;
+  }
+  const t = trailById(id);
+  return t ? t.geometry.coordinates.slice() : null;
+}
+// Devuelve { path, free }: el trazado encadenado y, en paralelo, qué coordenadas
+// vienen de un trazo libre. Ese marcador es lo que impide luego que freeRoamPath
+// enderece —y borre— justo lo que se dibujó a mano.
+function orderedPathFromSegments(ids, freePaths) {
+  const segs = [];
+  (ids || []).forEach((id) => { const cs = segCoords(id, freePaths); if (cs) segs.push({ cs, free: isFreeSeg(id) }); });
   if (!segs.length) return null;
-  let path = segs[0].slice();
+  let path = segs[0].cs.slice(), free = path.map(() => segs[0].free);
   if (segs.length > 1) {   // orientar el primero según por dónde sigue el segundo
-    const n = segs[1];
+    const n = segs[1].cs;
     const endToNext = Math.min(haversine(path[path.length - 1], n[0]), haversine(path[path.length - 1], n[n.length - 1]));
     const startToNext = Math.min(haversine(path[0], n[0]), haversine(path[0], n[n.length - 1]));
-    if (startToNext < endToNext) path.reverse();
+    if (startToNext < endToNext) { path.reverse(); free.reverse(); }
   }
   for (let i = 1; i < segs.length; i++) {
-    let seg = segs[i]; const tail = path[path.length - 1];
+    let seg = segs[i].cs; const tail = path[path.length - 1];
     if (haversine(tail, seg[seg.length - 1]) < haversine(tail, seg[0])) seg = seg.slice().reverse();
-    path = haversine(tail, seg[0]) < 5 ? path.concat(seg.slice(1)) : path.concat(seg);
+    const add = haversine(tail, seg[0]) < 5 ? seg.slice(1) : seg;   // soldar si se tocan
+    path = path.concat(add); free = free.concat(add.map(() => segs[i].free));
   }
-  return path;
+  return { path, free };
 }
 
 // Greedily chain a route's segments into ONE ordered polyline start→end, so the
@@ -998,7 +1029,8 @@ function buildRoutePath(id) {
   // según los puntos de inicio/fin si se dieron (para que el flujo del camino
   // apunte hacia donde el admin marcó, aunque no cambie el orden de senderos).
   if (route && Array.isArray(route.segments) && route.segments.length) {
-    let path = freeRoamPath(orderedPathFromSegments(route.segments));
+    const built = orderedPathFromSegments(route.segments, route.freeroam_paths);
+    let path = built && freeRoamPath(built.path, built.free);
     if (path && path.length >= 2) {
       const last = path.length - 1;
       const sC = sWp && sWp.geometry.coordinates, eC = eWp && eWp.geometry.coordinates;
@@ -1048,11 +1080,14 @@ function buildRoutePath(id) {
 // la caja de información del recorrido; el editor la reutiliza para que los
 // guiones salgan en el orden en que el visitante llega a cada punto, no en el
 // orden en que el admin los fue tocando en el mapa.
-function orderPointsAlongSegments(segIds, ptIds, startId, endId) {
+function orderPointsAlongSegments(segIds, ptIds, startId, endId, freePaths) {
   const ids = (ptIds || []).slice();
   const sWp = startId ? wpById(startId) : null;
   const eWp = endId ? wpById(endId) : null;
-  let path = orderedPathFromSegments(segIds || []);
+  // Con los trazos libres puestos: los puntos del claro se proyectan sobre el
+  // trazado que se dibujó, no sobre la recta que dejaría el enderezado.
+  const built = orderedPathFromSegments(segIds || [], freePaths);
+  let path = built && built.path;
   // Sin senderos elegidos no había trazado sobre el que proyectar y los puntos
   // se quedaban en el orden en que el admin los fue TOCANDO en el mapa — que no
   // es el orden en que se caminan. Se deduce el camino por la red de senderos
@@ -1305,10 +1340,55 @@ function eleText(r) { return `⛰️ +${Math.round(r.gainM)} m`; }
 // más 1 h por cada 600 m de subida. Es una estimacion, y se muestra con ~.
 // ponytail: ritmo unico; si alguna vez hay perfiles (familia, deportista), aqui
 // se parametriza.
-function walkText(distM, gainM) {
-  const min = Math.round((distM / 4000 + gainM / 600) * 60);
-  if (!isFinite(min) || min <= 0) return '⏱️ —';
-  return min < 60 ? `⏱️ ~${min} min` : `⏱️ ~${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
+// Constantes del modelo, en un solo sitio. Naismith con la corrección de
+// Langmuir, con valores de SENDERO DE MONTAÑA HÚMEDA — no de camino llano, que
+// es lo que había antes (4 km/h y 600 m/h) y por eso el Recorrido del Agua salía
+// en ~30 min cuando eso es lo que tarda sólo la bajada a la cascada.
+//
+// Son valores de manual, no medidos: el ancla de cordura es esa observación —
+// 1.518 m a 4 km/h daban 23 min para el recorrido ENTERO, menos que su propia
+// bajada. En cuanto haya 3 caminatas completas de verdad, la mediana observada
+// sustituye a todo esto (ver routeDuration).
+const WALK_KMH = 2.0;            // ritmo en llano sobre sendero estrecho y húmedo
+const ASCENT_M_PER_H = 400;      // 1 h por cada 400 m de subida acumulada
+const DESCENT_MIN_PER_300M = 10; // Langmuir: la bajada pronunciada TAMBIÉN cuesta
+const STOP_MIN = 3;              // pararse a escuchar un punto de la audioguía
+// Minutos a pie. `stops` son los puntos con guión: un recorrido con audioguía se
+// hace parando, y no contarlo era la mitad del error.
+function walkMinutes(distM, gainM, lossM, stops) {
+  const m = (distM / 1000) / WALK_KMH * 60
+    + (gainM || 0) / ASCENT_M_PER_H * 60
+    + (lossM || 0) / 300 * DESCENT_MIN_PER_300M
+    + (stops || 0) * STOP_MIN;
+  return isFinite(m) ? Math.round(m) : 0;
+}
+const fmtMin = (min) => (min < 60 ? `~${min} min` : `~${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`);
+// Dos números, porque son dos cosas distintas: cuánto se tarda en caminarlo y
+// cuánto en hacerlo como está diseñado, parándose en cada punto.
+function walkText(distM, gainM, lossM, stops) {
+  const walking = walkMinutes(distM, gainM, lossM, 0);
+  if (walking <= 0) return '⏱️ —';
+  const guided = walkMinutes(distM, gainM, lossM, stops);
+  return guided > walking ? `🚶 ${fmtMin(walking)} · 🎧 ${fmtMin(guided)}` : `⏱️ ${fmtMin(walking)}`;
+}
+// Precedencia del tiempo que se enseña: lo que MIDIÓ el dueño gana sobre lo que
+// midieron los visitantes, y eso gana sobre cualquier modelo. Un número medido
+// vale más que una regla de manual, por buena que sea la regla.
+function routeDuration(route, distM, gainM, lossM, stops) {
+  if (route && route.duration_min > 0) return { text: `⏱️ ${fmtMin(route.duration_min)}`, src: 'manual' };
+  const st = route && state.routeStats && state.routeStats[route.id];
+  if (st && st.n_walks >= 3 && st.median_min > 0) {
+    return { text: `⏱️ ${fmtMin(Math.round(st.median_min))}`, src: 'medido', n: st.n_walks };
+  }
+  return { text: walkText(distM, gainM, lossM, stops), src: 'modelo' };
+}
+// Paradas de la audioguia: puntos del recorrido que TIENEN guion. Un punto sin
+// guion no suena y no hace parar a nadie, asi que no cuenta.
+function routeStopCount(id) {
+  const r = state.routesById[id];
+  if (!r || !r.scripts) return 0;
+  const member = new Set(state.waypoints.filter((w) => (w.properties.routes || []).includes(id)).map((w) => w.properties.id));
+  return Object.keys(r.scripts).filter((pid) => member.has(pid) && r.scripts[pid] && (r.scripts[pid].es || r.scripts[pid].en)).length;
 }
 async function fetchElevation(coords) {
   const N = Math.min(coords.length, 90);
@@ -1320,17 +1400,25 @@ async function fetchElevation(coords) {
   const res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`);
   if (!res.ok) throw new Error('elev ' + res.status);
   const e = (await res.json()).elevation || [];
-  let gain = 0, min = Infinity, max = -Infinity;
-  for (let i = 0; i < e.length; i++) { min = Math.min(min, e[i]); max = Math.max(max, e[i]); if (i > 0 && e[i] > e[i - 1]) gain += e[i] - e[i - 1]; }
-  return { gainM: gain, minEle: min, maxEle: max };
+  // La BAJADA tambien cuesta tiempo en sendero pronunciado (correccion de
+  // Langmuir), asi que se suma aparte en vez de tirarla.
+  let gain = 0, loss = 0, min = Infinity, max = -Infinity;
+  for (let i = 0; i < e.length; i++) {
+    min = Math.min(min, e[i]); max = Math.max(max, e[i]);
+    if (i > 0 && e[i] > e[i - 1]) gain += e[i] - e[i - 1];
+    if (i > 0 && e[i] < e[i - 1]) loss += e[i - 1] - e[i];
+  }
+  return { gainM: gain, lossM: loss, minEle: min, maxEle: max };
 }
 async function applyElevation(id, path) {
   const set = (sel, txt) => { const el = $(sel); if (el && state.activeRoute === id) el.textContent = txt; };
+  const route = state.routesById[id];
+  const stops = routeStopCount(id);
   // El tiempo depende del desnivel, asi que se pinta con el, no antes.
-  const paint = (r) => { set('#ri-ele', eleText(r)); set('#ri-time', walkText(pathLengthM(path), r.gainM)); };
+  const paint = (r) => { set('#ri-ele', eleText(r)); set('#ri-time', routeDuration(route, pathLengthM(path), r.gainM, r.lossM, stops).text); };
   if (state.eleCache[id]) { paint(state.eleCache[id]); return; }
   try { const r = await fetchElevation(path); state.eleCache[id] = r; paint(r); }
-  catch (e) { set('#ri-ele', '⛰️ —'); set('#ri-time', walkText(pathLengthM(path), 0)); }
+  catch (e) { set('#ri-ele', '⛰️ —'); set('#ri-time', routeDuration(route, pathLengthM(path), 0, 0, stops).text); }
 }
 
 // ---------- waypoint card ----------
@@ -1500,7 +1588,7 @@ function routePointsInOrder(id) {
   const r = state.routesById[id];
   if (!r) return [];
   const ids = state.waypoints.filter((w) => (w.properties.routes || []).includes(id)).map((w) => w.properties.id);
-  return orderPointsAlongSegments(r.segments || [], ids, r.start_id, r.end_id).map(wpById).filter(Boolean);
+  return orderPointsAlongSegments(r.segments || [], ids, r.start_id, r.end_id, r.freeroam_paths).map(wpById).filter(Boolean);
 }
 // ¿A dónde toca ir AHORA? Antes de llegar al inicio, al inicio; después, al
 // siguiente punto que no se haya visitado; al final, al punto de fin.
@@ -3232,6 +3320,11 @@ async function main() {
         ensureGps: () => { if (state.watchId == null) locate(); },   // GPS caliente para marcar sin esperar
         orderPointsAlongSegments,   // guiones en el orden del recorrido (editor de recorridos)
         freeRoam: () => state.freeroam,
+        // ¿Está el punto dentro de la zona de recorrido libre? Lo usa el editor
+        // para no dejar dibujar un trazo libre fuera de ella. Sin zona definida
+        // devuelve true (falla abierto): el editor no puede bloquear por algo
+        // que el admin todavía no ha dibujado.
+        inFreeRoam: (pt) => { const ring = freeRoamRing(); return ring ? inPolygon(pt, ring) : true; },
         setFreeRoam: (doc) => { state.freeroam = doc; if (state.activeRoute) selectRoute(state.activeRoute); },
         redrawActiveRoute: () => { if (state.activeRoute) selectRoute(state.activeRoute); } });
       initRecorder({ state, t, L, toast, ensureGps: () => { if (state.watchId == null) locate(); },
@@ -3335,13 +3428,17 @@ async function loadCloudData() {
   // visitante mira una pantalla vacía. Los refrescos posteriores ya lo hacían.
   if (!navigator.onLine) return;
   try {
-    const [cw, cs, cr, ct, cm, cpt, cc] = await Promise.all([
+    const [cw, cs, cr, ct, cm, cpt, cc, cts] = await Promise.all([
       Cloud.listWaypoints().catch(() => null), Cloud.listSpecies().catch(() => null),
       Cloud.listRoutes().catch(() => null), Cloud.listTrails().catch(() => null),
       Cloud.listMedia().catch(() => null), Cloud.listPointTypes().catch(() => null),
       Cloud.listContent().catch(() => null),
+      Cloud.listRouteTimeStats().catch(() => null),
     ]);
     if (cc && cc.length) applyCloudContent(cc);   // textos de Historia / Info editados por el admin
+    // Tiempos medidos: mientras no haya 3 caminatas completas de un recorrido no
+    // hay fila, y routeDuration se queda con el modelo. Es lo normal al principio.
+    if (cts && cts.length) { state.routeStats = {}; cts.forEach((r) => { state.routeStats[r.route_id] = r; }); }
     if (cpt && cpt.length) applyCloudTypes(cpt);   // tipos de punto ANTES de coloreado/leyenda
     if (cw && cw.length) applyCloudWaypoints(cw);
     if (cs && cs.length) applyCloudSpecies(cs);

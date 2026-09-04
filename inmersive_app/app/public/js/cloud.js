@@ -135,6 +135,9 @@ export async function deletePointType(id) { const c = await getClient(); const {
 // página; la app lo funde ENCIMA del JSON empacado. Lectura pública, escritura
 // sólo admin (RLS, migración 22).
 export const listContent = () => sel('content');
+// Mediana de tiempo REAL por recorrido (vista agregada; las caminatas de cada
+// visitante siguen siendo privadas). Vacia hasta que haya 3 caminatas completas.
+export const listRouteTimeStats = () => sel('route_time_stats');
 export async function upsertContent(row) { const c = await getClient(); const { error } = await c.from('content').upsert(row); if (error) throw error; }
 
 // ---------- medios (fotos + videos): tabla runtime, espejo de media.json ----------
