@@ -47,9 +47,12 @@ assert.ok(rf && !/source === 'curated'/.test(rf[1]), 'mismo bug en reframeMakePr
 // La vía de escape sigue en su sitio: escribir una fila curada la vuelve 'admin'.
 assert.ok(/source: m\.source === 'curated' \? 'admin'/.test(admin),
   'mediaRow convierte curated -> admin, que es lo que hace que la fila de la nube gane');
-// Y borrar una curada SIGUE prohibido: no está en la base, volvería en el build.
-assert.ok(/if \(m\.source === 'curated'\) \{ CTX\.toast/.test(admin),
-  'borrar una foto del catálogo sigue sin tener sentido');
+// Y borrar una curada YA NO está prohibido (antes se rechazaba con un aviso).
+// No se puede hacer un DELETE —no hay fila que borrar y volvería en el build—,
+// así que se tapa con una lápida: misma id, status 'deleted'. Ver media-delete.test.mjs.
+const dm = /async function delMedia\(m\) \{([\s\S]*?)\n\}/.exec(admin);
+assert.ok(dm && /isBundled\(m\)/.test(dm[1]) && /status: 'deleted'/.test(dm[1]),
+  'borrar una foto del catálogo se hace con lápida, no rechazándola');
 
 // --- 3. la portada anterior se va al final, no se queda a medias ---
 assert.ok(/const maxSort = sibs\.reduce/.test(body) && /is_primary: false, sort: maxSort \+ 1/.test(body),

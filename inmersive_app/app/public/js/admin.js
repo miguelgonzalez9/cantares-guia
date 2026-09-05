@@ -962,16 +962,32 @@ async function classifyMany(ids, type, subjectId) {
   renderFotos();
   CTX.toast(`🏷️ ${ok} clasificada(s)${queued ? ` · ${queued} en cola` : ''}${fail ? ` · ⚠️ ${fail} fallaron` : ''}`);
 }
+// Una foto SIN fila propia en la nube: empacada en el build, o prestada por la
+// especie/el punto. Borrarlas con deleteRow no haría nada — hay que taparlas.
+const SYNTHETIC_MEDIA = /^(sp-photo:|wp-photo:|wp-leaf:|shared:)/;
+function isBundled(m) {
+  return m.source === 'curated' || m.source === 'shared' || SYNTHETIC_MEDIA.test(String(m.id || ''));
+}
 async function deleteMany(ids) {
   if (!confirm(`¿Eliminar ${ids.length} foto(s)/video(s)?`)) return;
   let ok = 0, fail = 0;
   for (const id of ids) {
     const m = allMedia().find((x) => x.id === id);
-    // Las curadas viven en el catálogo del build: no se pueden borrar desde aquí
-    // y decirlo es mejor que contarlas como éxito.
-    if (!m || m.source === 'curated') { fail++; continue; }
-    try { await deleteRow('media', id); CTX.removeLocalRow('media', id); ok++; }
-    catch (e) { fail++; console.warn('[media] borrar lote', id, e && e.message); }
+    if (!m) { fail++; continue; }
+    try {
+      if (isBundled(m)) {
+        // No hay fila en la nube que borrar: la foto viene del build (media.json) o
+        // es PRESTADA (species.photo, foto/hoja del punto). Se tapa con una LÁPIDA:
+        // misma id, status 'deleted'. Antes esto se contaba como fallo y la foto se
+        // quedaba para siempre. Reversible: borra la lápida y la foto vuelve.
+        const row = mediaRow(m, { status: 'deleted' });
+        await saveRow('media', row);
+        CTX.applyLocalRow('media', row);
+      } else {
+        await deleteRow('media', id); CTX.removeLocalRow('media', id);
+      }
+      ok++;
+    } catch (e) { fail++; console.warn('[media] borrar lote', id, e && e.message); }
   }
   selClear();
   renderFotos();
@@ -1021,10 +1037,20 @@ async function reorderMedia(m, dir) {
   renderFotos();
 }
 async function delMedia(m) {
-  if (m.source === 'curated') { CTX.toast('Esa foto es del catálogo (build-time); edítala con el script.'); return; }
   if (!confirm('¿Eliminar esta foto/video?')) return;
-  try { const res = await deleteRow('media', m.id); CTX.removeLocalRow('media', m.id); renderFotos(); CTX.toast(res.queued ? '💾 Eliminado — se sincronizará' : 'Eliminado'); }
-  catch (e) { CTX.toast(friendlyErr(e)); }
+  try {
+    // Mismo criterio que el borrado en lote: si la foto no tiene fila propia en la
+    // nube (empacada o prestada), se tapa con una lápida en vez de rechazarla.
+    let res;
+    if (isBundled(m)) {
+      const row = mediaRow(m, { status: 'deleted' });
+      res = await saveRow('media', row); CTX.applyLocalRow('media', row);
+    } else {
+      res = await deleteRow('media', m.id); CTX.removeLocalRow('media', m.id);
+    }
+    renderFotos();
+    CTX.toast(res && res.queued ? '💾 Eliminado — se sincronizará' : 'Eliminado');
+  } catch (e) { CTX.toast(friendlyErr(e)); }
 }
 function editCaption(m) {
   const cur = m.caption || '';

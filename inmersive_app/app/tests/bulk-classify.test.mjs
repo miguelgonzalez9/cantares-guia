@@ -50,10 +50,11 @@ assert.ok(/const many = Array\.isArray\(m\);/.test(pick));
 assert.ok(/if \(many\) await classifyMany\(ids, it\.dataset\.type, it\.dataset\.id\);/.test(pick));
 assert.ok(/\$\{!many && m\.subject_id \?/.test(pick), '«dejar sin clasificar» no aplica a un lote');
 
-// 6. Borrado en lote: las curadas viven en el catálogo del build y no se pueden
-//    borrar desde aquí — contarlas como éxito sería mentir.
+// 6. Borrado en lote: las curadas viven en el catálogo del build, así que no hay
+//    fila que borrar. Ya no se rechazan (eso las hacía inborrables desde el
+//    teléfono): se tapan con una lápida en la nube. Ver media-delete.test.mjs.
 const del = admin.slice(admin.indexOf('async function deleteMany('), admin.indexOf('function renderSelBar('));
-assert.ok(/m\.source === 'curated'/.test(del) && /confirm\(/.test(del));
+assert.ok(/isBundled\(m\)/.test(del) && /status: 'deleted'/.test(del) && /confirm\(/.test(del));
 
 // 7. «Seleccionar las visibles» alterna: si ya están todas, las quita.
 const all = fn('wireSelAll');

@@ -168,8 +168,18 @@ function indexMedia(doc, cloud) {
   // del build (media.json) en vez de duplicar la tarjeta. La nube va después, así
   // gana. Esto permite reencuadrar/cambiar la portada de fotos empacadas.
   const byIdMap = new Map();
+  // LÁPIDAS. Una foto empacada (media.json) no tiene fila en la nube que borrar, así
+  // que el admin la oculta guardando una fila con SU MISMA id y status 'deleted'.
+  // Se guardan aparte del mapa porque las galerías también prestan fotos que no
+  // salen de aquí (species.photo, la del punto, la hoja) y hay que poder taparlas.
+  // Es reversible: al borrar la lápida en la nube, la foto del build reaparece.
+  const deleted = new Set();
   ((doc && doc.photos) || []).forEach((p) => { const m = normMedia(p); byIdMap.set(m.id, m); });
-  (cloud || []).forEach((r) => { const m = normMedia(r); byIdMap.set(m.id, m); });
+  (cloud || []).forEach((r) => {
+    const m = normMedia(r);
+    if (m.status === 'deleted') { deleted.add(m.id); byIdMap.delete(m.id); return; }
+    byIdMap.set(m.id, m);
+  });
   const all = [...byIdMap.values()];
   const bySubject = {}, byId = {}, unclassified = [];
   all.forEach((m) => {
@@ -181,8 +191,11 @@ function indexMedia(doc, cloud) {
   });
   // portada primero, luego por 'sort'
   Object.values(bySubject).forEach((arr) => arr.sort((a, b) => (b.is_primary - a.is_primary) || (a.sort - b.sort)));
-  return { bySubject, byId, unclassified, all };
+  return { bySubject, byId, unclassified, all, deleted };
 }
+// ¿La ocultó el admin? Sirve igual para filas de `media` y para las fotos PRESTADAS
+// (species.photo, foto/hoja del punto), que nunca pasan por el mapa de indexMedia.
+function mediaDeleted(id) { return !!(state.media && state.media.deleted && state.media.deleted.has(id)); }
 // Combina la tabla `media` de la nube SOBRE las fotos estáticas (reindexa todo).
 function applyCloudMedia(cm) {
   state.cloudMedia = cm || [];
@@ -1467,7 +1480,7 @@ function realPhoto(wp) {
 // Galería del punto: portada/fotos de la tabla media + foto y hoja heredadas.
 function waypointGallery(wp) {
   const p = wp.properties, out = [], seen = new Set();
-  const push = (m) => { if (m && m.full && !seen.has(m.full)) { seen.add(m.full); out.push(m); } };
+  const push = (m) => { if (m && m.full && !seen.has(m.full) && !mediaDeleted(m.id)) { seen.add(m.full); out.push(m); } };
   (state.media.bySubject[`waypoint:${p.id}`] || []).forEach(push);
   if (p.photo) push(normMedia({ url: p.photo, subject_type: 'waypoint', subject_id: p.id, id: 'wp-photo:' + p.id,
     caption: p.tipo === 'arbol' ? t('tree_photo') : '', caption_en: p.tipo === 'arbol' ? 'Tree' : '' }));
@@ -2517,7 +2530,7 @@ function countPoints(idx, s) {
 // un punto está linkeado a una especie, su foto aparece también en la especie.
 function speciesGallery(s) {
   const out = [], seen = new Set();
-  const push = (m) => { if (m && m.full && !seen.has(m.full)) { seen.add(m.full); out.push(m); } };
+  const push = (m) => { if (m && m.full && !seen.has(m.full) && !mediaDeleted(m.id)) { seen.add(m.full); out.push(m); } };
   (state.media.bySubject[`species:${s.id}`] || []).forEach(push);
   if (s.photo) push(normMedia({ url: s.photo, subject_type: 'species', subject_id: s.id, id: 'sp-photo:' + s.id }));
   speciesWaypoints(s).forEach((w) => {
