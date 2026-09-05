@@ -16,10 +16,10 @@ const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery
 const CONFIG = {
   center: [-75.4503, 5.0818], zoom: 15.6,
   maxBounds: [[-75.462, 5.072], [-75.439, 5.092]],
-  // Llegada = estar EN el punto y verlo, no que el GPS diga «cerca». Bajo dosel
-  // el fijo salta decenas de metros; con 25 m la voz arrancaba con el punto aún
-  // invisible. 15 m + fijo preciso + dos fijos seguidos (ver checkProximity).
-  proximityMeters: 15, reTriggerMeters: 45,
+  // Radio BASE de llegada. No es el radio final: `arriveRadius` le suma la
+  // incertidumbre que declara el GPS, porque bajo dosel el fijo salta decenas
+  // de metros y con 15 m fijos no disparaba estando encima del punto.
+  proximityMeters: 15,   // la cerca se ensancha con la precisión del GPS (arriveRadius)
   data: {
     boundary: 'data/boundary.geojson', zones: 'data/zones.geojson',
     trails: 'data/trails.geojson', waypoints: 'data/waypoints.geojson',
@@ -46,7 +46,7 @@ const state = {
   map: null, routes: [], routesById: {}, species: [], waypoints: [], trails: [],
   staticWaypoints: [], staticSpecies: [],   // respaldos para el merge con la nube
   activeRoute: null, userPos: null, watchId: null, userAccuracy: null, firstFix: false,
-  lastTriggered: {}, navDone: {}, openWaypointId: null, baseIndex: 2, zonesVisible: false,
+  navDone: {}, openWaypointId: null, baseIndex: 2, zonesVisible: false,
   reserveInfo: null, media: { bySubject: {} }, boundary: null,
   hiddenTypes: new Set(),   // tipos de punto ocultados por el usuario
   guiding: null,            // id del recorrido en modo "seguir" (GPS)
@@ -1620,9 +1620,10 @@ function routePointsInOrder(id) {
 }
 // ¿A dónde toca ir AHORA? Antes de llegar al inicio, al inicio; después, al
 // siguiente punto que no se haya visitado; al final, al punto de fin.
-// `state.navDone` es distinto de `lastTriggered`: aquél se reinicia al alejarse
-// (para poder volver a sonar), y como "ya visitado" haría que la guía mandara de
-// vuelta a un punto por el que ya se pasó.
+// `state.navDone` marca lo ya visitado, y es también lo que ARMA el punto
+// siguiente (ver `armedStop`): un punto visitado deja de poder sonar. Antes
+// había además un `lastTriggered` que se reiniciaba al alejarse para poder
+// volver a sonar; con un solo punto armado a la vez sobraba, y se quitó.
 function navTarget() {
   if (!state.guiding) return null;
   const built = buildRoutePath(state.guiding);
@@ -2102,36 +2103,79 @@ function primeSpeech() {
   if (_speechPrimed) return;
   try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); _speechPrimed = true; } catch (e) { /* sin TTS */ }
 }
-let _speakTimer = null, _resumeTimer = null;
-function stopResumePing() { clearInterval(_resumeTimer); _resumeTimer = null; }
-// Chrome corta a los ~15 s: un pause()+resume() periódico mantiene viva la locución.
-function startResumePing() {
-  stopResumePing();
-  _resumeTimer = setInterval(() => {
-    if (!window.speechSynthesis.speaking) return stopResumePing();
-    try { window.speechSynthesis.pause(); window.speechSynthesis.resume(); } catch (e) { /* nada que reanudar */ }
-  }, 9000);
+let _speakTimer = null, _queue = [], _qLang = '', _qEpoch = 0;
+// ----- Por qué el guión se cortaba a media frase -----
+// En campo, el primer punto de Agua leyó 141 caracteres y calló en mitad de una
+// oración. 141 caracteres a `rate 0.95` son ~10 s, y el viejo `startResumePing`
+// hacía pause()+resume() **a los 9 s**: en Chrome/Android ese par no reanima la
+// locución, la MATA. El remedio contra el corte a los 15 s era la causa del
+// corte a los 9.
+// Ahora el texto se trocea en frases y se encadenan con `onend`. Cada trozo dura
+// bastante menos de 15 s, así que no hace falta ping ninguno — y esto arregla el
+// fallo tanto si el culpable era el pause/resume como si era el tope de 15 s.
+const SPEAK_CHUNK = 180;   // caracteres; ~13 s de voz, con margen sobre el tope
+// Trocea respetando la frase. Puro y sin DOM: es lo que prueba audioguide.test.mjs.
+function chunkText(text, max = SPEAK_CHUNK) {
+  const out = [];
+  // Corta tras . ! ? … : ; conservando el signo; si una frase sola no cabe,
+  // se parte por comas y, en último caso, por espacios: nunca a mitad de palabra.
+  const split = (s, re) => s.split(re).map((x) => x.trim()).filter(Boolean);
+  const pieces = [];
+  for (const sent of split(String(text), /(?<=[.!?…:;])\s+/)) {
+    if (sent.length <= max) { pieces.push(sent); continue; }
+    for (const cl of split(sent, /(?<=,)\s+/)) {
+      if (cl.length <= max) { pieces.push(cl); continue; }
+      let rest = cl;
+      while (rest.length > max) {
+        let cut = rest.lastIndexOf(' ', max);
+        if (cut <= 0) cut = max;              // palabra kilométrica: se parte igual
+        pieces.push(rest.slice(0, cut).trim());
+        rest = rest.slice(cut).trim();
+      }
+      if (rest) pieces.push(rest);
+    }
+  }
+  // Reagrupa frases cortas para no trocear más de lo necesario (una pausa entre
+  // enunciados se oye; menos cortes, más natural).
+  for (const p of pieces) {
+    const last = out[out.length - 1];
+    if (last && last.length + 1 + p.length <= max) out[out.length - 1] = last + ' ' + p;
+    else out.push(p);
+  }
+  return out;
 }
 function stopSpeech() {
-  clearTimeout(_speakTimer); _speakTimer = null; stopResumePing();
+  clearTimeout(_speakTimer); _speakTimer = null; _queue = []; _qEpoch++;
   if (TTS_OK) try { window.speechSynthesis.cancel(); } catch (e) { /* sin TTS */ }
+}
+// Dice el siguiente trozo y se encadena solo. Un error corta la cola entera: si
+// el motor falló una vez, insistir sólo produce silencio con retraso.
+function _sayNext(epoch) {
+  if (epoch !== _qEpoch) return;   // cola vieja: la cancelaron mientras hablaba
+  const text = _queue.shift();
+  if (text == null) return;
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = _qLang; u.rate = 0.95;
+    const v = pickVoice(_qLang); if (v) u.voice = v;
+    // `cancel()` dispara el `onend` del enunciado en curso, y puede llegar DESPUÉS
+    // de que speak() haya montado la cola siguiente. Sin el epoch, ese onend
+    // rezagado se comía un trozo del guión nuevo — el mismo síntoma que se está
+    // arreglando, pero al cambiar de punto.
+    u.onend = () => { if (epoch === _qEpoch && _queue.length) _sayNext(epoch); };
+    u.onerror = () => { if (epoch === _qEpoch) _queue = []; };
+    window.speechSynthesis.speak(u);
+  } catch (e) { _queue = []; /* TTS no disponible: el guión igual está en pantalla */ }
 }
 // Habla un texto. cancel()+speak garantiza UN solo audio a la vez; el respiro de
 // 90 ms entre los dos es lo que impide que Chrome se trague el nuevo.
 function speak(text, lang) {
   if (!text || !TTS_OK) return false;
-  clearTimeout(_speakTimer); stopResumePing();
+  clearTimeout(_speakTimer);
   try { window.speechSynthesis.cancel(); } catch (e) { /* sin TTS */ }
-  _speakTimer = setTimeout(() => {
-    try {
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = lang; u.rate = 0.95;
-      const v = pickVoice(lang); if (v) u.voice = v;
-      u.onend = stopResumePing; u.onerror = stopResumePing;
-      window.speechSynthesis.speak(u);
-      startResumePing();
-    } catch (e) { /* TTS no disponible: el guión igual está en pantalla */ }
-  }, 90);
+  _queue = []; _qLang = lang;
+  const epoch = ++_qEpoch;
+  _speakTimer = setTimeout(() => { _queue = chunkText(text); _sayNext(epoch); }, 90);
   return true;
 }
 // Texto + idioma de un guión, elegidos JUNTOS. Van juntos porque son la misma
@@ -2151,40 +2195,62 @@ function speakScript(s) {
   if (l) speak(l.text, l.lang);
 }
 
-// Tres guardas contra el aviso prematuro (la queja: «la voz arranca cuando
-// todavía estoy lejos»). (1) sólo puntos DE ESTE recorrido — uno de otro sendero
-// a 15 m del camino no es una llegada y su guión cuenta otro relato; (2) el fijo
-// tiene que ser preciso: con ±60 m el GPS te pone en el punto estando a media
-// ladera; (3) dos fijos seguidos dentro del radio, para que un salto aislado del
-// GPS —lo normal bajo dosel— no dispare la tarjeta ni la voz.
-const ARRIVE_ACC_MAX = 30;   // m de precisión máxima para dar una llegada por buena
+// ----- Qué punto puede sonar, y desde cuán lejos -----
+// Dos quejas de campo que se arreglan juntas porque una sostiene a la otra.
+//
+// (1) «Yendo HACIA el inicio, la voz arrancó con un punto de más adelante.»
+//     Se recorrían TODOS los puntos del recorrido y sonaba el que cayera en el
+//     radio, sin mirar el orden. Ahora sólo hay UN punto armado: el primero sin
+//     visitar, y sólo después de llegar al inicio. Un punto al que no se llega
+//     no atasca el recorrido — la × de la tarjeta de navegación lo salta.
+//
+// (2) «Estoy EN el punto y no suena.» El radio era de 15 m y además se tiraba
+//     todo fijo con precisión peor de 30 m; bajo dosel el teléfono reporta
+//     ±30–60 m de rutina, así que no disparaba nunca. La cerca ahora crece con
+//     la incertidumbre que el propio GPS declara: salta cuando el círculo de
+//     error TOCA la cerca (`d − precisión ≤ radio`), que es exactamente la regla
+//     de la Geofencing API de Android y la idea detrás del ajuste al camino de
+//     Maps/Waze. Con un solo punto armado, un radio generoso ya no puede
+//     disparar el punto equivocado: sin (1), esto sería temerario.
+//
+// Se conserva la histéresis: dos fijos seguidos dentro de la cerca, para que un
+// salto aislado del GPS no dé una llegada por buena.
+const ARRIVE_ACC_MAX = 75;   // m: por encima de esto el fijo es basura, no impreciso
+const ARRIVE_ACC_PAD = 40;   // m: cuánto puede ensanchar la precisión la cerca
 const ARRIVE_FIXES = 2;      // fijos consecutivos dentro del radio
+// Radio efectivo para esta lectura del GPS. Puro: lo prueba audioguide.test.mjs.
+function arriveRadius(accuracy, base) {
+  const r = base == null ? CONFIG.proximityMeters : base;
+  if (accuracy == null) return r;               // el navegador no la reporta
+  return r + Math.min(Math.max(accuracy, 0), ARRIVE_ACC_PAD);
+}
+// El único punto que puede sonar ahora mismo, o null.
+function armedStop() {
+  if (!state.guiding) return null;
+  const built = buildRoutePath(state.guiding);
+  const path = built && built.path;
+  // Con trazado hay un inicio que alcanzar; sin él no, y el recorrido se arma ya.
+  if (path && path.length && !state.atTrailhead) return null;
+  return routePointsInOrder(state.guiding)
+    .find((w) => !state.navDone[w.properties.id] && waypointVisible(w)) || null;
+}
 function checkProximity() {
   if (!state.userPos || !state.guiding) return;   // sólo durante un recorrido iniciado
-  // accuracy nula = el navegador no la reporta; no se puede exigir lo que no hay.
-  const trusted = state.userAccuracy == null || state.userAccuracy <= ARRIVE_ACC_MAX;
+  const wp = armedStop();
+  if (!wp) return;
+  const acc = state.userAccuracy;
+  if (acc != null && acc > ARRIVE_ACC_MAX) return;   // fijo basura: esperar a uno mejor
   if (!state.nearFixes) state.nearFixes = {};
-  state.waypoints.forEach((wp) => {
-    const id = wp.properties.id;
-    if (!(wp.properties.routes || []).includes(state.guiding)) return;   // sólo puntos del recorrido en curso
-    if (!waypointVisible(wp)) return;   // only trigger points currently shown
-    const d = haversine(state.userPos, wp.geometry.coordinates);
-    if (d > CONFIG.proximityMeters) {
-      state.nearFixes[id] = 0;          // salir del radio reinicia la confirmación
-      if (d > CONFIG.reTriggerMeters && state.lastTriggered[id]) state.lastTriggered[id] = false;
-      return;
-    }
-    if (state.lastTriggered[id]) return;
-    if (!trusted) return;               // fijo malo: esperar a uno mejor, no adivinar
-    state.nearFixes[id] = (state.nearFixes[id] || 0) + 1;
-    if (state.nearFixes[id] < ARRIVE_FIXES) return;   // aún sin confirmar
-    state.lastTriggered[id] = true;
-    state.navDone[id] = true;      // visitado: la guía ya no vuelve a mandarte aquí
-    // Una sola tarjeta, no un toast + un popup + una voz a la vez: cada
-    // llegada dice una cosa. El detalle completo sigue a un toque.
-    showGuideCard(wp);
-    renderTrailhead();             // y el destino pasa al punto siguiente
-  });
+  const id = wp.properties.id;
+  const d = haversine(state.userPos, wp.geometry.coordinates);
+  if (d > arriveRadius(acc)) { state.nearFixes[id] = 0; return; }   // salir reinicia
+  state.nearFixes[id] = (state.nearFixes[id] || 0) + 1;
+  if (state.nearFixes[id] < ARRIVE_FIXES) return;   // aún sin confirmar
+  state.navDone[id] = true;      // visitado: deja de estar armado y la guía sigue
+  // Una sola tarjeta, no un toast + un popup + una voz a la vez: cada
+  // llegada dice una cosa. El detalle completo sigue a un toque.
+  showGuideCard(wp);
+  renderTrailhead();             // y el destino pasa al punto siguiente
 }
 let toastTimer = null;
 function toast(msg) {
