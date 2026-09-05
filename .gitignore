@@ -109,3 +109,7 @@ inmersive_app/supabase/.temp/
 inmersive_app/data_prep/_reconcile_manifest.json
 inmersive_app/data_prep/_reconcile_moves-*.json
 inmersive_app/data_prep/_filename_moves-*.json
+inmersive_app/data_prep/_bird_descriptions.json
+inmersive_app/data_prep/_i18n_pending.json
+inmersive_app/data_prep/_wiki_cache/
+inmersive_app/data_prep/_36_run.log
