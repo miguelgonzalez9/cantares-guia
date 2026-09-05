@@ -7,7 +7,7 @@ eBird NO identifica fotos (eso lo hace BioCLIP cerrado en 14). Aquí eBird aport
       nombre común es/en. Empareja por nombre científico contra la taxonomía global
       de eBird → casi 100% de match (los nombres del censo son especies reales).
   (2) LISTA DE LA ZONA — especies reportadas cerca de la reserva (radio geo +
-      hotspots más cercanos), escrita a  info/censos_inventarios/ebird_cantares.json
+      hotspots más cercanos), escrita a  info/ambiental/censos_inventarios/ebird_cantares.json
       para que la revises. Marca cuáles de esas YA están en el inventario.
 
 Por defecto SOLO enriquece (seguro: no añade especies). El inventario del juego es
@@ -43,7 +43,7 @@ DATA = ROOT / "app" / "public" / "data"
 SPECIES = DATA / "species.json"
 WAYPOINTS = DATA / "waypoints.geojson"
 ENV = Path(__file__).resolve().parent / ".env"
-OUT = ROOT.parent / "info" / "censos_inventarios" / "ebird_cantares.json"
+OUT = ROOT.parent / "info" / "ambiental" / "censos_inventarios" / "ebird_cantares.json"
 
 DRY = "--dry-run" in sys.argv
 AUGMENT = "--augment" in sys.argv

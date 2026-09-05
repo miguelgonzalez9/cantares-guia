@@ -102,3 +102,14 @@ inmersive_app/data_prep/_enrich/**
 # Estado local de la CLI de Supabase (se regenera al hacer `link`; cambia por
 # máquina). No lleva secretos, pero versionarlo sólo genera conflictos.
 inmersive_app/supabase/.temp/
+
+# Manifiestos y registros de deshacer que generan los scripts de data_prep
+# (37_reconcile_folders, 33_filename_labels...). Son la foto de UNA corrida
+# sobre el archivo local de fotos: no son codigo y no valen en otra maquina.
+inmersive_app/data_prep/_reconcile_manifest.json
+inmersive_app/data_prep/_reconcile_moves-*.json
+inmersive_app/data_prep/_filename_moves-*.json
+inmersive_app/data_prep/_bird_descriptions.json
+inmersive_app/data_prep/_i18n_pending.json
+inmersive_app/data_prep/_wiki_cache/
+inmersive_app/data_prep/_36_run.log
