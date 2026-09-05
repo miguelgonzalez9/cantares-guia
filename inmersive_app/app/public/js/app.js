@@ -2072,7 +2072,10 @@ function routeScript(routeId, pointId) {
 //   1. getVoices() llega VACÍO en el primer arranque (las voces cargan asíncronas);
 //      hablar antes de que exista una voz para el idioma no dice nada.
 //   2. speak() llamado INMEDIATAMENTE después de cancel() se descarta en Chrome.
-//   3. Chrome/Android corta la locución a los ~15 s si nadie hace pause()/resume().
+//   3. Chrome/Android corta la locución larga. El remedio de manual —un
+//      pause()/resume() periódico— resultó ser PEOR que la enfermedad: mataba
+//      la locución en vez de mantenerla viva. Se cubre TROCEANDO el texto
+//      (`chunkText`), no reanimándolo.
 // Aquí se cubren los tres, y `ttsReady()` permite avisar en pantalla en vez de
 // dejar al visitante esperando una voz que no va a llegar.
 const TTS_OK = 'speechSynthesis' in window;
