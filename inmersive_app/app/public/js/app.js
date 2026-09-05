@@ -4,8 +4,8 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout, inReserve } from './auth-ui.js';
-import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin, saveSpeciesPatch, mediaActions, getPath, setPath } from './admin.js';
-import { inlineField, isEditing, setEditing, editToggleButton } from './inline-edit.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin, saveSpeciesPatch, mediaActions, getPath, setPath, openMediaFor } from './admin.js';
+import { inlineField, isEditing, setEditing, editToggleButton, onEditingChange } from './inline-edit.js';
 import { initGuide, startVisitorTourOnce } from './guide.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps, saveRow, deleteRow, compressImage } from './sync.js';
@@ -286,6 +286,7 @@ const I18N = {
     free_walk: 'Recorrido libre', free_stop: 'Terminar', my_walks: 'Mis recorridos',
     sp_here_1: 'lugar en la reserva', sp_here_n: 'lugares en la reserva', sp_nowhere: 'Aún sin puntos asociados en el mapa',
     sp_edit: 'Editar', sp_dl: 'Descargar foto', sp_new: 'Nueva especie', sp_frame: 'Encuadrar foto',
+    sp_photos: 'Fotos de esta especie',
     hist_title: 'Nuestra Historia',
     cm_services_h: '🎟️ Servicios y tarifas', cm_extra_h: 'Servicios adicionales',
     cm_rates_note: 'Tarifas tomadas del documento de servicios y tarifas de la reserva',
@@ -410,6 +411,7 @@ const I18N = {
     free_walk: 'Free walk', free_stop: 'Finish', my_walks: 'My walks',
     sp_here_1: 'spot in the reserve', sp_here_n: 'spots in the reserve', sp_nowhere: 'No map points linked yet',
     sp_edit: 'Edit', sp_dl: 'Download photo', sp_new: 'New species', sp_frame: 'Frame photo',
+    sp_photos: 'Photos of this species',
     hist_title: 'Our Story',
     cm_services_h: '🎟️ Services & rates', cm_extra_h: 'Add-on services',
     cm_rates_note: 'Rates taken from the reserve services & rates document',
@@ -2439,11 +2441,16 @@ function renderSpeciesGrid(highlightId) {
       b.id = 'species-admin-add'; b.className = 'admin-add'; b.style.marginBottom = '10px';
       b.textContent = '＋ ' + t('sp_new');
       b.onclick = () => openSpeciesEditor(null, () => { refreshSpecies(); renderSpeciesGrid(); });
-      // El interruptor gobierna TODA la pestaña, ficha incluida: se enciende una
-      // vez y se editan varias especies seguidas, viendo cómo van quedando.
+      // El interruptor ya NO es la puerta de entrada: cada tarjeta trae su propio
+      // ✏️, que es lo que se busca cuando quieres arreglar UNA especie que ves mal.
+      // Queda sólo como SALIDA, y por eso se esconde mientras está apagado: el
+      // modo es global (gobierna la ficha y el texto en sitio de otras pestañas),
+      // así que tiene que haber una forma visible de apagarlo.
       const tg = editToggleButton({ label: t('ie_on'), labelOn: t('ie_off'),
         onToggle: () => { renderSpeciesGrid(); if (state.openSpeciesId) { const sp = state.species.find((x) => x.id === state.openSpeciesId); if (sp) showSpecies(sp); } } });
       tg.id = 'species-edit-toggle'; tg.style.marginLeft = '8px';
+      const paintTg = () => { tg.hidden = !isEditing(); };
+      paintTg(); onEditingChange(paintTg);
       const bar = document.createElement('div'); bar.id = 'species-admin-bar'; bar.style.marginBottom = '10px';
       bar.appendChild(b); bar.appendChild(tg);
       grid.parentNode.insertBefore(bar, grid);
@@ -2487,8 +2494,25 @@ function renderSpeciesGrid(highlightId) {
       <p class="species-sci">${escapeHtml(s.scientific_name || '')}</p>
       <p class="species-meta">${escapeHtml(s.family || '')}${nPts ? `${s.family ? ' · ' : ''}📍 ${nPts}` : ''}${s.status === 'possible' ? ' · ' + t('possible') : ''}</p>
       <span class="species-group-tag" style="background:${gm.color}">${escapeHtml(groupLabel(gg))}</span>
-      ${capturedBadge(s.id)}`;
+      ${capturedBadge(s.id)}
+      ${isAdminUser() ? `<span class="sp-adm">
+        <button type="button" data-a="edit" title="${escapeHtml(t('sp_edit'))}">✏️</button>
+        <button type="button" data-a="fotos" title="${escapeHtml(t('sp_photos'))}">🖼️</button>
+      </span>` : ''}`;
     card.onclick = () => showSpecies(s);
+    // Acciones de admin EN LA TARJETA. Antes había un único interruptor arriba:
+    // para arreglar una especie que ves mal en la rejilla había que encenderlo,
+    // abrir la ficha y buscar el sitio. 🖼️ va derecho a las fotos de ESA especie
+    // (la bandeja del panel, filtrada), que es donde se reclasifica una foto que
+    // quedó en la especie equivocada — el caso que trajo aquí.
+    card.querySelectorAll('.sp-adm button').forEach((b) => {
+      b.onclick = (ev) => {
+        ev.stopPropagation();          // o el clic de la tarjeta abre además la ficha
+        if (b.dataset.a === 'fotos') { openMediaFor('species', s.id); return; }
+        if (!isEditing()) setEditing(true);
+        showSpecies(s);
+      };
+    });
     grid.appendChild(card);
   });
   if (highlightId) {
