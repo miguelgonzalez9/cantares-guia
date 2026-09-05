@@ -477,6 +477,10 @@ textarea.ie-input { resize: vertical; line-height: 1.5; }
   box-shadow: 0 1px 4px rgba(0,0,0,.18);
 }
 .species-card .sp-adm button:active { transform: scale(.94); }
+/* La portada dentro de la galería de edición: se marca para que se vea CUÁL es
+   la que sale de cabecera, y su ★ no es un botón (ya lo es). */
+.sp-fig-cover { outline: 2px solid var(--sun); outline-offset: -2px; }
+.sp-act.sp-is-cover { opacity: .95; cursor: default; }
 .species-common { font-size: 14.5px; font-weight: 700; color: var(--forest); margin: 0 0 2px; line-height: 1.2; }
 .species-sci { font-size: 12px; font-style: italic; color: var(--muted); margin: 0 0 6px; }
 .species-meta { font-size: 11px; color: var(--muted); }

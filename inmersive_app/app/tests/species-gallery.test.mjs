@@ -60,8 +60,15 @@ assert.ok(/const maxSort = sibs\.reduce/.test(body) && /is_primary: false, sort:
 
 // --- 4. una foto PRESTADA no se puede borrar desde aquí ---
 assert.ok(/const isBorrowedPhoto = \(m\) =>/.test(app), 'hay que distinguir las prestadas');
-const gal = /function speciesGalleryHtml\(s, rest, admin\) \{([\s\S]*?)\n\}/.exec(app);
+const gal = /function speciesGalleryHtml\(s, rest, admin, cover\) \{([\s\S]*?)\n\}/.exec(app);
 assert.ok(gal, 'speciesGalleryHtml tiene que existir');
+// La PORTADA tambien se edita. Antes salia solo de cabecera y quedaba fuera de
+// `rest`: era la unica foto sin botones, justo la que sueles querer arreglar.
+const sh = /function showSpecies\(s\) \{([\s\S]*?)\n\}/.exec(app);
+assert.ok(sh && /const rest = \(admin && isEditing\(\)\) \? gallery : gallery\.slice\(1\);/.test(sh[1]),
+  'con el modo encendido la galeria tiene que incluir la portada');
+assert.ok(/m === cover/.test(gal[1]) && /sp-is-cover/.test(gal[1]),
+  'y hay que marcar CUAL es la portada, con su estrella ya no siendo un boton');
 const bor = /isBorrowedPhoto\(m\)\s*\?([\s\S]*?):\s*`/.exec(gal[1]);
 assert.ok(bor, 'la rama de foto prestada');
 assert.ok(/data-a="adopt"/.test(bor[1]), 'a una prestada se le ofrece adoptarla');

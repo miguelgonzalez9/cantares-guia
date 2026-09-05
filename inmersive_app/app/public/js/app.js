@@ -2629,18 +2629,29 @@ function iucnBadge(code) {
 // y sólo se ofrece adoptarlas: una fila nueva apuntando a la MISMA url.
 const isBorrowedPhoto = (m) => !m.id || String(m.id).startsWith('sp-photo:')
   || String(m.id).startsWith('shared:') || m.subject_type === 'waypoint';
-function speciesGalleryHtml(s, rest, admin) {
+// De DÓNDE viene una foto que no es fila propia de esta especie. «Prestada» a
+// secas no decía nada: son fotos NUESTRAS, sólo que guardadas en otro sitio —
+// el campo `photo` de la especie, o la foto de un punto del mapa linkeado a
+// ella. Decir cuál de los dos es lo único que hace entendible el botón ＋.
+function borrowedFrom(m) {
+  if (String(m.id || '').startsWith('sp-photo:')) return 'del inventario';
+  const ttl = (m.caption || '').trim();
+  return ttl ? `del punto «${ttl}»` : 'de un punto del mapa';
+}
+function speciesGalleryHtml(s, rest, admin, cover) {
   const ed = admin && isEditing();
   const figs = rest.map((m, i) => {
     const cap = m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : '';
     if (!ed) return `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${cap}</figure>`;
+    const esPortada = !!cover && m === cover;
     const acts = isBorrowedPhoto(m)
-      ? `<span class="sp-borrowed" title="Es de otro sitio: aquí sólo se toma prestada">prestada</span>
-         <button type="button" class="sp-act" data-a="adopt" data-i="${i}" title="Usar como foto de esta especie">＋</button>`
-      : `<button type="button" class="sp-act" data-a="cover" data-i="${i}" title="Poner de portada">★</button>
+      ? `<span class="sp-borrowed" title="Es tuya, pero está guardada en otro sitio; ＋ la trae a esta especie">${escapeHtml(borrowedFrom(m))}</span>
+         <button type="button" class="sp-act" data-a="adopt" data-i="${i}" title="Traerla a esta especie para poder editarla">＋</button>`
+      : `${esPortada ? '<span class="sp-act sp-is-cover" title="Es la portada">★</span>'
+          : `<button type="button" class="sp-act" data-a="cover" data-i="${i}" title="Poner de portada">★</button>`}
          <button type="button" class="sp-act" data-a="class" data-i="${i}" title="Reclasificar">🏷️</button>
          <button type="button" class="sp-act" data-a="del" data-i="${i}" title="Eliminar">🗑️</button>`;
-    return `<figure class="sp-fig sp-fig-ed" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${cap}<div class="sp-acts">${acts}</div></figure>`;
+    return `<figure class="sp-fig sp-fig-ed${esPortada ? ' sp-fig-cover' : ''}" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${cap}<div class="sp-acts">${acts}</div></figure>`;
   }).join('');
   const add = ed ? `<button type="button" class="sp-fig sp-add" id="sp-add-photo">＋ foto</button>` : '';
   return (figs || add) ? `<div class="sp-gallery">${figs}${add}</div>` : '';
@@ -2652,8 +2663,12 @@ function showSpecies(s) {
   // La primera foto es la PORTADA (cabecera). La rejilla muestra sólo el resto:
   // antes salía también arriba y la foto aparecía repetida al abrir la especie.
   const cover = gallery[0] || null;
-  const rest = gallery.slice(1);
   const admin = isAdminUser();
+  // Con el modo encendido la galería enseña TAMBIÉN la portada. Sin esto, la
+  // única foto sin botones era justo la que se ve primero y la que sueles querer
+  // arreglar: salía como cabecera y quedaba fuera de `rest`. Un solo sitio para
+  // todas las fotos de la especie, portada incluida.
+  const rest = (admin && isEditing()) ? gallery : gallery.slice(1);
   const statusTxt = s.status === 'possible' ? t('possible') : '';
   let mapImg = '';   // el mini-mapa nunca debe impedir que abra la ficha
   if (wps.length) { try { mapImg = drawSpeciesMap(wps); } catch (e) { console.warn('speciesMap', e && e.message); } }
@@ -2668,7 +2683,7 @@ function showSpecies(s) {
       <div class="wp-theme-badges"><span class="species-group-tag" style="background:${groupMeta(speciesGroup(s)).color}">${escapeHtml(groupLabel(speciesGroup(s)))}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}${iucnBadge(s.iucn)}</div>
       <h2 class="wp-title" id="sp-f-common">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
       <p class="wp-sci"><em id="sp-f-sci">${escapeHtml(s.scientific_name || '')}</em> · <span id="sp-f-family">${escapeHtml(s.family || '')}</span></p>
-      ${speciesGalleryHtml(s, rest, admin)}
+      ${speciesGalleryHtml(s, rest, admin, cover)}
       <div id="sp-f-desc">${L(s, 'description')
         ? paraHtml(L(s, 'description'), 'wp-desc') + descLangNote(s) + descCredit(s)
         : (s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : '')}</div>
