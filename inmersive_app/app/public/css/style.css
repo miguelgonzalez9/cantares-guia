@@ -365,6 +365,10 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .wp-sci { font-size: 13.5px; color: var(--muted); margin: 0 0 10px; }
 .wp-sci em { color: #2a3b30; }
 .wp-desc { font-size: 15px; line-height: 1.6; margin: 0 0 14px; color: #2a3b30; }
+/* Nota de idioma y credito de la descripcion. El credito NO es decorativo:
+   los textos de Wikipedia son CC BY-SA y la licencia exige citar la fuente. */
+.desc-note { font-size: 12px; line-height: 1.45; color: var(--muted); margin: -8px 0 12px; }
+.desc-credit a { color: var(--deep); }
 .mp-sci { display: block; font-size: 12px; color: var(--muted); margin: -1px 0 3px; }
 .lg-count { font-size: 10.5px; font-weight: 700; color: var(--muted); background: var(--mist); border-radius: 999px; padding: 1px 6px; margin-left: 3px; }
 .wp-photo { width: 100%; border-radius: 12px; margin-bottom: 10px; }
@@ -402,6 +406,51 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .filter-chip.active { background: var(--forest); color: #fff; border-color: var(--forest); }
 .species-count { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
 
+/* Buscador de la pestaña Especies. Va ANTES de los chips de grupo: con 744
+   especies, escribir el nombre es más rápido que recorrer la rejilla, y el
+   filtro de grupo pasa a ser el refinamiento, no la puerta de entrada. */
+.sp-search { position: relative; margin: 0 0 8px; }
+.sp-search input { width: 100%; box-sizing: border-box; padding: 9px 32px 9px 12px;
+  font-size: 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--card, #fff); color: inherit; }
+.sp-search input::-webkit-search-cancel-button { display: none; }   /* la ✕ la ponemos nosotros, en los dos navegadores */
+.sp-search-x { position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  border: 0; background: none; font-size: 15px; line-height: 1; padding: 6px 8px; cursor: pointer; opacity: .6; }
+.species-empty { opacity: .75; font-size: 14px; padding: 14px 2px; grid-column: 1 / -1; }
+/* ---------- Edicion EN SITIO ----------
+   Se edita sobre la pagina real, no en un formulario aparte. Mientras el modo
+   esta apagado no hay ni un borde de mas: la pagina se ve exactamente como la
+   ve un visitante, que es la mitad de para que sirve poder apagarlo. */
+.edit-toggle { border: 1px solid var(--line); background: var(--card, #fff); color: inherit;
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+.edit-toggle.on { background: #2f6f4e; border-color: #2f6f4e; color: #fff; }
+.edit-toggle.off { opacity: .45; }
+body.is-editing .ie-field { outline: 1px dashed rgba(47,111,78,.55); outline-offset: 3px;
+  border-radius: 4px; cursor: text; }
+body.is-editing .ie-field:hover { background: rgba(47,111,78,.07); }
+.ie-field.ie-empty { opacity: .5; font-style: italic; }
+.ie-field.ie-open { outline: none; background: none; }
+/* El campo hereda tipografia y tamano del elemento que sustituye: lo que se ve
+   mientras se escribe tiene que ser lo que va a quedar. */
+.ie-input { width: 100%; box-sizing: border-box; font: inherit; color: inherit;
+  background: var(--card, #fff); border: 1px solid #2f6f4e; border-radius: 6px; padding: 4px 6px; }
+textarea.ie-input { resize: vertical; line-height: 1.5; }
+/* Acciones sobre cada foto de la ficha, sólo en modo edición. Van ENCIMA de la
+   foto y no debajo: la tira es horizontal y una fila de botones debajo duplicaba
+   la altura de la galería. */
+.sp-fig-ed { position: relative; }
+.sp-acts { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 4px;
+  justify-content: center; padding: 4px; background: linear-gradient(transparent, rgba(0,0,0,.55)); }
+.sp-act { border: 0; background: rgba(255,255,255,.9); border-radius: 6px; font-size: 13px;
+  line-height: 1; padding: 5px 7px; cursor: pointer; }
+.sp-borrowed { align-self: center; font-size: 10px; color: #fff; background: rgba(0,0,0,.5);
+  border-radius: 4px; padding: 2px 5px; }
+.sp-add { display: flex; align-items: center; justify-content: center; min-height: 90px;
+  border: 1px dashed var(--line); border-radius: 10px; background: none; color: inherit;
+  font-size: 13px; cursor: pointer; }
+/* Barra de admin de las paginas de texto: el interruptor de edicion en sitio y,
+   al lado, el editor de ESTRUCTURA (anadir/borrar/reordenar secciones), que en
+   sitio y con el pulgar es peor que en un formulario. */
+.ce-admin-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
 .species-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .species-card {
   background: var(--card); border-radius: 14px; padding: 12px; box-shadow: 0 2px 8px rgba(20,45,30,.06);

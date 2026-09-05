@@ -4,7 +4,8 @@
 import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, accountSummary, capturedPhotos } from './game.js';
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout, inReserve } from './auth-ui.js';
-import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin } from './admin.js';
+import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin, saveSpeciesPatch, mediaActions, getPath, setPath } from './admin.js';
+import { inlineField, isEditing, setEditing, editToggleButton } from './inline-edit.js';
 import { initGuide, startVisitorTourOnce } from './guide.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps, saveRow, deleteRow, compressImage } from './sync.js';
@@ -56,6 +57,7 @@ const state = {
   flowTimer: null,          // animación de flechas/flujo sobre el recorrido
   eleCache: {},             // desnivel por recorrido (cache de la API de elevación)
   routeStats: {},           // tiempo MEDIDO por recorrido (mediana de caminatas completas)
+  contentFromCloud: false,  // ¿llegó la copia de la nube de las páginas de texto?
 };
 
 // ---------- tipos de punto (legend filter) ----------
@@ -313,6 +315,11 @@ const I18N = {
     ortho_h: '🛰️ Antes / después (ortofoto)', ortho_p: 'Ortofoto fotogramétrica de la reserva (~4,4 cm/píxel).',
     carbon_h: '🌳 Carbono capturado',
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
+    sp_search_ph: 'Buscar por nombre común, científico o familia…', sp_no_match: 'Ninguna especie coincide con',
+    sp_edit_full: 'Ficha completa…', ie_on: '✏️ Editar', ie_off: '✓ Listo',
+    desc_source: 'Fuente', desc_in_en: 'Esta descripción sólo está disponible en inglés.',
+    desc_in_es: 'Esta descripción sólo está disponible en español.',
+    ce_sections: 'Secciones…', ie_no_cloud: 'Sin señal no se puede editar esta página: no sé qué había guardado y lo pisaría.',
     f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos', f_anf: '🐸 Anfibios',
     f_seen: '👁 Vistas', f_potential: '✨ Potenciales', f_bothtier: 'Ambas',
     f_mapped: '📍 En el mapa', f_listed: '📋 Solo en el listado',
@@ -432,6 +439,11 @@ const I18N = {
     ortho_h: '🛰️ Before / after (orthophoto)', ortho_p: 'Photogrammetric orthophoto of the reserve (~4.4 cm/pixel).',
     carbon_h: '🌳 Carbon captured',
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
+    sp_search_ph: 'Search by common name, scientific name or family…', sp_no_match: 'No species match',
+    sp_edit_full: 'Full record…', ie_on: '✏️ Edit', ie_off: '✓ Done',
+    desc_source: 'Source', desc_in_en: 'This description is only available in English.',
+    desc_in_es: 'This description is only available in Spanish.',
+    ce_sections: 'Sections…', ie_no_cloud: 'Offline this page cannot be edited: I do not know what was saved and would overwrite it.',
     f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals', f_anf: '🐸 Amphibians',
     f_seen: '👁 Seen', f_potential: '✨ Possible', f_bothtier: 'Both',
     f_mapped: '📍 On the map', f_listed: '📋 List only',
@@ -468,7 +480,17 @@ Object.keys(GAME_I18N).forEach((lang) => Object.assign(I18N[lang] = I18N[lang] |
 
 let LANG = localStorage.getItem('cantares_lang') || 'es';
 const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.es[k] || k;
-const L = (obj, field) => (LANG === 'en' && obj[field + '_en']) ? obj[field + '_en'] : obj[field];
+// Cae al OTRO idioma en los dos sentidos. Antes sólo caía inglés→español: un
+// visitante inglés veía el texto español cuando faltaba el suyo, pero uno
+// español veía un HUECO cuando el texto sólo existía en inglés. Deja de ser
+// teórico con las 191 descripciones de aves traídas de Wikipedia, que nacen
+// sólo en inglés: media ficha en blanco para el idioma principal de la reserva.
+// Un texto en el otro idioma es más útil que nada — `descLangNote` avisa de en
+// cuál está. La audioguía NO pasa por aquí: `scriptLine` elige su propio idioma
+// y se niega a leer español con voz inglesa.
+const L = (obj, field) => (LANG === 'en'
+  ? (obj[field + '_en'] || obj[field])
+  : (obj[field] || obj[field + '_en']));
 
 // ---------- utilities ----------
 const $ = (sel) => document.querySelector(sel);
@@ -1388,7 +1410,13 @@ function routeStopCount(id) {
   const r = state.routesById[id];
   if (!r || !r.scripts) return 0;
   const member = new Set(state.waypoints.filter((w) => (w.properties.routes || []).includes(id)).map((w) => w.properties.id));
-  return Object.keys(r.scripts).filter((pid) => member.has(pid) && r.scripts[pid] && (r.scripts[pid].es || r.scripts[pid].en)).length;
+  // Se ENUMERA, no se indexa por punto: `route.scripts[pointId]` es la operación
+  // «dame el guión de este punto», y ésa pasa siempre por routeScript, que es
+  // donde vive el guard de cuenta-y-dentro-de-la-reserva (guide-gate.test.mjs
+  // cuenta ese patrón y exige que aparezca una sola vez). Contar cuántos puntos
+  // tienen guión no revela ningún texto, así que no necesita el embudo — pero
+  // tampoco puede saltárselo por la puerta de atrás.
+  return Object.entries(r.scripts).filter(([pid, sc]) => member.has(pid) && sc && (sc.es || sc.en)).length;
 }
 async function fetchElevation(coords) {
   const N = Math.min(coords.length, 90);
@@ -2275,6 +2303,20 @@ function renderSpeciesFilters() {
   });
 }
 // Filtro de grupo solo (independiente de la capa vistas/potenciales).
+// Texto del buscador de la pestaña Especies. Se normaliza (sin tildes, en
+// minúsculas) para que «tangara» encuentre «Tángara» y «buho» encuentre «Búho».
+let speciesQuery = '';
+const normTxt = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+// Se busca por nombre común (ES y EN), científico y familia: son los cuatro
+// nombres por los que alguien puede conocer un bicho. TODAS las palabras
+// escritas tienen que aparecer en algún campo — así «tangara azul» filtra de
+// verdad en vez de traer las 30 tángaras.
+function matchesQuery(s, terms) {
+  if (!terms.length) return true;
+  const hay = normTxt([s.common_name, s.common_name_en, s.scientific_name, s.family,
+    s.family_common, s.ebird_common_es, s.ebird_common_en].filter(Boolean).join(' '));
+  return terms.every((w) => hay.includes(w));
+}
 function groupFiltered() {
   return state.species.filter((s) =>
     speciesFilter === 'all' ? true
@@ -2282,7 +2324,8 @@ function groupFiltered() {
     : speciesGroup(s) === speciesFilter);
 }
 function filteredSpecies() {
-  const base = groupFiltered();
+  const terms = normTxt(speciesQuery).split(/\s+/).filter(Boolean);
+  const base = groupFiltered().filter((s) => matchesQuery(s, terms));
   // Sin categoría elegida no hay toggle visible (ver renderSpeciesFilters), así
   // que TAMPOCO se filtra: un filtro que actúa sin botón que lo muestre es un
   // filtro invisible, y el visitante no entiende por qué le faltan especies.
@@ -2314,9 +2357,29 @@ function renderSpeciesGrid(highlightId) {
       b.id = 'species-admin-add'; b.className = 'admin-add'; b.style.marginBottom = '10px';
       b.textContent = '＋ ' + t('sp_new');
       b.onclick = () => openSpeciesEditor(null, () => { refreshSpecies(); renderSpeciesGrid(); });
-      grid.parentNode.insertBefore(b, grid);
+      // El interruptor gobierna TODA la pestaña, ficha incluida: se enciende una
+      // vez y se editan varias especies seguidas, viendo cómo van quedando.
+      const tg = editToggleButton({ label: t('ie_on'), labelOn: t('ie_off'),
+        onToggle: () => { renderSpeciesGrid(); if (state.openSpeciesId) { const sp = state.species.find((x) => x.id === state.openSpeciesId); if (sp) showSpecies(sp); } } });
+      tg.id = 'species-edit-toggle'; tg.style.marginLeft = '8px';
+      const bar = document.createElement('div'); bar.id = 'species-admin-bar'; bar.style.marginBottom = '10px';
+      bar.appendChild(b); bar.appendChild(tg);
+      grid.parentNode.insertBefore(bar, grid);
     }
-  } else if (adminAdd) adminAdd.remove();
+  } else if (adminAdd) {
+    // Se va la barra entera (botón + interruptor), no sólo el botón: dejar el
+    // interruptor de edición a la vista de un visitante sería peor que el bug.
+    (document.getElementById('species-admin-bar') || adminAdd).remove();
+    if (isEditing()) setEditing(false);
+  }
+  // Rejilla vacía buscando: decirlo, en vez de dejar un hueco que parece un fallo.
+  if (!list.length && speciesQuery.trim()) {
+    const p = document.createElement('p');
+    p.className = 'species-empty';
+    p.textContent = `${t('sp_no_match')} «${speciesQuery.trim()}».`;
+    grid.appendChild(p);
+    return;
+  }
   list.forEach((s) => {
     const gg = gOf(s), gm = groupMeta(gg);
     if (showHeaders && gg !== lastGroup) {
@@ -2424,12 +2487,64 @@ function paraHtml(text, cls) {
   return String(text).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
     .map((p) => `<p class="${cls}">${escapeHtml(p)}</p>`).join('');
 }
+// Avisa de que el texto que se está leyendo NO está en el idioma de la pantalla.
+// `L()` cae al otro idioma cuando falta el propio, y sin este aviso una ficha
+// española que de pronto sale en inglés parece un fallo en vez de una ausencia.
+function descLangNote(s) {
+  const es = (s.description || '').trim();
+  const en = (s.description_en || '').trim();
+  const shown = LANG === 'en' ? (en || es) : (es || en);
+  if (!shown) return '';
+  const shownIsEn = shown === en && !(LANG === 'en');
+  const shownIsEs = shown === es && LANG === 'en';
+  if (!shownIsEn && !shownIsEs) return '';
+  return `<p class="desc-note">${escapeHtml(t(shownIsEn ? 'desc_in_en' : 'desc_in_es'))}</p>`;
+}
+
+// Atribución de la descripción. NO es decorativa: los textos traídos de
+// Wikipedia son CC BY-SA, licencia que EXIGE citar la fuente y enlazarla.
+// Publicarlos sin esto la incumple. Se muestra siempre que haya procedencia
+// registrada, así que también sirve para el censo 2021 (Duque & Galeano) el día
+// que se le anote la suya. Sin `description_url` no se pinta nada.
+function descCredit(s) {
+  const url = (s.description_url || '').trim();
+  if (!url) return '';
+  let host = '';
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return ''; }
+  const lic = (s.description_license || '').trim();
+  return `<p class="desc-note desc-credit">${escapeHtml(t('desc_source'))}: `
+    + `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(host)}</a>`
+    + (lic ? ` · ${escapeHtml(lic)}` : '') + `</p>`;
+}
+
 // Colores de categoría UICN (badge de conservación). Amarillos → texto oscuro.
 const IUCN_COLOR = { EX: '#000', EW: '#542344', CR: '#c0392b', EN: '#e67e22', VU: '#f1c40f', NT: '#8aa63a', LC: '#2e7d32', DD: '#95a5a6', NE: '#bdc3c7' };
 function iucnBadge(code) {
   if (!code || !IUCN_COLOR[code]) return '';
   const dark = ['VU', 'DD', 'NE'].includes(code);
   return `<span class="badge" title="UICN ${code}" style="background:${IUCN_COLOR[code]};color:${dark ? '#222' : '#fff'}">${code}</span>`;
+}
+// ¿Es una foto PRESTADA? La galería de una especie mezcla sus propias fotos con
+// las del punto donde vive y con `species.photo`, que no son filas de `media`
+// suyas. Borrarlas desde aquí quitaría la portada de un punto, así que se marcan
+// y sólo se ofrece adoptarlas: una fila nueva apuntando a la MISMA url.
+const isBorrowedPhoto = (m) => !m.id || String(m.id).startsWith('sp-photo:')
+  || String(m.id).startsWith('shared:') || m.subject_type === 'waypoint';
+function speciesGalleryHtml(s, rest, admin) {
+  const ed = admin && isEditing();
+  const figs = rest.map((m, i) => {
+    const cap = m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : '';
+    if (!ed) return `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${cap}</figure>`;
+    const acts = isBorrowedPhoto(m)
+      ? `<span class="sp-borrowed" title="Es de otro sitio: aquí sólo se toma prestada">prestada</span>
+         <button type="button" class="sp-act" data-a="adopt" data-i="${i}" title="Usar como foto de esta especie">＋</button>`
+      : `<button type="button" class="sp-act" data-a="cover" data-i="${i}" title="Poner de portada">★</button>
+         <button type="button" class="sp-act" data-a="class" data-i="${i}" title="Reclasificar">🏷️</button>
+         <button type="button" class="sp-act" data-a="del" data-i="${i}" title="Eliminar">🗑️</button>`;
+    return `<figure class="sp-fig sp-fig-ed" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${cap}<div class="sp-acts">${acts}</div></figure>`;
+  }).join('');
+  const add = ed ? `<button type="button" class="sp-fig sp-add" id="sp-add-photo">＋ foto</button>` : '';
+  return (figs || add) ? `<div class="sp-gallery">${figs}${add}</div>` : '';
 }
 function showSpecies(s) {
   if (!s) return;
@@ -2452,17 +2567,17 @@ function showSpecies(s) {
       : `<div class="wp-photo-hdr wp-no-photo" style="background:linear-gradient(135deg, var(--green), var(--deep))"><span class="wp-hdr-emoji">${groupMeta(speciesGroup(s)).emoji}</span></div>`}
     <div class="wp-inner">
       <div class="wp-theme-badges"><span class="species-group-tag" style="background:${groupMeta(speciesGroup(s)).color}">${escapeHtml(groupLabel(speciesGroup(s)))}</span>${s.flagship ? '<span class="badge" style="background:var(--gold);color:var(--navy)">★</span>' : ''}${statusTxt ? `<span class="badge" style="background:#8a97a5">${statusTxt}</span>` : ''}${iucnBadge(s.iucn)}</div>
-      <h2 class="wp-title">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
-      ${s.scientific_name ? `<p class="wp-sci"><em>${escapeHtml(s.scientific_name)}</em>${s.family ? ` · ${escapeHtml(s.family)}` : ''}</p>` : ''}
-      ${rest.length ? `<div class="sp-gallery">${rest.map((m) => `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
-      ${L(s, 'description')
-        ? paraHtml(L(s, 'description'), 'wp-desc')
-        : (s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : '')}
+      <h2 class="wp-title" id="sp-f-common">${escapeHtml(L(s, 'common_name') || s.scientific_name || '')}</h2>
+      <p class="wp-sci"><em id="sp-f-sci">${escapeHtml(s.scientific_name || '')}</em> · <span id="sp-f-family">${escapeHtml(s.family || '')}</span></p>
+      ${speciesGalleryHtml(s, rest, admin)}
+      <div id="sp-f-desc">${L(s, 'description')
+        ? paraHtml(L(s, 'description'), 'wp-desc') + descLangNote(s) + descCredit(s)
+        : (s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : '')}</div>
       <div class="sp-where">📍 ${wps.length ? `${wps.length} ${wps.length === 1 ? t('sp_here_1') : t('sp_here_n')}` : t('sp_nowhere')}</div>
       ${wps.length ? `${mapImg ? `<img class="sp-map" src="${mapImg}" alt="">` : ''}
         <div class="sp-locs">${wps.map((w) => `<button class="chip" data-wp="${escapeHtml(w.properties.id)}">${escapeHtml(L(w.properties, 'title') || w.properties.title)}</button>`).join('')}</div>` : ''}
       ${admin ? `<div class="sp-admin-actions">
-        <button class="wp-nav" id="sp-edit" style="background:var(--deep)">✏️ ${t('sp_edit')}</button>
+        <button class="wp-nav" id="sp-edit" style="background:var(--deep)">📋 ${t('sp_edit_full')}</button>
         <button class="wp-nav" id="sp-frame" style="background:var(--moss)">🖼️ ${t('sp_frame')}</button>
         ${cover ? `<button class="wp-nav" id="sp-dl" style="background:var(--muted)">⬇️ ${t('sp_dl')}</button>` : ''}
       </div>` : ''}
@@ -2471,11 +2586,105 @@ function showSpecies(s) {
   $('#waypoint-card').classList.remove('hidden');
   pushBack('card', closeWaypoint);   // el botón atrás del teléfono cierra la ficha
   state.openWaypointId = null; state.openSpeciesId = s.id;
-  $$('#wp-content .sp-gallery .sp-fig').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
+  $$('#wp-content .sp-gallery .sp-fig[data-full]').forEach((f) => f.onclick = () => openLightbox(f.dataset.full, f.dataset.kind));
+  if (admin && isEditing()) wireSpeciesGalleryEdit(s, rest);
   $$('#wp-content .sp-locs .chip').forEach((c) => c.onclick = () => { const w = wpById(c.dataset.wp); closeWaypoint(); if (w) selectSearch(w.properties.id); });
   const ed = $('#sp-edit'); if (ed) ed.onclick = () => { closeWaypoint(); openSpeciesEditor(s.id, () => { refreshSpecies(); renderSpeciesGrid(); }); };
   const fr = $('#sp-frame'); if (fr) fr.onclick = () => openReframe('species', s.id);
   const dl = $('#sp-dl'); if (dl) dl.onclick = () => downloadPhoto(cover.full, L(s, 'common_name') || s.scientific_name);
+  if (admin) wireSpeciesInlineEdit(s);
+}
+// Edición EN SITIO de la ficha de especie: se toca el título y se edita el
+// título, sobre la ficha real. El editor modal sigue existiendo para crear,
+// borrar y los campos que no se ven en la ficha (estado, IUCN, ★, notas).
+//
+// Ojo con el idioma: `L()` cae al español cuando falta el inglés, así que editar
+// la ficha EN INGLÉS sin comprobarlo sobrescribiría el texto español con lo que
+// se escribió en inglés. Por eso el campo que se guarda depende del idioma en
+// pantalla, y en inglés se edita `*_en`.
+// ---- edición en sitio de las páginas de texto (Historia / Info) ----
+// Los elementos marcados con data-ie llevan su RUTA dentro del documento
+// (`secciones.2.texto`), así que el guardado no necesita saber nada de la forma
+// de cada página: escribe esa ruta y manda el doc entero.
+//
+// El bloqueo sin señal no es un detalle. `state.historia` es el JSON EMPACADO
+// mientras no haya llegado la copia de la nube (loadCloudData se rinde sin
+// conexión), así que guardar entonces pisaría con el texto de build todo lo que
+// se hubiera escrito antes. Hasta ahora eso no se notaba porque el editor no
+// guardaba NADA — al arreglarlo, empezaría a poder pasar de verdad.
+const CONTENT_STATE = { historia: 'historia', comercial: 'comercial', reserve_info: 'reserveInfo' };
+function contentDoc(key) { return state[CONTENT_STATE[key]]; }
+function contentEditBlock() {
+  if (!state.contentFromCloud) return t('ie_no_cloud');
+  return null;
+}
+function wireContentInlineEdit(root, key, slotId) {
+  if (!root || !isAdminUser()) return;
+  const slot = slotId && document.getElementById(slotId);
+  if (slot && !slot.firstChild) {
+    slot.appendChild(editToggleButton({ label: t('ie_on'), labelOn: t('ie_off'),
+      disabledReason: contentEditBlock(), toast,
+      onToggle: () => { renderHistoria(); renderVisitInfo(); renderComercial(); } }));
+  }
+  if (!isEditing() || contentEditBlock()) return;
+  root.querySelectorAll('[data-ie]').forEach((el) => {
+    const path = el.dataset.ie;
+    inlineField(el, {
+      type: el.dataset.ieType || 'text',
+      value: getPath(contentDoc(key), path) || '',
+      placeholder: '…',
+      onSave: async (v) => {
+        const doc = JSON.parse(JSON.stringify(contentDoc(key) || {}));
+        setPath(doc, path, v.trim() || null);
+        try {
+          const res = await saveRow('content', { id: key, doc });
+          applyLocalRow('content', res.row);
+          toast(res.queued ? '💾 Guardado en el teléfono — se subirá con señal' : '✓ Guardado');
+        } catch (e) { toast(`⚠️ ${(e && e.message) || e}`); }
+        renderHistoria(); renderVisitInfo(); renderComercial();
+      },
+    });
+  });
+}
+// Acciones de foto sobre la galería de la ficha. Reutilizan las mismas
+// funciones que el panel de Fotos (mediaActions en admin.js): clasificar,
+// borrar y subir tienen que encolarse igual desde los dos sitios.
+function wireSpeciesGalleryEdit(s, rest) {
+  const repaint = () => { const cur = state.species.find((x) => x.id === s.id) || s; showSpecies(cur); renderSpeciesGrid(); };
+  $$('#wp-content .sp-gallery .sp-act').forEach((b) => b.onclick = async (ev) => {
+    ev.preventDefault(); ev.stopPropagation();   // no abrir el visor al tocar un botón
+    const m = rest[+b.dataset.i]; if (!m) return;
+    try {
+      if (b.dataset.a === 'cover') await mediaActions.cover(m, s.id, repaint);
+      else if (b.dataset.a === 'class') mediaActions.reclassify(m, repaint);
+      else if (b.dataset.a === 'del') await mediaActions.remove(m, repaint);
+      else if (b.dataset.a === 'adopt') await mediaActions.adopt(m, s.id, repaint);
+    } catch (e) { toast(`⚠️ ${(e && e.message) || e}`); }
+  });
+  const add = $('#sp-add-photo');
+  if (add) add.onclick = (ev) => { ev.stopPropagation(); mediaActions.add(s.id, repaint); };
+}
+function wireSpeciesInlineEdit(s) {
+  const en = LANG === 'en';
+  const save = async (patch) => {
+    try {
+      const row = await saveSpeciesPatch(s, patch);
+      Object.assign(s, patch);
+      renderSpeciesGrid(); showSpecies(state.species.find((x) => x.id === s.id) || s);
+      return row;
+    } catch (e) { toast(`⚠️ ${(e && e.message) || e}`); }
+  };
+  const f = (sel, opts) => inlineField($(sel), opts);
+  f('#sp-f-common', { value: (en ? s.common_name_en : s.common_name) || '',
+    placeholder: en ? 'Common name (EN)' : 'Nombre común',
+    onSave: (v) => save(en ? { common_name_en: v.trim() || null } : { common_name: v.trim() || null }) });
+  f('#sp-f-sci', { value: s.scientific_name || '', placeholder: 'Nombre científico',
+    onSave: (v) => save({ scientific_name: v.trim() || null }) });
+  f('#sp-f-family', { value: s.family || '', placeholder: 'Familia',
+    onSave: (v) => save({ family: v.trim() || null }) });
+  f('#sp-f-desc', { type: 'area', value: (en ? s.description_en : s.description) || '',
+    placeholder: en ? 'Technical description (EN)' : 'Descripción técnica',
+    onSave: (v) => save(en ? { description_en: v.trim() || null } : { description: v.trim() || null }) });
 }
 // Visor a pantalla completa para una foto/video de la galería.
 function openLightbox(url, kind) {
@@ -2521,7 +2730,11 @@ function renderVisitInfo() {
   const info = state.reserveInfo;
   if (!info) { el.innerHTML = ''; return; }
   const pending = `<span class="v-pending">${t('v_pending')}</span>`;
-  const val = (field) => { const v = L(info, field); return v ? escapeHtml(v) : pending; };
+  const enL = LANG === 'en';
+  // Cada valor lleva la RUTA del campo que edita, con el sufijo del idioma en
+  // pantalla: editar la ficha en ingles no puede escribir sobre el texto español.
+  const val = (field) => { const v = L(info, field); const k = enL ? `${field}_en` : field;
+    return `<span data-ie="${k}" data-ie-type="area">${v ? escapeHtml(v) : pending}</span>`; };
   const phone = info.phone || '';
   const wa = (info.whatsapp || '').replace(/[^\d]/g, '');
   const contactBits = [];
@@ -2531,7 +2744,7 @@ function renderVisitInfo() {
   const rules = L(info, 'rules') || [];
 
   el.innerHTML = `
-    ${isAdminUser() ? `<button class="ce-edit-btn" id="vi-edit">✏️ ${t('ce_edit_visit')}</button>` : ''}
+    ${isAdminUser() ? `<div class="ce-admin-bar"><span id="vi-ie-slot"></span><button class="ce-edit-btn" id="vi-edit">🗂️ ${t('ce_sections')}</button></div>` : ''}
     <div class="panel visit-panel">
       <h2>${t('visit_h')}</h2>
       <div class="v-grid">
@@ -2551,6 +2764,7 @@ function renderVisitInfo() {
   // nadie va a leer en el momento en que haría falta. Los campos siguen en
   // reserve_info.json por si vuelve.
   const veb = $('#vi-edit'); if (veb) veb.onclick = () => openContentEditor('reserve_info');
+  wireContentInlineEdit(el, 'reserve_info', 'vi-ie-slot');
 }
 // ---------- Nuestra Historia (data/historia.json) ----------
 // TODO el texto viene transcrito de documentos de la reserva; la app sólo lo pinta.
@@ -2559,27 +2773,30 @@ function renderHistoria() {
   const h = state.historia;
   if (!h) { el.innerHTML = ''; return; }
   // Secciones: se pintan en el orden del JSON. Añadir texto = añadir un objeto.
-  const blk = (b) => {
+  const en = LANG === 'en';
+  const editing = isAdminUser() && isEditing();
+  const blk = (b, i) => {
     const titulo = L(b, 'titulo'), texto = L(b, 'texto');
-    if (!titulo && !texto) return '';   // slot vacío → no ocupa espacio
+    if (!titulo && !texto && !editing) return '';   // slot vacío → no ocupa espacio
     return `<section class="panel hist-panel">
       ${b.foto ? `<img class="hist-foto" src="${escapeAttr(b.foto)}" alt="" loading="lazy">` : ''}
-      ${titulo ? `<h2 class="hist-h">${escapeHtml(titulo)}</h2>` : ''}
-      ${texto ? paraHtml(texto, 'hist-p') : ''}
+      <h2 class="hist-h" data-ie="secciones.${i}.${en ? 'titulo_en' : 'titulo'}">${escapeHtml(titulo)}</h2>
+      <div data-ie="secciones.${i}.${en ? 'texto_en' : 'texto'}" data-ie-type="area">${texto ? paraHtml(texto, 'hist-p') : ''}</div>
       ${b.pie ? `<p class="hist-pie">${escapeHtml(b.pie)}</p>` : ''}
     </section>`;
   };
   const items = (h.hitos && h.hitos.items) || [];
   const hitos = items.length ? `<section class="panel hist-panel hist-tl-panel">
       <h2 class="hist-h">${escapeHtml(L(h.hitos, 'titulo') || '')}</h2>
-      <ol class="hist-timeline">${items.map((it) => `<li class="${it.hito ? 'is-key' : ''}">
+      <ol class="hist-timeline">${items.map((it, i) => `<li class="${it.hito ? 'is-key' : ''}">
         <span class="ht-date">${escapeHtml(it.fecha || '')}</span>
-        <span class="ht-text">${escapeHtml(L(it, 'texto') || '')}</span></li>`).join('')}</ol>
+        <span class="ht-text" data-ie="hitos.items.${i}.${en ? 'texto_en' : 'texto'}" data-ie-type="area">${escapeHtml(L(it, 'texto') || '')}</span></li>`).join('')}</ol>
     </section>` : '';
-  el.innerHTML = `${isAdminUser() ? `<button class="ce-edit-btn" id="hist-edit">✏️ ${t('ce_edit')}</button>` : ''}
-    ${L(h, 'lead') ? `<figure class="hist-quote"><blockquote>${escapeHtml(L(h, 'lead'))}</blockquote></figure>` : ''}
+  el.innerHTML = `${isAdminUser() ? `<div class="ce-admin-bar"><span id="hist-ie-slot"></span><button class="ce-edit-btn" id="hist-edit">🗂️ ${t('ce_sections')}</button></div>` : ''}
+    <figure class="hist-quote"><blockquote data-ie="${en ? 'lead_en' : 'lead'}" data-ie-type="area">${escapeHtml(L(h, 'lead') || '')}</blockquote></figure>
     ${(h.secciones || []).map(blk).join('')}${hitos}`;
   const eb = $('#hist-edit'); if (eb) eb.onclick = () => openContentEditor('historia');
+  wireContentInlineEdit(el, 'historia', 'hist-ie-slot');
 }
 // Íconos de las apps a las que llevan los enlaces. Van EN LÍNEA (SVG, sin red):
 // la app tiene que verse igual sin señal, así que nada de cargarlos de un CDN.
@@ -3197,6 +3414,7 @@ function applyStaticI18n() {
   document.documentElement.lang = LANG;
   $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   $$('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  $$('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
   $('#lang-toggle').textContent = LANG === 'es' ? 'EN' : 'ES';
   const h = $('#bc-handle'); if (h) h.setAttribute('aria-label', t('base_compare_a11y'));
   const hb = $('#help-btn'); if (hb) { hb.title = t('help_a11y'); hb.setAttribute('aria-label', t('help_a11y')); }
@@ -3222,6 +3440,15 @@ async function main() {
   // Tap fuera del recuadro (sobre el fondo oscuro) lo cierra.
   $('#waypoint-card').addEventListener('click', (e) => { if (e.target.id === 'waypoint-card') closeWaypoint(); });
   $('#search-btn').onclick = openSearch;
+  // Buscador de la pestaña Especies. Se filtra al teclear (744 especies en
+  // memoria: no hace falta ni debounce ni ir al servidor) y la ✕ sólo aparece
+  // cuando hay algo escrito, para no ofrecer un botón que no hace nada.
+  const spQ = $('#species-q'), spX = $('#species-q-x');
+  if (spQ) {
+    const applyQ = () => { speciesQuery = spQ.value; if (spX) spX.hidden = !spQ.value; renderSpeciesGrid(); };
+    spQ.oninput = applyQ;
+    if (spX) spX.onclick = () => { spQ.value = ''; applyQ(); spQ.focus(); };
+  }
   $('#search-close').onclick = closeSearch;
   $('#search-input').oninput = (e) => renderSearch(e.target.value);
   // Legend and GPS button: draggable (tap still collapses / locates).
@@ -3435,6 +3662,11 @@ async function loadCloudData() {
       Cloud.listContent().catch(() => null),
       Cloud.listRouteTimeStats().catch(() => null),
     ]);
+    // La marca va aquí y no dentro de applyCloudContent: lo que habilita editar
+    // es que la CONSULTA haya funcionado, no que haya filas. Una tabla vacía es
+    // un estado legítimo (todavía no se ha guardado nada) y con la marca dentro
+    // se quedaba bloqueada la edición para siempre.
+    if (cc) state.contentFromCloud = true;
     if (cc && cc.length) applyCloudContent(cc);   // textos de Historia / Info editados por el admin
     // Tiempos medidos: mientras no haya 3 caminatas completas de un recorrido no
     // hay fila, y routeDuration se queda con el modelo. Es lo normal al principio.

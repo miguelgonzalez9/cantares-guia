@@ -699,6 +699,66 @@ export function openSpeciesEditor(id, onSaved) {
   };
 }
 
+// Guardar UN campo de una especie desde la edición en sitio. Vive aquí, junto al
+// editor modal, para que la regla de procedencia no acabe escrita en dos sitios:
+// editar la descripción en la app cuenta como revisarla, se toque donde se toque.
+// La fila se manda completa (no sólo el campo) porque `upsert` crea la fila si
+// todavía no existe en la nube — muchas especies sólo viven en el JSON empacado.
+// ---- acciones de foto desde la FICHA de la especie (modo edición) ----
+// Envuelven las mismas funciones que usa el panel de Fotos en vez de duplicarlas:
+// clasificar, borrar y subir tienen que encolarse igual desde los dos sitios, y
+// dos copias de un camino de escritura son dos oportunidades de perder trabajo
+// de campo. Sólo se añade el `onDone` para repintar la ficha, que el panel no
+// necesita.
+export const mediaActions = {
+  // La foto elegida pasa a portada y la que estaba baja al final de la tira:
+  // el orden lo dice `sort`, así que la anterior se manda detrás de la última.
+  async cover(m, speciesId, onDone) {
+    const sibs = subjectMedia('species', speciesId);
+    const prev = sibs.find((x) => x.is_primary && x.id !== m.id);
+    await setPrimaryMedia(m);
+    if (prev) {
+      const maxSort = sibs.reduce((a, x) => Math.max(a, x.sort || 0), 0);
+      try { const r = await saveRow('media', mediaRow(prev, { is_primary: false, sort: maxSort + 1 })); CTX.applyLocalRow('media', r.row); }
+      catch (e) { /* queda en la cola */ }
+    }
+    if (onDone) onDone();
+  },
+  reclassify(m, onDone) { assignPicker(m); if (onDone) setTimeout(onDone, 0); },
+  async remove(m, onDone) { await delMedia(m); if (onDone) onDone(); },
+  add(speciesId, onDone) { addMedia({ type: 'species', id: speciesId }); if (onDone) setTimeout(onDone, 800); },
+  // Una foto PRESTADA (de un punto linkeado, o species.photo) no es una fila de
+  // `media` de esta especie: se adopta creando una fila NUEVA que apunta a la
+  // MISMA url. Nunca se duplica el archivo — igual que reframeBorrow al revés.
+  async adopt(m, speciesId, onDone) {
+    const row = { id: rid('media'), kind: m.kind || 'photo', url: m.full, thumb: m.thumb || null,
+      subject_type: 'species', subject_id: speciesId, is_primary: false, sort: Date.now() % 100000,
+      focal_x: m.focal_x != null ? m.focal_x : 0.5, focal_y: m.focal_y != null ? m.focal_y : 0.5,
+      caption: m.caption || null, credit: m.credit || null, source: 'admin', status: 'classified' };
+    await saveMedia(row);
+    if (onDone) onDone();
+  },
+};
+
+export async function saveSpeciesPatch(s, patch) {
+  const merged = { ...s, ...patch };
+  const row = { id: s.id,
+    common_name: merged.common_name || null, common_name_en: merged.common_name_en || null,
+    scientific_name: merged.scientific_name || null, family: merged.family || null,
+    group: editorGroup(merged), status: merged.status || 'documented',
+    notes: merged.notes || null, flagship: !!merged.flagship, photo: merged.photo || null,
+    description: merged.description || null, description_en: merged.description_en || null,
+    iucn: merged.iucn || null };
+  if ('description' in patch && row.description) {
+    row.description_reviewed = true;
+    row.description_source = (s.description_source && s.description_source !== 'llm_draft') ? s.description_source : 'admin';
+  }
+  const res = await saveRow('species', row);
+  CTX.applyLocalRow('species', res.row);
+  CTX.toast(res.queued ? '💾 Guardada en el teléfono — se subirá con señal' : '✓ Guardado');
+  return res.row;
+}
+
 // Descarga una foto (punto o especie) forzando el guardado, aun si es de otro
 // dominio (Supabase Storage): se baja como blob y se dispara la descarga.
 export async function downloadPhoto(url, name) {
@@ -933,11 +993,17 @@ function renderSelBar() {
   bar.querySelector('[data-b="del"]').onclick = () => deleteMany([...mediaSel]);
   bar.querySelector('[data-b="none"]').onclick = () => { selClear(); renderFotos(); };
 }
+// Ojo con `curated`: aqui habia un `|| s.source === 'curated'` que se saltaba
+// esas filas. Como muchas de media.json vienen con is_primary: true, elegir otra
+// portada dejaba DOS, y el desempate lo decidia `sort`; y si la que elegias era
+// curada, no pasaba nada en absoluto. Escribir una fila curada es la via de
+// escape prevista: mediaRow la convierte a source 'admin' y, al deduplicar por
+// id, la fila de la nube gana sobre la empacada.
 async function setPrimaryMedia(m) {
   const sibs = subjectMedia(m.subject_type, m.subject_id);
   for (const s of sibs) {
     const want = s.id === m.id;
-    if (s.is_primary === want || s.source === 'curated') continue;
+    if (s.is_primary === want) continue;
     try { const r = await saveRow('media', mediaRow(s, { is_primary: want })); CTX.applyLocalRow('media', r.row); }
     catch (e) { console.warn('[media] primary', e && e.message); }
   }
@@ -1269,8 +1335,8 @@ const CONTENT_SCHEMA = {
     ],
   },
 };
-const getPath = (o, p) => p.split('.').reduce((a, k) => (a && a[k] != null ? a[k] : undefined), o);
-function setPath(o, p, v) {
+export const getPath = (o, p) => p.split('.').reduce((a, k) => (a && a[k] != null ? a[k] : undefined), o);
+export function setPath(o, p, v) {
   const ks = p.split('.'); let cur = o;
   ks.slice(0, -1).forEach((k) => { if (typeof cur[k] !== 'object' || cur[k] == null) cur[k] = {}; cur = cur[k]; });
   cur[ks[ks.length - 1]] = v;
@@ -1397,7 +1463,7 @@ export function openContentEditor(key) {
 function reframeMakePrimary(m, type, id) {
   return Promise.all(subjectMedia(type, id).map(async (s) => {
     const want = s.id === m.id;
-    if (s.is_primary === want || s.source === 'curated') return;
+    if (s.is_primary === want) return;   // ver setPrimaryMedia: las curadas TAMBIEN se escriben
     try { const r = await saveRow('media', mediaRow(s, { is_primary: want })); CTX.applyLocalRow('media', r.row); }
     catch (e) { /* queda en la cola offline */ }
   }));
@@ -1501,6 +1567,11 @@ function renderFotos() {
   clearHighlight();
   renderSelBar();
   const body = document.getElementById('admin-body');
+  // El panel puede no haberse abierto nunca: `#admin-body` lo crea renderPanel.
+  // saveMedia y delMedia repintan siempre esta vista, y desde la ficha de una
+  // especie eso ocurre con el panel cerrado — sin esta guarda, subir o borrar
+  // una foto desde la ficha lanzaba antes de llegar a la cola.
+  if (!body) return;
   const n = unclassifiedMedia().length;
   body.innerHTML = `
     <div class="fm-modes">
