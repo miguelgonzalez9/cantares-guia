@@ -1482,7 +1482,7 @@ function realPhoto(wp) {
 // Galería del punto: portada/fotos de la tabla media + foto y hoja heredadas.
 function waypointGallery(wp) {
   const p = wp.properties, out = [], seen = new Set();
-  const push = (m) => { if (m && m.full && !seen.has(m.full) && !mediaDeleted(m.id)) { seen.add(m.full); out.push(m); } };
+  const push = (m) => { const k = photoKey(m); if (m && k && !seen.has(k) && !mediaDeleted(m.id)) { seen.add(k); out.push(m); } };
   (state.media.bySubject[`waypoint:${p.id}`] || []).forEach(push);
   if (p.photo) push(normMedia({ url: p.photo, subject_type: 'waypoint', subject_id: p.id, id: 'wp-photo:' + p.id,
     caption: p.tipo === 'arbol' ? t('tree_photo') : '', caption_en: p.tipo === 'arbol' ? 'Tree' : '' }));
@@ -2547,7 +2547,7 @@ function countPoints(idx, s) {
 // un punto está linkeado a una especie, su foto aparece también en la especie.
 function speciesGallery(s) {
   const out = [], seen = new Set();
-  const push = (m) => { if (m && m.full && !seen.has(m.full) && !mediaDeleted(m.id)) { seen.add(m.full); out.push(m); } };
+  const push = (m) => { const k = photoKey(m); if (m && k && !seen.has(k) && !mediaDeleted(m.id)) { seen.add(k); out.push(m); } };
   (state.media.bySubject[`species:${s.id}`] || []).forEach(push);
   if (s.photo) push(normMedia({ url: s.photo, subject_type: 'species', subject_id: s.id, id: 'sp-photo:' + s.id }));
   speciesWaypoints(s).forEach((w) => {
@@ -2627,6 +2627,11 @@ function iucnBadge(code) {
 // las del punto donde vive y con `species.photo`, que no son filas de `media`
 // suyas. Borrarlas desde aquí quitaría la portada de un punto, así que se marcan
 // y sólo se ofrece adoptarlas: una fila nueva apuntando a la MISMA url.
+// Identidad de ARCHIVO, sin extension. La misma foto entra por dos puertas con
+// nombre distinto: la fila de media expone el .jpg y `species.photo` guarda el
+// .webp, asi que deduplicar por la cadena en crudo los daba por fotos distintas
+// y salia DOS VECES en la galeria — una «del inventario» y otra normal.
+const photoKey = (m) => String((m && m.full) || '').replace(/\.(webp|jpe?g|png)$/i, '');
 const isBorrowedPhoto = (m) => !m.id || String(m.id).startsWith('sp-photo:')
   || String(m.id).startsWith('shared:') || m.subject_type === 'waypoint';
 // De DÓNDE viene una foto que no es fila propia de esta especie. «Prestada» a

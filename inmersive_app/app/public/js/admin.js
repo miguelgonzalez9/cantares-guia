@@ -1051,7 +1051,16 @@ async function clearSpeciesCoverIfSame(m) {
   const sp = ((CTX.state && CTX.state.species) || []).find((x) => x.id === m.subject_id);
   if (!sp || !sp.photo) return;
   if (!samePhotoFile(sp.photo, m.full) && !samePhotoFile(sp.photo, m.webpThumb)) return;
-  await saveSpeciesPatch(sp, { photo: null });
+  // `species.photo` NO se puede vaciar escribiendo null en la nube: applyCloudSpecies
+  // fusiona con cleanProps, que descarta null y '' — el null se tira y vuelve a ganar
+  // el valor del build. (Es general: hoy ningun campo de especie se puede dejar en
+  // blanco desde la app.) Asi que se tapa por el otro lado, con una lapida sobre la
+  // id sintetica con la que la galeria presta esa foto.
+  const id = 'sp-photo:' + sp.id;
+  const row = { id, kind: 'photo', url: sp.photo, subject_type: 'species',
+    subject_id: sp.id, status: 'deleted', source: 'curated' };
+  await saveRow('media', row);
+  CTX.applyLocalRow('media', row);
 }
 async function delMedia(m) {
   if (!confirm('¿Eliminar esta foto/video?')) return;

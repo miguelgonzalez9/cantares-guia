@@ -85,8 +85,13 @@ assert.ok(!/editala con el script|edítala con el script/.test(admin),
 // es literalmente el «todavia no se eliminan».
 assert.ok(/async function clearSpeciesCoverIfSame\(m\)/.test(admin),
   'borrar una foto de especie tiene que poder vaciar tambien species.photo');
-assert.ok(/saveSpeciesPatch\(sp, \{ photo: null \}\)/.test(admin),
-  'y vaciarlo de verdad, no solo mirarlo');
+// Y NO se puede vaciar escribiendo null: applyCloudSpecies fusiona con cleanProps,
+// que descarta null y '' — el null se tira y vuelve a ganar el valor del build.
+// Por eso se tapa con una lapida sobre la id sintetica con la que se presta.
+assert.ok(/const id = 'sp-photo:' \+ sp\.id;/.test(admin) && /status: 'deleted'/.test(admin),
+  'species.photo se tapa con lapida, no con un patch a null que cleanProps se come');
+assert.ok(!/saveSpeciesPatch\(sp, \{ photo: null \}\)/.test(admin),
+  'el patch a null no funciona: no puede volver a colarse');
 // La comparacion ignora la extension: species.photo guarda el .webp y la fila
 // normalizada expone el .jpg, asi que comparar en crudo no casaria nunca.
 assert.ok(/replace\(\/\\\.\(webp\|jpe\?g\|png\)\$\/i, ''\)/.test(admin),
@@ -97,4 +102,15 @@ assert.ok(/replace\(\/\\\.\(webp\|jpe\?g\|png\)\$\/i, ''\)/.test(admin),
     fn + ' tiene que limpiar las dos puertas, o la foto reaparece');
 });
 
-console.log('media-delete: 16/16 OK');
+// --- la galeria no puede enseniar DOS VECES el mismo archivo ---
+// La fila de media expone el .jpg y `species.photo` guarda el .webp: deduplicar
+// por la cadena en crudo los daba por fotos distintas y salia repetida, una
+// «del inventario» y otra normal. La identidad es el archivo, sin extension.
+assert.ok(/const photoKey = \(m\) =>[^\n]*replace\(\/\\\.\(webp\|jpe\?g\|png\)\$\/i, ''\)/.test(app),
+  'hace falta una identidad de archivo que ignore la extension');
+const pushes2 = app.match(/const push = \(m\) => \{[^\n]*\}/g) || [];
+assert.equal(pushes2.length, 2, 'las dos galerias');
+pushes2.forEach((p, i) => assert.ok(/photoKey\(m\)/.test(p) && /seen\.add\(k\)/.test(p),
+  'la galeria ' + (i + 1) + ' tiene que deduplicar por archivo, no por cadena'));
+
+console.log('media-delete: 20/20 OK');
