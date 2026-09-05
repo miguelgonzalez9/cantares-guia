@@ -113,4 +113,22 @@ assert.equal(pushes2.length, 2, 'las dos galerias');
 pushes2.forEach((p, i) => assert.ok(/photoKey\(m\)/.test(p) && /seen\.add\(k\)/.test(p),
   'la galeria ' + (i + 1) + ' tiene que deduplicar por archivo, no por cadena'));
 
-console.log('media-delete: 20/20 OK');
+// --- la decision NO puede depender del campo `source` ---
+// Esto es lo que estuvo roto tres intentos: el codigo preguntaba por 'curated' y
+// las 181 fotos del build traen source 'archivo_cantares', asi que ninguna
+// entraba por la lapida — se iba a `delete from media` de una fila inexistente,
+// que Supabase acepta sin quejarse. El boton decia «Eliminado» y no borraba nada.
+const ib = /function isBundled\(m\) \{([\s\S]*?)\n\}/.exec(admin);
+assert.ok(ib, 'isBundled tiene que existir');
+assert.ok(/cloudMedia/.test(ib[1]) && /r\.id === m\.id/.test(ib[1]),
+  'la pregunta es si hay fila en la nube, no que etiqueta lleva');
+assert.ok(!/source ===/.test(ib[1]),
+  'decidir por `source` es lo que rompio esto: cualquier cadena nueva lo repetiria');
+
+// y el build lo confirma: ninguna foto empacada dice 'curated'
+const media = JSON.parse(readFileSync(join(PUB, 'data', 'media.json'), 'utf8'));
+const sources = new Set(media.photos.map((p) => p.source));
+assert.ok(!sources.has('curated'),
+  'si el pipeline empezara a escribir "curated" habria que revisar este test, no el codigo');
+
+console.log('media-delete: 23/23 OK');

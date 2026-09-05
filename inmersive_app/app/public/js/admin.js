@@ -962,11 +962,18 @@ async function classifyMany(ids, type, subjectId) {
   renderFotos();
   CTX.toast(`🏷️ ${ok} clasificada(s)${queued ? ` · ${queued} en cola` : ''}${fail ? ` · ⚠️ ${fail} fallaron` : ''}`);
 }
-// Una foto SIN fila propia en la nube: empacada en el build, o prestada por la
-// especie/el punto. Borrarlas con deleteRow no haría nada — hay que taparlas.
-const SYNTHETIC_MEDIA = /^(sp-photo:|wp-photo:|wp-leaf:|shared:)/;
+// ¿Esta foto tiene fila PROPIA en la nube? Es la unica pregunta que importa:
+// sin fila, `delete from media where id=...` no borra nada y Supabase no se
+// queja — el boton decia «Eliminado» y la foto seguia ahi.
+//
+// NO se decide por el campo `source`. Eso es lo que estaba roto: el codigo
+// buscaba 'curated' y las 181 fotos empacadas traen 'archivo_cantares', asi que
+// ninguna entraba por el camino de la lapida. Cualquier cadena que escriba el
+// pipeline manana volveria a romperlo. Se mira la lista de filas de la nube, que
+// es el hecho, no una etiqueta.
 function isBundled(m) {
-  return m.source === 'curated' || m.source === 'shared' || SYNTHETIC_MEDIA.test(String(m.id || ''));
+  const cloud = (CTX.state && CTX.state.cloudMedia) || [];
+  return !cloud.some((r) => r && r.id === m.id);
 }
 async function deleteMany(ids) {
   if (!confirm(`¿Eliminar ${ids.length} foto(s)/video(s)?`)) return;
