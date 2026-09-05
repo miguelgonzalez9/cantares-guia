@@ -21,6 +21,11 @@ Comandos:
                     nube → manifiesto; `--apply` las sube.
   push --rollback   borra de la nube exactamente lo que este script subió
                     (`origin = 'local-archive'`), y nada más.
+  decisions         trae las DECISIONES que tomaste EN LA APP: una foto
+                    reasignada a otra especie (se mueve a su carpeta y se
+                    actualiza el catálogo, con `reason="app"`) y una foto
+                    borrada (sale de media.json, del disco y de species.photo).
+                    Sin `--apply` sólo escribe el manifiesto.
 
 Uso:
   python data_prep/26_sync_media.py pull
@@ -30,7 +35,10 @@ Uso:
 """
 
 import argparse
+import datetime
 import hashlib
+import importlib.util
+import shutil
 import json
 import re
 import sys
@@ -51,6 +59,12 @@ CATALOG = WORK / "catalog_fotos-reserva-cantares.json"
 CLOUD_CATALOG = WORK / "catalog_cloud.json"
 HASH_CACHE = WORK / "hash_cache.json"
 PUSH_MANIFEST = WORK / "sync_push_manifest.json"
+DEC_MANIFEST = WORK / "sync_decisions_manifest.json"
+FOTOS = CANTARES / "fotos"
+FOTOS_CATALOG = FOTOS / "catalog_fotos.json"
+SPECIES_JSON = ROOT / "app" / "public" / "data" / "species.json"
+MEDIA_JSON = ROOT / "app" / "public" / "data" / "media.json"
+PUBLIC = ROOT / "app" / "public"
 DOWNLOAD_DIR = CANTARES / "fotos" / "_desde_app"
 CLOUD_JS = ROOT / "app" / "public" / "js" / "cloud.js"
 
@@ -236,6 +250,212 @@ def cmd_push(args):
     print("a WebP y escribe media.json. Este script decide QUÉ falta; aquel, cómo.")
 
 
+# ---------------------------------------------- decisiones de la app -> local
+# Hasta aqui la sincronizacion movia ARCHIVOS. Esto mueve DECISIONES, que es lo
+# que de verdad se perdia: cuando arreglas en la app una foto que quedo en la
+# especie equivocada, esa es una etiqueta puesta por una persona — justo el
+# material con el que 32_build_prototypes entrena — y el catalogo local nunca se
+# enteraba. Y cuando borrabas una foto, el fichero seguia en el repo.
+#
+# Las dos decisiones que viajan:
+#   REASIGNAR  fila de la nube con subject_type='species' cuyo content_hash casa
+#              con una foto local que el catalogo tiene en OTRA especie.
+#   BORRAR     lapida (status='deleted'). Si su id es una ruta del build
+#              ('img/species/...') hay que sacarla de media.json y del disco; si
+#              es 'sp-photo:<id>', hay que vaciar species.photo.
+#
+# No destructivo por defecto: manifiesto, y solo con --apply se toca algo.
+
+def load_mod14():
+    """`common_dirname`/`species_folder` de 14_classify_photos, importadas y no
+    copiadas: son las que deciden en que carpeta vive cada especie, y dos copias
+    que se separen parten el archivo en carpetas gemelas."""
+    spec = importlib.util.spec_from_file_location("mod14", HERE / "14_classify_photos.py")
+    m = importlib.util.module_from_spec(spec)
+    sys.modules["mod14"] = m
+    spec.loader.exec_module(m)
+    return m
+
+
+def build_paths(mid):
+    """Ficheros del build que representan una foto empacada, a partir del id de
+    su lapida (que ES su ruta). Devuelve los tres: webp, jpg y miniatura."""
+    stem = re.sub(r"\.(webp|jpe?g|png)$", "", str(mid or ""), flags=re.I)
+    if not stem.startswith("img/"):
+        return []
+    name = stem.split("/")[-1]
+    return [stem + ".webp", stem + ".jpg", "img/_thumbs/" + name + ".webp"]
+
+
+def plan_decisions(cloud_rows, local_by_hash, sci_by_species_id, media_files, species_photo):
+    """Decide, sin tocar disco ni red, que hay que aplicar en local.
+
+    `local_by_hash`      {content_hash: entrada del catalogo de fotos/}
+    `sci_by_species_id`  {id de especie: nombre cientifico} (de species.json)
+    `media_files`        rutas del build presentes en media.json
+    `species_photo`      {id de especie: su campo photo}
+    """
+    reasign, borrar_build, limpiar_photo, sin_efecto = [], [], [], 0
+    for r in cloud_rows:
+        rid = str(r.get("id") or "")
+        if r.get("status") == "deleted":
+            if rid.startswith("sp-photo:"):
+                sid = rid.split(":", 1)[1]
+                if species_photo.get(sid):
+                    limpiar_photo.append({"species_id": sid, "photo": species_photo[sid]})
+                else:
+                    sin_efecto += 1
+            elif rid.startswith("img/"):
+                paths = build_paths(rid)
+                if rid in media_files or any(f in media_files for f in paths):
+                    borrar_build.append({"id": rid, "files": paths})
+                else:
+                    sin_efecto += 1
+            else:
+                sin_efecto += 1          # fila de la nube: ya se borro donde vivia
+            continue
+        h = r.get("content_hash")
+        sid = r.get("subject_id")
+        if r.get("subject_type") != "species" or not h or not sid:
+            continue
+        it = local_by_hash.get(h)
+        if not it:
+            continue                     # la foto no esta en el archivo local
+        sci_app = sci_by_species_id.get(sid)
+        if not sci_app:
+            continue                     # especie que solo existe en la nube
+        if (it.get("scientific_name") or "").strip().lower() == sci_app.strip().lower():
+            continue                     # ya coinciden: nada que hacer
+        reasign.append({"hash": h, "file": it.get("file"),
+                        "de": it.get("scientific_name"), "a": sci_app,
+                        "species_id": sid})
+    return reasign, borrar_build, limpiar_photo, sin_efecto
+
+
+def cmd_decisions(args):
+    url, key = cloud_config()
+    rows = fetch_media(url, key)
+    print("nube: %d filas en `media`" % len(rows))
+
+    cat = json.loads(FOTOS_CATALOG.read_text(encoding="utf-8")) if FOTOS_CATALOG.exists() else {"photos": []}
+    local_by_hash = {p["hash"]: p for p in cat["photos"] if p.get("hash")}
+    print("catalogo local de fotos/: %d con hash" % len(local_by_hash))
+
+    spdoc = json.loads(SPECIES_JSON.read_text(encoding="utf-8"))
+    sci_by_id = {s["id"]: s.get("scientific_name") for s in spdoc["species"] if s.get("scientific_name")}
+    species_photo = {s["id"]: s.get("photo") for s in spdoc["species"] if s.get("photo")}
+
+    mdoc = json.loads(MEDIA_JSON.read_text(encoding="utf-8"))
+    media_files = set()
+    for ph in mdoc["photos"]:
+        for k in ("file", "jpg", "thumb"):
+            if ph.get(k):
+                media_files.add(ph[k])
+
+    reasign, borrar, limpiar, sin_efecto = plan_decisions(
+        rows, local_by_hash, sci_by_id, media_files, species_photo)
+
+    print("\n" + "=" * 58)
+    print("  reasignaciones de especie   %d" % len(reasign))
+    print("  fotos del build a borrar    %d" % len(borrar))
+    print("  species.photo a vaciar      %d" % len(limpiar))
+    print("  lapidas sin efecto local    %d" % sin_efecto)
+    for x in reasign[:12]:
+        print("    ~ %s\n        %s  ->  %s" % (x["file"], x["de"], x["a"]))
+    for x in borrar[:12]:
+        print("    - %s" % x["id"])
+    for x in limpiar[:12]:
+        print("    - species.photo de %s  (%s)" % (x["species_id"], x["photo"]))
+
+    DEC_MANIFEST.write_text(json.dumps(
+        {"generado": datetime.datetime.now().isoformat(timespec="seconds"),
+         "reasignar": reasign, "borrar_build": borrar, "limpiar_photo": limpiar},
+        ensure_ascii=False, indent=1), encoding="utf-8")
+    print("\n[ok] manifiesto -> %s" % DEC_MANIFEST)
+
+    if not args.apply:
+        print("\n(nada tocado - vuelve a correrlo con --apply)")
+        return
+    if not (reasign or borrar or limpiar):
+        print("\nnada que aplicar.")
+        return
+
+    mod14 = load_mod14()
+    counts = {}
+    for s in spdoc["species"]:
+        c = (s.get("common_name") or "").strip()
+        if c:
+            k = mod14.slug(c)
+            counts[k] = counts.get(k, 0) + 1
+    by_id = {s["id"]: s for s in spdoc["species"]}
+
+    # --- 1. reasignar: MOVER el fichero y actualizar el catalogo -------------
+    # Mover no es opcional. La carpeta es la etiqueta humana y 30_species_folders
+    # la lee como verdad: si solo se tocara el catalogo, la siguiente pasada de 30
+    # volveria a ponerle la especie de la carpeta y desharia esto.
+    movidas = 0
+    for x in reasign:
+        rec = by_id.get(x["species_id"])
+        it = local_by_hash.get(x["hash"])
+        if not rec or not it:
+            continue
+        src = CANTARES / it["file"]
+        if not src.exists():
+            print("    ! no esta en disco: %s" % it["file"])
+            continue
+        dst_dir = FOTOS / mod14.species_folder(rec) / mod14.common_dirname(rec, counts)
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        dst = dst_dir / src.name
+        if dst.exists() and dst.resolve() != src.resolve():
+            dst = dst_dir / (src.stem + "_" + x["hash"][:8] + src.suffix)
+        if src.resolve() != dst.resolve():
+            shutil.move(str(src), str(dst))
+        it["file"] = str(dst.relative_to(CANTARES)).replace("\\", "/")
+        it["species_id"] = x["species_id"]
+        it["scientific_name"] = x["a"]
+        it["category"] = mod14.species_folder(rec)
+        it["reason"] = "app"              # decidido por una persona EN LA APP
+        movidas += 1
+    if movidas:
+        bak = FOTOS_CATALOG.with_suffix(".json.bak-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+        shutil.copy2(FOTOS_CATALOG, bak)
+        FOTOS_CATALOG.write_text(json.dumps(cat, ensure_ascii=False, indent=1), encoding="utf-8")
+        print("\n  %d foto(s) movidas + catalogo actualizado (copia: %s)" % (movidas, bak.name))
+
+    # --- 2. borrar del build -------------------------------------------------
+    # Los ficheros estan en git: si te arrepientes, `git checkout -- <ruta>`.
+    if borrar:
+        fuera = set()
+        for x in borrar:
+            fuera.update(x["files"])
+            fuera.add(x["id"])
+        antes = len(mdoc["photos"])
+        mdoc["photos"] = [ph for ph in mdoc["photos"]
+                          if not any(ph.get(k) in fuera for k in ("file", "jpg", "thumb"))]
+        quitadas = antes - len(mdoc["photos"])
+        borradas = 0
+        for rel in sorted(fuera):
+            f = PUBLIC / rel
+            if f.exists():
+                f.unlink()
+                borradas += 1
+        MEDIA_JSON.write_text(json.dumps(mdoc, ensure_ascii=False, indent=1), encoding="utf-8")
+        print("  %d entrada(s) fuera de media.json, %d fichero(s) borrados" % (quitadas, borradas))
+
+    # --- 3. vaciar species.photo --------------------------------------------
+    if limpiar:
+        for x in limpiar:
+            s = by_id.get(x["species_id"])
+            if s:
+                s["photo"] = None
+        bak = SPECIES_JSON.with_suffix(".json.bak-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+        shutil.copy2(SPECIES_JSON, bak)
+        SPECIES_JSON.write_text(json.dumps(spdoc, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("  %d species.photo vaciado(s) (copia: %s)" % (len(limpiar), bak.name))
+
+    print("\nSi borraste fotos del build, sube VERSION en sw.js y despliega.")
+
+
 def cmd_selftest(args):
     a = {"h1": {"file": "a.jpg"}, "h2": {"file": "b.jpg"}}
     c = {"h2": {"id": "x"}, "h3": {"id": "y"}}
@@ -263,7 +483,66 @@ def cmd_selftest(args):
     # foto en dos carpetas es una sola foto.
     assert sha256_file(p) == hashlib.sha256(b"cantares").hexdigest()
     Path(p).unlink()
-    print("selftest 26_sync_media: 8/8 OK")
+    # ---- decisiones de la app (plan_decisions / build_paths) ----
+    # Del id de una lapida salen los TRES ficheros del build, no solo el que se
+    # nombra: media.json guarda webp + jpg + miniatura y dejar una suelta seria
+    # una entrada rota o un fichero huerfano en el repo.
+    assert build_paths("img/species/copeton__1.webp") == [
+        "img/species/copeton__1.webp", "img/species/copeton__1.jpg",
+        "img/_thumbs/copeton__1.webp"]
+    assert build_paths("img/species/copeton__1.jpg")[0] == "img/species/copeton__1.webp"
+    assert build_paths("gm-123") == []           # fila de la nube, no del build
+    assert build_paths(None) == []
+
+    loc = {"h1": {"file": "fotos/aves/mirla/x.jpg", "scientific_name": "Turdus fuscater"},
+           "h2": {"file": "fotos/aves/copeton/y.jpg", "scientific_name": "Zonotrichia capensis"}}
+    sci = {"chara-collareja": "Cyanolyca armillata", "copeton": "Zonotrichia capensis"}
+    mfiles = {"img/species/copeton__1.webp"}
+    sphoto = {"guatin": "img/species/guatin__1.webp"}
+
+    # 1. reasignada en la app: el catalogo dice Turdus, la app dice Cyanolyca
+    r, b, l, ne = plan_decisions(
+        [{"id": "z", "subject_type": "species", "subject_id": "chara-collareja",
+          "content_hash": "h1"}], loc, sci, mfiles, sphoto)
+    assert len(r) == 1 and r[0]["de"] == "Turdus fuscater" and r[0]["a"] == "Cyanolyca armillata"
+
+    # 2. la que YA coincide no genera trabajo: es la condicion de idempotencia,
+    #    una segunda pasada tras aplicar no debe proponer nada.
+    r2, _, _, _ = plan_decisions(
+        [{"id": "z", "subject_type": "species", "subject_id": "copeton",
+          "content_hash": "h2"}], loc, sci, mfiles, sphoto)
+    assert r2 == []
+
+    # 3. lapida sobre una foto del build -> fuera de media.json y del disco
+    _, b3, _, _ = plan_decisions(
+        [{"id": "img/species/copeton__1.jpg", "status": "deleted"}], loc, sci, mfiles, sphoto)
+    assert len(b3) == 1 and "img/_thumbs/copeton__1.webp" in b3[0]["files"]
+
+    # 4. lapida sobre species.photo -> vaciar el campo
+    _, _, l4, _ = plan_decisions(
+        [{"id": "sp-photo:guatin", "status": "deleted"}], loc, sci, mfiles, sphoto)
+    assert l4 == [{"species_id": "guatin", "photo": "img/species/guatin__1.webp"}]
+
+    # 5. lapida de una fila normal de la nube: no hay nada local que tocar. Se
+    #    cuenta aparte en vez de callarla, o cada pasada pareceria no ver nada.
+    _, b5, l5, ne5 = plan_decisions(
+        [{"id": "gm-123", "status": "deleted"}], loc, sci, mfiles, sphoto)
+    assert b5 == [] and l5 == [] and ne5 == 1
+
+    # 6. una foto de la nube que NO esta en el archivo local no se inventa
+    r6, _, _, _ = plan_decisions(
+        [{"id": "z", "subject_type": "species", "subject_id": "copeton",
+          "content_hash": "desconocido"}], loc, sci, mfiles, sphoto)
+    assert r6 == []
+
+    # 7. especie que solo existe en la nube (creada desde el panel): sin nombre
+    #    cientifico local no se puede decidir nada, y adivinar seria peor.
+    r7, _, _, _ = plan_decisions(
+        [{"id": "z", "subject_type": "species", "subject_id": "sp_mrgumkvr265",
+          "content_hash": "h1"}], loc, sci, mfiles, sphoto)
+    assert r7 == []
+
+    print("selftest 26_sync_media: 19/19 OK")
 
 
 def main():
@@ -278,6 +557,9 @@ def main():
     p2.add_argument("--rollback", action="store_true")
     p2.add_argument("--limit", type=int, default=None)
     p2.set_defaults(fn=cmd_push)
+    p4 = sub.add_parser("decisions", help="nube → local: reasignaciones y borrados hechos EN LA APP")
+    p4.add_argument("--apply", action="store_true", help="aplicar (por defecto sólo manifiesto)")
+    p4.set_defaults(fn=cmd_decisions)
     p3 = sub.add_parser("selftest", help="lógica pura, sin red")
     p3.set_defaults(fn=cmd_selftest)
     args = ap.parse_args()
