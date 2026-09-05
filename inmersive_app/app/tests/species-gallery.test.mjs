@@ -72,7 +72,13 @@ assert.ok(/m === cover/.test(gal[1]) && /sp-is-cover/.test(gal[1]),
 const bor = /isBorrowedPhoto\(m\)\s*\?([\s\S]*?):\s*`/.exec(gal[1]);
 assert.ok(bor, 'la rama de foto prestada');
 assert.ok(/data-a="adopt"/.test(bor[1]), 'a una prestada se le ofrece adoptarla');
-assert.ok(!/data-a="del"/.test(bor[1]), 'borrarla quitaría la portada de un punto');
+// Borrar SI, pero solo la del inventario (`species.photo`): es de esta misma
+// especie, guardada en otro campo. La de un PUNTO sigue sin 🗑️ — quitarsela
+// dejaria sin portada al punto, que es de otro dueño; para eso esta el ＋.
+assert.ok(/delInventario \? `<button[^`]*data-a="del"/.test(bor[1]),
+  'la foto del inventario tiene que poder borrarse');
+assert.ok(/const delInventario = String\(m\.id \|\| ''\)\.startsWith\('sp-photo:'\);/.test(gal[1]),
+  'y el permiso tiene que mirar de DONDE viene, no valer para toda prestada');
 assert.ok(!/data-a="cover"/.test(bor[1]), 'ni ponerla de portada sin adoptarla antes');
 // Adoptar apunta a la MISMA url: nunca se duplica el archivo.
 assert.ok(/url: m\.full/.test(body), 'adoptar reutiliza la url, no copia el archivo');

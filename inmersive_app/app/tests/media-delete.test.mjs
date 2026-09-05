@@ -78,4 +78,23 @@ assert.ok(!/editala con el script|edítala con el script/.test(admin),
     fn + ' tiene que usar el mismo criterio isBundled');
 });
 
-console.log('media-delete: 11/11 OK');
+// --- la MISMA foto vive en dos sitios: borrar tiene que vaciar los dos ---
+// 23_catalog_to_media escribe una fila en media.json Y ademas rellena
+// `species.photo`. Las 122 portadas estan asi. Borrar solo una la dejaba en
+// pantalla por la otra puerta —reaparecia como prestada «del inventario»— que
+// es literalmente el «todavia no se eliminan».
+assert.ok(/async function clearSpeciesCoverIfSame\(m\)/.test(admin),
+  'borrar una foto de especie tiene que poder vaciar tambien species.photo');
+assert.ok(/saveSpeciesPatch\(sp, \{ photo: null \}\)/.test(admin),
+  'y vaciarlo de verdad, no solo mirarlo');
+// La comparacion ignora la extension: species.photo guarda el .webp y la fila
+// normalizada expone el .jpg, asi que comparar en crudo no casaria nunca.
+assert.ok(/replace\(\/\\\.\(webp\|jpe\?g\|png\)\$\/i, ''\)/.test(admin),
+  'hay que comparar sin extension (.webp vs .jpg son el mismo archivo)');
+['delMedia', 'deleteMany'].forEach((fn) => {
+  const body = new RegExp('async function ' + fn + '\\(([\\s\\S]*?)\\n\\}', 'm').exec(admin);
+  assert.ok(body && /clearSpeciesCoverIfSame\(m\)/.test(body[1]),
+    fn + ' tiene que limpiar las dos puertas, o la foto reaparece');
+});
+
+console.log('media-delete: 16/16 OK');

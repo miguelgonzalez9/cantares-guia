@@ -986,6 +986,7 @@ async function deleteMany(ids) {
       } else {
         await deleteRow('media', id); CTX.removeLocalRow('media', id);
       }
+      await clearSpeciesCoverIfSame(m);
       ok++;
     } catch (e) { fail++; console.warn('[media] borrar lote', id, e && e.message); }
   }
@@ -1036,6 +1037,22 @@ async function reorderMedia(m, dir) {
   } catch (e) { console.warn('[media] reorder', e && e.message); }
   renderFotos();
 }
+// La MISMA foto vive hoy en dos sitios: 23_catalog_to_media escribe una fila en
+// media.json Y ademas rellena `species.photo`. Las 122 portadas estan asi. Borrar
+// solo una de las dos deja la foto en pantalla por la otra puerta — que es
+// exactamente el «no se eliminan»: se borraba la fila y reaparecia, ahora como
+// prestada «del inventario». Borrar tiene que vaciar las dos.
+const samePhotoFile = (a, b) => {
+  const k = (x) => String(x || '').replace(/\.(webp|jpe?g|png)$/i, '');
+  return !!a && !!b && k(a) === k(b);
+};
+async function clearSpeciesCoverIfSame(m) {
+  if (m.subject_type !== 'species' || !m.subject_id) return;
+  const sp = ((CTX.state && CTX.state.species) || []).find((x) => x.id === m.subject_id);
+  if (!sp || !sp.photo) return;
+  if (!samePhotoFile(sp.photo, m.full) && !samePhotoFile(sp.photo, m.webpThumb)) return;
+  await saveSpeciesPatch(sp, { photo: null });
+}
 async function delMedia(m) {
   if (!confirm('¿Eliminar esta foto/video?')) return;
   try {
@@ -1048,6 +1065,7 @@ async function delMedia(m) {
     } else {
       res = await deleteRow('media', m.id); CTX.removeLocalRow('media', m.id);
     }
+    await clearSpeciesCoverIfSame(m);
     renderFotos();
     CTX.toast(res && res.queued ? '💾 Eliminado — se sincronizará' : 'Eliminado');
   } catch (e) { CTX.toast(friendlyErr(e)); }

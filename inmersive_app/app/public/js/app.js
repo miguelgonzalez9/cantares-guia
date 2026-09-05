@@ -2644,9 +2644,14 @@ function speciesGalleryHtml(s, rest, admin, cover) {
     const cap = m.caption ? `<figcaption>${escapeHtml(L(m, 'caption'))}</figcaption>` : '';
     if (!ed) return `<figure class="sp-fig" data-full="${escapeHtml(m.full)}" data-kind="${m.kind}">${pictureTag(m, 'sp-gimg', L(s, 'common_name'))}${cap}</figure>`;
     const esPortada = !!cover && m === cover;
+    // La del INVENTARIO (`species.photo`) es de esta misma especie, sólo que
+    // guardada en otro campo: se puede borrar. La de un PUNTO no — borrarla ahí
+    // le quitaría la portada al punto, que es de otro dueño; para eso está ＋.
+    const delInventario = String(m.id || '').startsWith('sp-photo:');
     const acts = isBorrowedPhoto(m)
       ? `<span class="sp-borrowed" title="Es tuya, pero está guardada en otro sitio; ＋ la trae a esta especie">${escapeHtml(borrowedFrom(m))}</span>
-         <button type="button" class="sp-act" data-a="adopt" data-i="${i}" title="Traerla a esta especie para poder editarla">＋</button>`
+         <button type="button" class="sp-act" data-a="adopt" data-i="${i}" title="Traerla a esta especie para poder editarla">＋</button>
+         ${delInventario ? `<button type="button" class="sp-act" data-a="del" data-i="${i}" title="Eliminar">🗑️</button>` : ''}`
       : `${esPortada ? '<span class="sp-act sp-is-cover" title="Es la portada">★</span>'
           : `<button type="button" class="sp-act" data-a="cover" data-i="${i}" title="Poner de portada">★</button>`}
          <button type="button" class="sp-act" data-a="class" data-i="${i}" title="Reclasificar">🏷️</button>
