@@ -5,7 +5,7 @@ import { GAME_I18N, initGame, refreshGameUI, capturedBadge, gameAddMapLayer, acc
 import * as Cloud from './cloud.js';
 import { initAuthGate, doLogout, inReserve } from './auth-ui.js';
 import { initAdmin, openSpeciesEditor, downloadPhoto, isAdminUser, focusFromMap as adminFocusFromMap, openPointEditor, openReframe, openContentEditor, openAdminAt, closeAdmin, saveSpeciesPatch, mediaActions, getPath, setPath, openMediaFor } from './admin.js';
-import { inlineField, isEditing, setEditing, editToggleButton, onEditingChange } from './inline-edit.js';
+import { inlineField, isEditing, setEditing, editToggleButton } from './inline-edit.js';
 import { initGuide, startVisitorTourOnce } from './guide.js';
 import { initRecorder, listWalks, walkCardHTML, downloadWalk, startWalk, stopWalk, isRecording, openHistory } from './recorder.js';
 import { initSync, pendingOps, saveRow, deleteRow, compressImage } from './sync.js';
@@ -2441,18 +2441,11 @@ function renderSpeciesGrid(highlightId) {
       b.id = 'species-admin-add'; b.className = 'admin-add'; b.style.marginBottom = '10px';
       b.textContent = '＋ ' + t('sp_new');
       b.onclick = () => openSpeciesEditor(null, () => { refreshSpecies(); renderSpeciesGrid(); });
-      // El interruptor ya NO es la puerta de entrada: cada tarjeta trae su propio
-      // ✏️, que es lo que se busca cuando quieres arreglar UNA especie que ves mal.
-      // Queda sólo como SALIDA, y por eso se esconde mientras está apagado: el
-      // modo es global (gobierna la ficha y el texto en sitio de otras pestañas),
-      // así que tiene que haber una forma visible de apagarlo.
-      const tg = editToggleButton({ label: t('ie_on'), labelOn: t('ie_off'),
-        onToggle: () => { renderSpeciesGrid(); if (state.openSpeciesId) { const sp = state.species.find((x) => x.id === state.openSpeciesId); if (sp) showSpecies(sp); } } });
-      tg.id = 'species-edit-toggle'; tg.style.marginLeft = '8px';
-      const paintTg = () => { tg.hidden = !isEditing(); };
-      paintTg(); onEditingChange(paintTg);
+      // El interruptor de edición NO vive aquí: vive en la ficha, que es donde se
+      // ve lo que estás editando. En la rejilla no habría nada que mirar mientras
+      // el modo está encendido. La barra se queda sólo con «＋ nueva especie».
       const bar = document.createElement('div'); bar.id = 'species-admin-bar'; bar.style.marginBottom = '10px';
-      bar.appendChild(b); bar.appendChild(tg);
+      bar.appendChild(b);
       grid.parentNode.insertBefore(bar, grid);
     }
   } else if (adminAdd) {
@@ -2697,6 +2690,17 @@ function showSpecies(s) {
   $$('#wp-content .sp-locs .chip').forEach((c) => c.onclick = () => { const w = wpById(c.dataset.wp); closeWaypoint(); if (w) selectSearch(w.properties.id); });
   const ed = $('#sp-edit'); if (ed) ed.onclick = () => { closeWaypoint(); openSpeciesEditor(s.id, () => { refreshSpecies(); renderSpeciesGrid(); }); };
   const fr = $('#sp-frame'); if (fr) fr.onclick = () => openReframe('species', s.id);
+  // Interruptor de edición DENTRO de la ficha: es el único sitio donde se ve el
+  // efecto de encenderlo (el título, la galería y el texto se vuelven editables).
+  // Al cambiar se repinta la ficha entera —la galería sólo cablea sus acciones
+  // si el modo está encendido— y la rejilla, que pinta los ✏️ de cada tarjeta.
+  const acts = $('#wp-content .sp-admin-actions');
+  if (acts) {
+    const tg = editToggleButton({ label: t('ie_on'), labelOn: t('ie_off'),
+      onToggle: () => { showSpecies(s); renderSpeciesGrid(); } });
+    tg.id = 'sp-edit-toggle';
+    acts.insertBefore(tg, acts.firstChild);
+  }
   const dl = $('#sp-dl'); if (dl) dl.onclick = () => downloadPhoto(cover.full, L(s, 'common_name') || s.scientific_name);
   if (admin) wireSpeciesInlineEdit(s);
 }

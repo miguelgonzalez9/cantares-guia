@@ -45,15 +45,24 @@ assert.ok(/openMediaFor/.test(app.split('\n').find((l) => l.includes("from './ad
 assert.ok(/if \(!isEditing\(\)\) setEditing\(true\);/.test(wire[1]) && /showSpecies\(s\)/.test(wire[1]),
   'editar desde la tarjeta no puede exigir buscar antes un interruptor');
 
-// --- 5. el interruptor general queda SOLO como salida ---
-assert.ok(/tg\.hidden = !isEditing\(\);/.test(body),
-  'el interruptor se esconde apagado: la entrada ya es la tarjeta');
-assert.ok(/onEditingChange\(paintTg\)/.test(body),
-  'y tiene que repintarse cuando el modo cambia desde otra pestaña');
+// --- 5. el interruptor de edicion vive en la FICHA, no sobre la rejilla ---
+// En la rejilla no hay nada que mirar mientras el modo esta encendido; en la
+// ficha si (titulo, galeria y texto se vuelven editables). La barra de la
+// rejilla se queda solo con «+ nueva especie».
+assert.ok(!/editToggleButton/.test(body),
+  'el interruptor no puede seguir sobre la rejilla');
+const sheet = /function showSpecies\(s\) \{([\s\S]*?)\n\}/.exec(app);
+assert.ok(sheet, 'showSpecies tiene que existir');
+assert.ok(/editToggleButton\(\{ label: t\('ie_on'\)/.test(sheet[1]),
+  'al abrir una especie tiene que aparecer el interruptor de edicion');
+assert.ok(/onToggle: \(\) => \{ showSpecies\(s\); renderSpeciesGrid\(\); \}/.test(sheet[1]),
+  'al cambiar el modo hay que repintar la ficha (la galeria solo se cablea encendida) y la rejilla');
+assert.ok(/sp-admin-actions/.test(sheet[1]),
+  'va con las demas acciones de admin de la ficha');
 
 // --- 6. paridad ES/EN de la etiqueta nueva + no tapa la estrella ---
 assert.equal((app.match(/sp_photos:/g) || []).length, 2, 'sp_photos tiene que estar en ES y EN');
 assert.ok(/\.species-card \.sp-adm \{[^}]*left:/.test(css) && /\.species-card \.star \{[^}]*right:/.test(css),
   'las acciones van a la izquierda: la derecha es de la estrella de destacada');
 
-console.log('species-card-admin: 11/11 OK');
+console.log("species-card-admin: 13/13 OK");
