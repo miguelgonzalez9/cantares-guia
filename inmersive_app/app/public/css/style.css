@@ -365,6 +365,10 @@ code { background: #eef2ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .wp-sci { font-size: 13.5px; color: var(--muted); margin: 0 0 10px; }
 .wp-sci em { color: #2a3b30; }
 .wp-desc { font-size: 15px; line-height: 1.6; margin: 0 0 14px; color: #2a3b30; }
+/* Nota de idioma y credito de la descripcion. El credito NO es decorativo:
+   los textos de Wikipedia son CC BY-SA y la licencia exige citar la fuente. */
+.desc-note { font-size: 12px; line-height: 1.45; color: var(--muted); margin: -8px 0 12px; }
+.desc-credit a { color: var(--deep); }
 .mp-sci { display: block; font-size: 12px; color: var(--muted); margin: -1px 0 3px; }
 .lg-count { font-size: 10.5px; font-weight: 700; color: var(--muted); background: var(--mist); border-radius: 999px; padding: 1px 6px; margin-left: 3px; }
 .wp-photo { width: 100%; border-radius: 12px; margin-bottom: 10px; }

@@ -317,6 +317,8 @@ const I18N = {
     especies_h: 'Especies', especies_lead: 'Reconoce la fauna y flora de Cantares. Cada avistamiento alimenta el inventario de la reserva.',
     sp_search_ph: 'Buscar por nombre común, científico o familia…', sp_no_match: 'Ninguna especie coincide con',
     sp_edit_full: 'Ficha completa…', ie_on: '✏️ Editar', ie_off: '✓ Listo',
+    desc_source: 'Fuente', desc_in_en: 'Esta descripción sólo está disponible en inglés.',
+    desc_in_es: 'Esta descripción sólo está disponible en español.',
     ce_sections: 'Secciones…', ie_no_cloud: 'Sin señal no se puede editar esta página: no sé qué había guardado y lo pisaría.',
     f_all: 'Todas', f_flagship: '★ Destacadas', f_flora: '🌳 Flora', f_aves: '🐦 Aves', f_mam: '🐾 Mamíferos', f_anf: '🐸 Anfibios',
     f_seen: '👁 Vistas', f_potential: '✨ Potenciales', f_bothtier: 'Ambas',
@@ -439,6 +441,8 @@ const I18N = {
     especies_h: 'Species', especies_lead: 'Get to know the wildlife and plants of Cantares. Every sighting feeds the reserve inventory.',
     sp_search_ph: 'Search by common name, scientific name or family…', sp_no_match: 'No species match',
     sp_edit_full: 'Full record…', ie_on: '✏️ Edit', ie_off: '✓ Done',
+    desc_source: 'Source', desc_in_en: 'This description is only available in English.',
+    desc_in_es: 'This description is only available in Spanish.',
     ce_sections: 'Sections…', ie_no_cloud: 'Offline this page cannot be edited: I do not know what was saved and would overwrite it.',
     f_all: 'All', f_flagship: '★ Flagship', f_flora: '🌳 Plants', f_aves: '🐦 Birds', f_mam: '🐾 Mammals', f_anf: '🐸 Amphibians',
     f_seen: '👁 Seen', f_potential: '✨ Possible', f_bothtier: 'Both',
@@ -476,7 +480,17 @@ Object.keys(GAME_I18N).forEach((lang) => Object.assign(I18N[lang] = I18N[lang] |
 
 let LANG = localStorage.getItem('cantares_lang') || 'es';
 const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.es[k] || k;
-const L = (obj, field) => (LANG === 'en' && obj[field + '_en']) ? obj[field + '_en'] : obj[field];
+// Cae al OTRO idioma en los dos sentidos. Antes sólo caía inglés→español: un
+// visitante inglés veía el texto español cuando faltaba el suyo, pero uno
+// español veía un HUECO cuando el texto sólo existía en inglés. Deja de ser
+// teórico con las 191 descripciones de aves traídas de Wikipedia, que nacen
+// sólo en inglés: media ficha en blanco para el idioma principal de la reserva.
+// Un texto en el otro idioma es más útil que nada — `descLangNote` avisa de en
+// cuál está. La audioguía NO pasa por aquí: `scriptLine` elige su propio idioma
+// y se niega a leer español con voz inglesa.
+const L = (obj, field) => (LANG === 'en'
+  ? (obj[field + '_en'] || obj[field])
+  : (obj[field] || obj[field + '_en']));
 
 // ---------- utilities ----------
 const $ = (sel) => document.querySelector(sel);
@@ -2473,6 +2487,36 @@ function paraHtml(text, cls) {
   return String(text).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
     .map((p) => `<p class="${cls}">${escapeHtml(p)}</p>`).join('');
 }
+// Avisa de que el texto que se está leyendo NO está en el idioma de la pantalla.
+// `L()` cae al otro idioma cuando falta el propio, y sin este aviso una ficha
+// española que de pronto sale en inglés parece un fallo en vez de una ausencia.
+function descLangNote(s) {
+  const es = (s.description || '').trim();
+  const en = (s.description_en || '').trim();
+  const shown = LANG === 'en' ? (en || es) : (es || en);
+  if (!shown) return '';
+  const shownIsEn = shown === en && !(LANG === 'en');
+  const shownIsEs = shown === es && LANG === 'en';
+  if (!shownIsEn && !shownIsEs) return '';
+  return `<p class="desc-note">${escapeHtml(t(shownIsEn ? 'desc_in_en' : 'desc_in_es'))}</p>`;
+}
+
+// Atribución de la descripción. NO es decorativa: los textos traídos de
+// Wikipedia son CC BY-SA, licencia que EXIGE citar la fuente y enlazarla.
+// Publicarlos sin esto la incumple. Se muestra siempre que haya procedencia
+// registrada, así que también sirve para el censo 2021 (Duque & Galeano) el día
+// que se le anote la suya. Sin `description_url` no se pinta nada.
+function descCredit(s) {
+  const url = (s.description_url || '').trim();
+  if (!url) return '';
+  let host = '';
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return ''; }
+  const lic = (s.description_license || '').trim();
+  return `<p class="desc-note desc-credit">${escapeHtml(t('desc_source'))}: `
+    + `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(host)}</a>`
+    + (lic ? ` · ${escapeHtml(lic)}` : '') + `</p>`;
+}
+
 // Colores de categoría UICN (badge de conservación). Amarillos → texto oscuro.
 const IUCN_COLOR = { EX: '#000', EW: '#542344', CR: '#c0392b', EN: '#e67e22', VU: '#f1c40f', NT: '#8aa63a', LC: '#2e7d32', DD: '#95a5a6', NE: '#bdc3c7' };
 function iucnBadge(code) {
@@ -2527,7 +2571,7 @@ function showSpecies(s) {
       <p class="wp-sci"><em id="sp-f-sci">${escapeHtml(s.scientific_name || '')}</em> · <span id="sp-f-family">${escapeHtml(s.family || '')}</span></p>
       ${speciesGalleryHtml(s, rest, admin)}
       <div id="sp-f-desc">${L(s, 'description')
-        ? paraHtml(L(s, 'description'), 'wp-desc')
+        ? paraHtml(L(s, 'description'), 'wp-desc') + descLangNote(s) + descCredit(s)
         : (s.notes ? `<p class="wp-desc">${escapeHtml(s.notes)}</p>` : '')}</div>
       <div class="sp-where">📍 ${wps.length ? `${wps.length} ${wps.length === 1 ? t('sp_here_1') : t('sp_here_n')}` : t('sp_nowhere')}</div>
       ${wps.length ? `${mapImg ? `<img class="sp-map" src="${mapImg}" alt="">` : ''}
